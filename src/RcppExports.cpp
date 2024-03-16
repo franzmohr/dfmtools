@@ -11,20 +11,24 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// dfmalg
-Rcpp::List dfmalg(Rcpp::List object);
-RcppExport SEXP _dfmtools_dfmalg(SEXP objectSEXP) {
+// post_lambda
+arma::mat post_lambda(arma::mat& x, arma::mat& ff, arma::mat& prior_vinv, arma::sp_mat& uinv, arma::mat lambda);
+RcppExport SEXP _dfmtools_post_lambda(SEXP xSEXP, SEXP ffSEXP, SEXP prior_vinvSEXP, SEXP uinvSEXP, SEXP lambdaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
-    rcpp_result_gen = Rcpp::wrap(dfmalg(object));
+    Rcpp::traits::input_parameter< arma::mat& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type ff(ffSEXP);
+    Rcpp::traits::input_parameter< arma::mat& >::type prior_vinv(prior_vinvSEXP);
+    Rcpp::traits::input_parameter< arma::sp_mat& >::type uinv(uinvSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type lambda(lambdaSEXP);
+    rcpp_result_gen = Rcpp::wrap(post_lambda(x, ff, prior_vinv, uinv, lambda));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_dfmtools_dfmalg", (DL_FUNC) &_dfmtools_dfmalg, 1},
+    {"_dfmtools_post_lambda", (DL_FUNC) &_dfmtools_post_lambda, 5},
     {NULL, NULL, 0}
 };
 
