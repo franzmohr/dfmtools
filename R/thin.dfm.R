@@ -41,7 +41,7 @@ thin.dfm <- function(x, thin = 10, ...) {
   if (!is.null(x[["lambda"]])) {
     draws <- nrow(x[["lambda"]])
   }
-  vars <- c("a", "sigma_u", "sigma_v")
+  vars <- c("a", "u", "v")
   for (i in vars) {
     if (is.na(draws)) {
       if (!is.null(x[[i]])) {
@@ -54,7 +54,7 @@ thin.dfm <- function(x, thin = 10, ...) {
   start <- pos_thin[1]
   end <- pos_thin[length(pos_thin)]
 
-  vars <- c("lambda", "a", "sigma_u", "sigma_v")
+  vars <- c("lambda", "a", "u", "v")
 
   for (i in vars) {
     if (!is.null(x[[i]])) {
