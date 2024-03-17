@@ -37,11 +37,12 @@
 #' @export
 thin.dfm <- function(x, thin = 10, ...) {
 
+  # Detect number of posterior draws
   draws <- NA
   if (!is.null(x[["lambda"]])) {
     draws <- nrow(x[["lambda"]])
   }
-  vars <- c("a", "u", "v")
+  vars <- c("u", "v", "a")
   for (i in vars) {
     if (is.na(draws)) {
       if (!is.null(x[[i]])) {
@@ -50,12 +51,13 @@ thin.dfm <- function(x, thin = 10, ...) {
     }
   }
 
+  # Determine the kept observations
   pos_thin <- seq(from = thin, to = draws, by = thin)
   start <- pos_thin[1]
   end <- pos_thin[length(pos_thin)]
 
-  vars <- c("lambda", "a", "u", "v")
-
+  # Thinning
+  vars <- c("lambda", "factor", "a", "u", "v")
   for (i in vars) {
     if (!is.null(x[[i]])) {
       x[[i]] <- coda::mcmc(as.matrix(x[[i]][pos_thin,]), start = start, end = end, thin = thin)
