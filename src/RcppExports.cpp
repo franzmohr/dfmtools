@@ -26,9 +26,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// update_Ha
+arma::sp_mat update_Ha(arma::mat& a, int& n_factors, int& p, int& tt);
+RcppExport SEXP _dfmtools_update_Ha(SEXP aSEXP, SEXP n_factorsSEXP, SEXP pSEXP, SEXP ttSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat& >::type a(aSEXP);
+    Rcpp::traits::input_parameter< int& >::type n_factors(n_factorsSEXP);
+    Rcpp::traits::input_parameter< int& >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int& >::type tt(ttSEXP);
+    rcpp_result_gen = Rcpp::wrap(update_Ha(a, n_factors, p, tt));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_post_lambda", (DL_FUNC) &_dfmtools_post_lambda, 5},
+    {"_dfmtools_update_Ha", (DL_FUNC) &_dfmtools_update_Ha, 4},
     {NULL, NULL, 0}
 };
 

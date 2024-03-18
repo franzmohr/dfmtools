@@ -5,3 +5,7 @@
     .Call(`_dfmtools_post_lambda`, x, ff, prior_vinv, uinv, lambda)
 }
 
+.update_Ha <- function(a, n_factors, p, tt) {
+    .Call(`_dfmtools_update_Ha`, a, n_factors, p, tt)
+}
+

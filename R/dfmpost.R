@@ -84,6 +84,8 @@ dfmpost <- function(object) {
   H_a <- Matrix::Diagonal(tt * n_factors)
   if (use_a) {
     a <- object$initial$a
+    a_mat <- matrix(a, n_factors)
+    a_mat_t <- matrix(NA, n_factors * p, n_factors)
     z_a <- matrix(0, tt * n_factors, p * n_factors * n_factors)
   }
 
@@ -106,21 +108,20 @@ dfmpost <- function(object) {
 
     # Update H_a
     if (use_a) {
-      for (i in 1:(n_factors * p)) {
-        diag(H_a[(n_factors + i):(tt * n_factors), 1:(tt * n_factors - i * n_factors)]) <- -rep(a[(i - 1) * n_factors + 1:n_factors,], tt)[1:(tt * n_factors - i * n_factors)]
-      }
+      H_a <- .update_Ha(a, n_factors, p, tt)
     }
 
     # Draw factor
     K_f <- crossprod(H_a, kronecker(diag_tt, vinv)) %*% H_a + kronecker(diag_tt, crossprod(lambda, uinv) %*% lambda)
     f_hat <- solve(K_f, kronecker(diag_tt, crossprod(lambda, uinv)) %*% xvec)
     f <- matrix(f_hat + solve(chol(K_f), stats::rnorm(tt * n_factors)))
+    ff <- matrix(f, n_factors)
 
     # Draw lambda equation by equation
-    lambda <- .post_lambda(object$data$X, matrix(f, n_factors), prior_vinv = lambda_prior_vinv, uinv = uinv, lambda = lambda)
+    lambda <- .post_lambda(object$data$X, ff, prior_vinv = lambda_prior_vinv, uinv = uinv, lambda = lambda)
 
     # Draw uinv
-    u = xvec - matrix(lambda %*% matrix(f, n_factors))
+    u = xvec - matrix(lambda %*% ff)
     uinv <- bvartools::post_gamma_measurement_variance(u, u_prior_shape, u_prior_rate, inverse = TRUE)
 
     # Draw vinv
@@ -129,7 +130,6 @@ dfmpost <- function(object) {
 
     # Draw a
     if (use_a) {
-      ff <- matrix(f, n_factors)
       # Obtain data object with zeros as pre-sample values
       x_a <- matrix(0, n_factors * p, tt)
       for (i in 1:p) {
