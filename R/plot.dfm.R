@@ -1,8 +1,8 @@
 #' Plotting Factors from Dynamic Factor Models
 #'
-#' A plot function for objects of class \code{"dfm"}.
+#' A plot function for objects of class 'dfm'.
 #'
-#' @param x an object of class \code{"dfm"}, usually, a result of a call to \code{\link{dfm}}.
+#' @param x an object of class 'dfm', usually, a result of a call to \code{\link{dfm}}.
 #' @param ci interval used to calculate credible bands.
 #' @param ... further graphical parameters.
 #'
@@ -12,8 +12,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- gen_dfm(x = bem_dfmdata, p = 1, n = 1,
-#'                  iterations = 20, burnin = 10)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+#'                         iterations = 20, burnin = 10)
 #' # Number of iterations and burnin should be much higher.
 #'
 #' # Add prior specifications
@@ -36,8 +36,8 @@
 #' @rdname dfm
 plot.dfm <- function(x, ci = 0.95, ...) {
 
-  m <- x[["specifications"]][["dims"]]["M"]
-  n <- x[["specifications"]][["dims"]]["N"]
+  m <- x[["m"]]
+  n <- x[["n"]]
   tt <- ncol(x[["factor"]]) / n
   ci_low <- (1 - ci) / 2
   ci_high <- 1 - ci_low

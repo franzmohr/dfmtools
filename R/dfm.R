@@ -1,8 +1,8 @@
 #' Bayesian Dynamic Factor Model Objects
 #'
-#' \code{dfm} is used to create objects of class \code{"dfm"}.
+#' \code{dfm} is used to create objects of class 'dfm'.
 #'
-#' @param x the standardised time-series object of observable variables.
+#' @param x the standardized time-series object of observable variables.
 #' @param lambda an \eqn{MN \times S} matrix of MCMC coefficient draws of factor loadings of the measurement equation.
 #' @param fac an \eqn{NT \times S} matrix of MCMC draws of the factors in the transition equation, where the first N
 #' rows correspond to the N factors in period 1 and the next N rows to the factors in period 2 etc.
@@ -10,7 +10,7 @@
 #' @param a a \eqn{pN^2 \times S} matrix of MCMC coefficient draws of the transition equation.
 #' @param v an \eqn{N \times S} matrix of MCMC draws for the error variances of the transition equation.
 #'
-#' @details The function produces a standardised object from S draws of a Gibbs sampler (after the burn-in phase)
+#' @details The function produces a standardized object from S draws of a Gibbs sampler (after the burn-in phase)
 #' for the dynamic factor model (DFM) with measurement equation
 #' \deqn{x_t = \lambda f_t + u_t,}
 #' where
@@ -32,7 +32,9 @@
 #' \item{u}{an \eqn{S \times M} "mcmc" object of variance draws of the measurement equation.}
 #' \item{a}{an \eqn{S \times pN^2} "mcmc" object of coefficient draws of the transition equation.}
 #' \item{v}{an \eqn{S \times N} "mcmc" object of variance draws of the transition equation.}
-#' \item{specifications}{a list containing information on the model specification.}
+#' \item{m}{an integer of the number of observable variables.}
+#' \item{n}{an integer of the number of latent factors.}
+#' \item{p}{an integer of the lag order of the transition equation.}
 #'
 #' @examples
 #'
@@ -40,8 +42,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-#'                          iterations = 20, burnin = 10)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+#'                         iterations = 20, burnin = 10)
 #' # Number of iterations and burnin should be much higher.
 #'
 #' # Add prior specifications
@@ -58,38 +60,43 @@
 #' object <- dfmpost(model)
 #'
 #' @export
-dfm <- function(x, lambda = NULL, fac, u = NULL,
-                a = NULL, v = NULL) {
+dfm <- function(x,
+                lambda = NULL,
+                fac,
+                u = NULL,
+                a = NULL,
+                v = NULL) {
 
   result <- NULL
 
-  result$x <- x
+  result[["x"]] <- x
   tt <- nrow(x)
   n <- nrow(fac) / tt
 
   if(!is.null(lambda)) {
-    result$lambda <- coda::mcmc(t(lambda))
+    result[["lambda"]] <- coda::mcmc(t(lambda))
     n_lambda <- ncol(result$lambda)
   }
 
-  result$factor <- coda::mcmc(t(fac))
+  result[["factor"]] <- coda::mcmc(t(fac))
 
   if(!is.null(u)) {
-    result$u <- coda::mcmc(t(u))
+    result[["u"]] <- coda::mcmc(t(u))
   }
 
   p <- 0
   if(!is.null(a)) {
-    result$a <- coda::mcmc(t(a))
+    result[["a"]] <- coda::mcmc(t(a))
     p <- NROW(a) / n^2
   }
 
   if(!is.null(v)) {
-    result$v <- coda::mcmc(t(v))
+    result[["v"]] <- coda::mcmc(t(v))
   }
 
-  result$specifications <- list("dims" = c("M" = NCOL(x), "N" = n),
-                                "lags" = c("p" = p))
+  result[["m"]] <- ncol(x)
+  result[["n"]] <- n
+  result[["p"]] <- p
 
   class(result) <- "dfm"
   return(result)

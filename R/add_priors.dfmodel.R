@@ -1,9 +1,9 @@
 #' Add Priors to a Dynamic Factor Model
 #'
 #' Adds prior specifications to a list of models, which was produced by
-#' function \code{\link{create_df_model}}.
+#' function \code{\link{create_dfmodel}}.
 #'
-#' @param object a list, usually, the output of a call to \code{\link{create_df_model}}.
+#' @param object a list, usually, the output of a call to \code{\link{create_dfmodel}}.
 #' @param lambda a named list of prior specifications for the factor loadings in the measurement equation.
 #' For the default specification the diagonal elements of the inverse prior variance-covariance matrix are set to 0.01.
 #' The variances need to be specified as precisions, i.e. as inverses of the variances.
@@ -54,8 +54,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_df_model(x = bem_dfmdata, p = 1:2, n = 1,
-#'                          iterations = 5000, burnin = 1000)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+#'                         iterations = 5000, burnin = 1000)
 #' # Number of iterations and burn-in should be much higher.
 #'
 #' # Add prior specifications
@@ -130,8 +130,8 @@ add_priors.dfmodel <- function(object,
   }
 
   # Get model specs to obtain total number of coeffs
-  m <- length(object$model$variables)
-  n <- object$model$n_factors
+  m <- object$model$m
+  n <- object$model$n
   p <- object$model$p
 
   # Total number of freely estimated coefficients in lambda

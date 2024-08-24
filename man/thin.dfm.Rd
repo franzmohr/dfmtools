@@ -7,17 +7,17 @@
 \method{thin}{dfm}(x, thin = 10, ...)
 }
 \arguments{
-\item{x}{an object of class \code{"dfm"}.}
+\item{x}{an object of class 'dfm'.}
 
 \item{thin}{an integer specifying the thinning interval between successive values of posterior draws.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
-An object of class \code{"dfm"}.
+An object of class 'dfm'.
 }
 \description{
-Thins the MCMC posterior draws in an object of class \code{"dfm"}.
+Thins the MCMC posterior draws in an object of class 'dfm'.
 }
 \examples{
 
@@ -25,8 +25,8 @@ Thins the MCMC posterior draws in an object of class \code{"dfm"}.
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-                         iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                        iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications

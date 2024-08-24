@@ -14,7 +14,7 @@
 )
 }
 \arguments{
-\item{object}{a list, usually, the output of a call to \code{\link{create_df_model}}.}
+\item{object}{a list, usually, the output of a call to \code{\link{create_dfmodel}}.}
 
 \item{lambda}{a named list of prior specifications for the factor loadings in the measurement equation.
 For the default specification the diagonal elements of the inverse prior variance-covariance matrix are set to 0.01.
@@ -35,7 +35,7 @@ A list of models.
 }
 \description{
 Adds prior specifications to a list of models, which was produced by
-function \code{\link{create_df_model}}.
+function \code{\link{create_dfmodel}}.
 }
 \details{
 Argument \code{lambda} can only contain the element \code{vinv}, which is a numeric specifying the prior
@@ -68,8 +68,8 @@ Argument \code{v} can contain the following elements:
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_df_model(x = bem_dfmdata, p = 1:2, n = 1,
-                         iterations = 5000, burnin = 1000)
+model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+                        iterations = 5000, burnin = 1000)
 # Number of iterations and burn-in should be much higher.
 
 # Add prior specifications

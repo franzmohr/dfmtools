@@ -8,15 +8,15 @@
 }
 \arguments{
 \item{object}{a list of model specifications, which should be passed on
-to function \code{FUN}. Usually, the output of a call to \code{\link{create_df_model}}
-in combination with \code{\link{add_priors}} and \code{\link{add_initial_values}}.}
+to function \code{FUN}. Usually, the output of a call to \code{\link{create_dfmodel}}
+in combination with \code{\link{add_priors.dfmodel}} and \code{\link{add_initial_values.dfmodel}}.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
 An object of the class of the output of the applied posterior
 simulation function. In case the package's own function is used, this will
-result in an object of class \code{"dfm"}.
+result in an object of class 'dfm'.
 }
 \description{
 Forwards model input to posterior simulation functions.
@@ -27,8 +27,8 @@ Forwards model input to posterior simulation functions.
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-                         iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                        iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications

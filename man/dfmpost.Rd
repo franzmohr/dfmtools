@@ -7,12 +7,12 @@
 dfmpost(object)
 }
 \arguments{
-\item{object}{an object of class \code{"dfmodel"}, usually, a result of a
-call to \code{\link{create_df_model}} in combination with \code{\link{add_priors}}
-and \code{\link{add_initial_values}}.}
+\item{object}{an object of class 'dfmodel', usually, a result of a
+call to \code{\link{create_dfmodel}} in combination with \code{\link{add_priors.dfmodel}}
+and \code{\link{add_initial_values.dfmodel}}.}
 }
 \value{
-An object of class \code{"dfm"}.
+An object of class 'dfm'.
 }
 \description{
 Produces draws from the posterior distributions of Bayesian dynamic factor models.
@@ -20,7 +20,7 @@ Produces draws from the posterior distributions of Bayesian dynamic factor model
 \details{
 The function implements the posterior simulation algorithm for Bayesian dynamic factor models.
 
-The implementation follows the description in Chan et al. (2019) and C++ is used to reduce calculation time.
+The implementation follows the description in Chan et al. (2019).
 }
 \examples{
 
@@ -28,8 +28,8 @@ The implementation follows the description in Chan et al. (2019) and C++ is used
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-                         iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                        iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications

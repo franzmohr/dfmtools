@@ -1,15 +1,15 @@
 #' Add Initial Values to a Dynamic Factor Model
 #'
 #' Adds initial values to a dynamic factor model, which was produced by
-#' function \code{\link{create_df_model}} in combination with \code{\link{add_priors}}.
+#' function \code{\link{create_dfmodel}} in combination with \code{\link{add_priors.dfmodel}}.
 #'
-#' @param object a named list, usually, the output of a call to \code{\link{create_df_model}}.
+#' @param object a named list, usually, the output of a call to \code{\link{create_dfmodel}}.
 #' @param method a character specifying the method of how initial values are generated.
 #' Defaults to \code{"prior"}. See 'Details'.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details
-#' For argument \code{method} the following specifications are possible:
+#' Currently, for argument \code{method} only the following specification is available:
 #' \describe{
 #'   \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
 #' }
@@ -20,8 +20,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_df_model(x = bem_dfmdata, p = 1:2, n = 1,
-#'                          iterations = 20, burnin = 10)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+#'                         iterations = 20, burnin = 10)
 #' # Number of iterations and burnin should be much higher.
 #'
 #' # Add prior specifications
@@ -45,8 +45,8 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
     # U
     sigma_shape <- object$priors$u$shape
     sigma_rate <- 1 / object$priors$u$rate
-    object$initial$uinv <- diag(1, length(object$model$variables))
-    for (i in 1:length(object$model$variables)) {
+    object$initial$uinv <- diag(1, object$model$m)
+    for (i in 1:object$model$m) {
       object$initial$uinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
     }
     rm(list = c("sigma_shape", "sigma_rate"))
@@ -54,15 +54,14 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
     # V
     sigma_shape <- object$priors$v$shape
     sigma_rate <- 1 / object$priors$v$rate
-    object$initial$vinv <- diag(1, object$model$n_factors)
-    for (i in 1:object$model$n_factors) {
+    object$initial$vinv <- diag(1, object$model$n)
+    for (i in 1:object$model$n) {
       object$initial$vinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
     }
     rm(list = c("sigma_shape", "sigma_rate"))
 
     if (object$model$p > 0) {
-      # A
-      object$initial$a <- object$priors$a$mu + chol(object$priors$a$vinv) %*% stats::rnorm(object$model$n_factors^2 * object$model$p)
+      object$initial$a <- object$priors$a$mu + chol(object$priors$a$vinv) %*% stats::rnorm(object$model$n^2 * object$model$p)
     }
   }
 

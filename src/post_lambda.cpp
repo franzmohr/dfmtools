@@ -25,7 +25,7 @@ arma::mat post_lambda(arma::mat& x, arma::mat& ff, arma::mat& prior_vinv, arma::
       K_l = prior_vinv.submat(pos1, pos1, pos2, pos2) + ff * ff.t() * uinv(i, i);
       lambda_hat = arma::solve(K_l, ff * x.col(i) * uinv(i, i));
     }
-    lambda_temp = arma::trans(lambda_hat + arma::solve(chol(K_l, "lower"), arma::randn(nlambda_i)));
+    lambda_temp = arma::trans(lambda_hat + arma::solve(arma::chol(K_l, "lower"), arma::randn(nlambda_i)));
     lambda.submat(i, 0, i, nlambda_i - 1) = lambda_temp;
     lambda_count = pos2 + 1;
   }

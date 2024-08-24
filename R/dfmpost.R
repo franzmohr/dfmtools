@@ -2,15 +2,15 @@
 #'
 #' Produces draws from the posterior distributions of Bayesian dynamic factor models.
 #'
-#' @param object an object of class \code{"dfmodel"}, usually, a result of a
-#' call to \code{\link{create_df_model}} in combination with \code{\link{add_priors}}
-#' and \code{\link{add_initial_values}}.
+#' @param object an object of class 'dfmodel', usually, a result of a
+#' call to \code{\link{create_dfmodel}} in combination with \code{\link{add_priors.dfmodel}}
+#' and \code{\link{add_initial_values.dfmodel}}.
 #'
 #' @details The function implements the posterior simulation algorithm for Bayesian dynamic factor models.
 #'
-#' The implementation follows the description in Chan et al. (2019) and C++ is used to reduce calculation time.
+#' The implementation follows the description in Chan et al. (2019).
 #'
-#' @return An object of class \code{"dfm"}.
+#' @return An object of class 'dfm'.
 #'
 #' @references
 #'
@@ -23,8 +23,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-#'                          iterations = 20, burnin = 10)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+#'                         iterations = 20, burnin = 10)
 #' # Number of iterations and burnin should be much higher.
 #'
 #' # Add prior specifications
@@ -44,14 +44,14 @@
 dfmpost <- function(object) {
 
   # General specifications
-  m <- length(object$model$variables)
-  n_factors <- object$model$n_factors
+  m <- object$model$m
+  n_factors <- object$model$n
   p <- object$model$p
   use_a <- p > 0
   if (use_a) {
     n_a <- n_factors * n_factors * p
   }
-  tt <- nrow(object$data$X)
+  tt <- nrow(object$data$x)
 
   # ****************************************************************************
   # Priors ----
@@ -71,11 +71,11 @@ dfmpost <- function(object) {
   # ****************************************************************************
   # Initial values ----
 
-  xvec <- matrix(t(object$data$X))
+  xvec <- matrix(t(object$data$x))
 
   diag_tt <- Matrix::Diagonal(tt)
 
-  lambda <- as.matrix(diag(1, length(object$model$variables))[, 1:object$model$n_factors])
+  lambda <- as.matrix(diag(1, m)[, 1:n_factors])
   lambda[lower.tri(lambda)] <- object$initial$lambda
 
   uinv <- Matrix::Matrix(object$initial$uinv)
@@ -108,7 +108,7 @@ dfmpost <- function(object) {
 
     # Update H_a
     if (use_a) {
-      H_a <- .update_Ha(a, n_factors, p, tt)
+      H_a <- bvartools::generate_lower_block_diagonal(a, n_factors, tt)
     }
 
     # Draw factor
@@ -118,7 +118,7 @@ dfmpost <- function(object) {
     ff <- matrix(f, n_factors)
 
     # Draw lambda equation by equation
-    lambda <- .post_lambda(object$data$X, ff, prior_vinv = lambda_prior_vinv, uinv = uinv, lambda = lambda)
+    lambda <- .post_lambda(object$data$x, ff, prior_vinv = lambda_prior_vinv, uinv = uinv, lambda = lambda)
 
     # Draw uinv
     u = xvec - matrix(lambda %*% ff)
@@ -154,7 +154,7 @@ dfmpost <- function(object) {
     }
   }
 
-  object <- dfm(x = object$data$X,
+  object <- dfm(x = object$data$x,
                 lambda = draws_lambda,
                 fac = draws_fac,
                 u = draws_u,

@@ -1,8 +1,8 @@
 #' Thinning Posterior Draws
 #'
-#' Thins the MCMC posterior draws in an object of class \code{"dfm"}.
+#' Thins the MCMC posterior draws in an object of class 'dfm'.
 #'
-#' @param x an object of class \code{"dfm"}.
+#' @param x an object of class 'dfm'.
 #' @param thin an integer specifying the thinning interval between successive values of posterior draws.
 #' @param ... further arguments passed to or from other methods.
 #'
@@ -12,8 +12,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-#'                          iterations = 20, burnin = 10)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+#'                         iterations = 20, burnin = 10)
 #' # Number of iterations and burnin should be much higher.
 #'
 #' # Add prior specifications
@@ -32,7 +32,7 @@
 #' # Plot factors
 #' object <- thin(object, thin = 2)
 #'
-#' @return An object of class \code{"dfm"}.
+#' @return An object of class 'dfm'.
 #'
 #' @export
 thin.dfm <- function(x, thin = 10, ...) {

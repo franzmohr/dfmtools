@@ -1,36 +1,24 @@
 #' Summarising Bayesian Dynamic Factor Models
 #'
-#' summary method for class \code{"dfm"}.
+#' summary method for class 'dfm'.
 #'
-#' @param object an object of class \code{"dfm"}, usually, a result of a call to
+#' @param object an object of class 'dfm', usually, a result of a call to
 #' \code{\link{dfm}}.
 #' @param ci a numeric between 0 and 1 specifying the probability of the credible band.
 #' Defaults to 0.95.
 #' @param ... further arguments passed to or from other methods.
 #'
-#' @return \code{summary.dfm} returns a list of class \code{"summary.dfm"},
-#' which contains the following components:
-#' \item{lambda}{A list of various summary statistics of the posterior
-#' draws of the factor loadings.}
-#' \item{factor}{A list of various summary statistics of the posterior
-#' draws of the factors.}
-#' \item{sigma_u}{A list of various summary statistics of the posterior
-#' draws of the variance matrix of the measurement equation.}
-#' \item{a}{A list of various summary statistics of the posterior
-#' draws of the factor loadings.}
-#' \item{sigma_v}{A list of various summary statistics of the posterior
-#' draws of the variance matrix of the transition equation.}
-#' \item{specifications}{a list containing information on the model specification.}
+#' @return \code{summary.dfm} returns a list of class 'summary.dfm'.
 #'
 #' @export
 summary.dfm <- function(object, ci = .95, ...){
 
   tt <- NROW(object[["x"]])
-  m <- NCOL(object[["x"]])
-  n <- NCOL(object[["factor"]]) / tt
+  m <- object[["m"]]
+  n <- object[["n"]]
   n_lambda <- m * n
-  p <- object$specifications$lags["p"]
-  measure_names <- dimnames(object$x)[[2]]
+  p <- object[["p"]]
+  measure_names <- dimnames(object[["x"]])[[2]]
   fac_names <- paste0("Factor.", 1:n)
   dim_names <- list(measure_names, fac_names)
 
@@ -141,7 +129,7 @@ summary.dfm <- function(object, ci = .95, ...){
     dimnames(q_high) <- dim_names
   }
 
-  result[["sigma_u"]] = list(means = means,
+  result[["u"]] = list(means = means,
                              median = median,
                              sd = sds,
                              naivesd = naive_sd,
@@ -206,7 +194,7 @@ summary.dfm <- function(object, ci = .95, ...){
     dimnames(q_high) <- dim_names
   }
 
-  result[["sigma_v"]] = list(means = means,
+  result[["v"]] = list(means = means,
                              median = median,
                              sd = sds,
                              naivesd = naive_sd,
@@ -214,8 +202,10 @@ summary.dfm <- function(object, ci = .95, ...){
                              q_lower = q_low,
                              q_upper = q_high)
 
-  result$specifications <- object$specifications
-  result$specifications$ci <- paste(c(ci_low, ci_high) * 100, "%", sep = "")
+  result[["m"]] <- m
+  result[["n"]] <- n
+  result[["p"]] <- p
+  result[["ci"]] <- paste(c(ci_low, ci_high) * 100, "%", sep = "")
 
   class(result) <- "summary.dfm"
   return(result)

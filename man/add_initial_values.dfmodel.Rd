@@ -7,7 +7,7 @@
 \method{add_initial_values}{dfmodel}(object, method = "prior", ...)
 }
 \arguments{
-\item{object}{a named list, usually, the output of a call to \code{\link{create_df_model}}.}
+\item{object}{a named list, usually, the output of a call to \code{\link{create_dfmodel}}.}
 
 \item{method}{a character specifying the method of how initial values are generated.
 Defaults to \code{"prior"}. See 'Details'.}
@@ -16,10 +16,10 @@ Defaults to \code{"prior"}. See 'Details'.}
 }
 \description{
 Adds initial values to a dynamic factor model, which was produced by
-function \code{\link{create_df_model}} in combination with \code{\link{add_priors}}.
+function \code{\link{create_dfmodel}} in combination with \code{\link{add_priors.dfmodel}}.
 }
 \details{
-For argument \code{method} the following specifications are possible:
+Currently, for argument \code{method} only the following specification is available:
 \describe{
   \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
 }
@@ -30,8 +30,8 @@ For argument \code{method} the following specifications are possible:
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_df_model(x = bem_dfmdata, p = 1:2, n = 1,
-                         iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+                        iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications

@@ -10,7 +10,7 @@ dfm(x, lambda = NULL, fac, u = NULL, a = NULL, v = NULL)
 \method{plot}{dfm}(x, ci = 0.95, ...)
 }
 \arguments{
-\item{x}{an object of class \code{"dfm"}, usually, a result of a call to \code{\link{dfm}}.}
+\item{x}{an object of class 'dfm', usually, a result of a call to \code{\link{dfm}}.}
 
 \item{lambda}{an \eqn{MN \times S} matrix of MCMC coefficient draws of factor loadings of the measurement equation.}
 
@@ -35,15 +35,17 @@ An object of class \code{"dfm"} containing the following components, if specifie
 \item{u}{an \eqn{S \times M} "mcmc" object of variance draws of the measurement equation.}
 \item{a}{an \eqn{S \times pN^2} "mcmc" object of coefficient draws of the transition equation.}
 \item{v}{an \eqn{S \times N} "mcmc" object of variance draws of the transition equation.}
-\item{specifications}{a list containing information on the model specification.}
+\item{m}{an integer of the number of observable variables.}
+\item{n}{an integer of the number of latent factors.}
+\item{p}{an integer of the lag order of the transition equation.}
 }
 \description{
-\code{dfm} is used to create objects of class \code{"dfm"}.
+\code{dfm} is used to create objects of class 'dfm'.
 
-A plot function for objects of class \code{"dfm"}.
+A plot function for objects of class 'dfm'.
 }
 \details{
-The function produces a standardised object from S draws of a Gibbs sampler (after the burn-in phase)
+The function produces a standardized object from S draws of a Gibbs sampler (after the burn-in phase)
 for the dynamic factor model (DFM) with measurement equation
 \deqn{x_t = \lambda f_t + u_t,}
 where
@@ -64,8 +66,8 @@ where
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_df_model(x = bem_dfmdata, p = 1, n = 1,
-                         iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                        iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications
@@ -86,8 +88,8 @@ object <- dfmpost(model)
 data("bem_dfmdata")
 
 # Generate model data
-model <- gen_dfm(x = bem_dfmdata, p = 1, n = 1,
-                 iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                        iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications

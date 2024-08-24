@@ -7,7 +7,7 @@
 \method{summary}{dfm}(object, ci = 0.95, ...)
 }
 \arguments{
-\item{object}{an object of class \code{"dfm"}, usually, a result of a call to
+\item{object}{an object of class 'dfm', usually, a result of a call to
 \code{\link{dfm}}.}
 
 \item{ci}{a numeric between 0 and 1 specifying the probability of the credible band.
@@ -16,20 +16,8 @@ Defaults to 0.95.}
 \item{...}{further arguments passed to or from other methods.}
 }
 \value{
-\code{summary.dfm} returns a list of class \code{"summary.dfm"},
-which contains the following components:
-\item{lambda}{A list of various summary statistics of the posterior
-draws of the factor loadings.}
-\item{factor}{A list of various summary statistics of the posterior
-draws of the factors.}
-\item{sigma_u}{A list of various summary statistics of the posterior
-draws of the variance matrix of the measurement equation.}
-\item{a}{A list of various summary statistics of the posterior
-draws of the factor loadings.}
-\item{sigma_v}{A list of various summary statistics of the posterior
-draws of the variance matrix of the transition equation.}
-\item{specifications}{a list containing information on the model specification.}
+\code{summary.dfm} returns a list of class 'summary.dfm'.
 }
 \description{
-summary method for class \code{"dfm"}.
+summary method for class 'dfm'.
 }
