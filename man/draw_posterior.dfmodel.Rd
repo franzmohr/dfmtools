@@ -27,7 +27,7 @@ Forwards model input to posterior simulation functions.
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+model <- create_dfmodel(data = bem_dfmdata, p = 1, n = 1,
                         iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 

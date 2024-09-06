@@ -54,7 +54,7 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+#' model <- create_dfmodel(data = bem_dfmdata, p = 1:2, n = 1,
 #'                         iterations = 5000, burnin = 1000)
 #' # Number of iterations and burn-in should be much higher.
 #'

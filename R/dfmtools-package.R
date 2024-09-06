@@ -9,6 +9,7 @@
 #' @importFrom bvartools add_priors
 #' @importFrom bvartools add_initial_values
 #' @importFrom bvartools draw_posterior
+#' @importFrom stats predict
 #' @importFrom Matrix chol
 #' @importFrom Matrix crossprod
 #' @importFrom Matrix diag
