@@ -2,27 +2,27 @@
 % Please edit documentation in R/create_dfmodel.R
 \name{create_dfmodel}
 \alias{create_dfmodel}
-\title{Create Dynamic Factor Models}
+\title{Create a Dynamic Factor Model}
 \usage{
 create_dfmodel(
-  data,
-  n = 1,
+  x,
   p = 2,
-  normalize_data = TRUE,
+  n = 1,
+  normalize_x = TRUE,
   error = "gamma",
   iterations = 20000,
   burnin = 2000
 )
 }
 \arguments{
-\item{data}{a time-series object of endogenous variables that should be stationary.}
-
-\item{n}{an integer vector of the number of factors. See 'Details'.}
+\item{x}{a time-series object of stationary endogenous variables.}
 
 \item{p}{an integer vector of the lag order of the measurement equation. See 'Details'.}
 
-\item{normalize_data}{logical indicating whether each column of \code{data} should
-be normalized using \code{\link{scale}}. Defaults to \code{TRUE}.}
+\item{n}{an integer vector of the number of factors. See 'Details'.}
+
+\item{normalize_x}{logical indicating whether each column of \code{x} should
+be normalized using \code{scale}. Defaults to \code{TRUE}.}
 
 \item{error}{character specifying the model that should be used for the estimation
 of the covariance matrix of the error term. Default is \code{"gamma"}. See 'Details'.}
@@ -35,23 +35,21 @@ to 20000).}
 moments, forecasts etc.}
 }
 \value{
-An object of class 'dfmodel', which contains the following elements:
+An object of class \code{'dfmodel'}, which contains the following elements:
 \item{data}{A list of data objects, which can be used for posterior simulation. Element
-\code{x} is a time-series object of normalized observable variables, i.e. each column has
+\code{X} is a time-series object of normalised observable variables, i.e. each column has
 zero mean and unity variance.}
 \item{model}{A list of model specifications.}
-
-If multiple models are generated, the output is an object of class 'modellist'.
 }
 \description{
-Produces the input for the estimation of dynamic factor models (DFM).
+Produces the input for the estimation of a dynamic factor model (DFM).
 }
 \details{
 The function produces the variable matrices of dynamic factor
 models (DFM) with measurement equation
 \deqn{x_t = \lambda f_t + u_t,}
 where
-\eqn{x_t} is an \eqn{M \times 1} vector of observed variables provided in argument \code{data},
+\eqn{x_t} is an \eqn{M \times 1} vector of observed variables,
 \eqn{f_t} is an \eqn{N \times 1} vector of unobserved factors and
 \eqn{\lambda} is the corresponding \eqn{M \times N} matrix of factor loadings.
 \eqn{u_t} is an \eqn{M \times 1} error term with \eqn{u_t \sim N(0, U)}.
@@ -78,7 +76,7 @@ Off-diagonal elements are not estimated and set to zero.}
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_dfmodel(data = bem_dfmdata, p = 1, n = 1,
+model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
                         iterations = 5000, burnin = 1000)
 
 }

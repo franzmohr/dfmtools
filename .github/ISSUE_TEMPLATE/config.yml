@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question about using dfmtools
+    url: https://github.com/franzmohr/dfmtools/discussions
+    about: For how-to questions and specification advice, rather than defects.
+  - name: The sampler itself
+    url: https://github.com/franzmohr/BayesTS/issues
+    about: >
+      The posterior simulation code is vendored from BayesTS. Numerical issues in
+      the sampler belong there; the R interface belongs here.

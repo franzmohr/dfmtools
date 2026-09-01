@@ -1,0 +1,118 @@
+Copyright and license status of the dfmtools sources
+====================================================
+
+The package as a whole is distributed under GPL (>= 2), as stated in
+DESCRIPTION. Unless listed below, every file is
+
+    Copyright (c) Franz X. Mohr
+    GPL (>= 2)
+
+The files listed below are copied from BayesTS
+(https://github.com/franzmohr/BayesTS) and carry that project's BSD
+3-Clause license, recorded in each file as an SPDX header. The copyright
+holder is the same person, and BSD-3-Clause is compatible with GPL (>= 2),
+so the combined work is distributed under GPL (>= 2); the notice below
+satisfies the attribution the BSD license asks for. src/core/VENDORED.md
+documents which files were modified on the way in and why.
+
+BSD 3-Clause portion
+--------------------
+
+    Copyright (c) 2026 Franz X. Mohr
+    SPDX-License-Identifier: BSD-3-Clause
+
+    inst/include/bayests/arma.h
+    inst/include/bayests/data.h
+    inst/include/bayests/dfm_normal_gamma.h
+    inst/include/bayests/inputs.h
+    inst/include/bayests/priors.h
+    inst/include/bayests/reporter.h
+    inst/include/bayests/results.h
+    inst/include/bayests/spec.h
+    src/core/algorithms/chan_jeliazkov_2009.cpp
+    src/core/algorithms/chan_jeliazkov_2009.h
+    src/core/algorithms/triangular_packing.h
+    src/core/inputs.cpp
+    src/core/models/dfm_normal_gamma.cpp
+    src/core/models/dfm_support.h
+    src/core/models/model_support.h
+    src/core/spec.cpp
+
+    That is not the whole of the BayesTS core, only what DfmNormalGamma
+    reaches -- this package has one sampler and does not need the other
+    thirteen. tools/update-bayests-core.R computes that set by following
+    the #include graph from the sampler, so the list above is derived
+    rather than curated, and the script refuses to finish when the two
+    disagree.
+
+    inst/include/bayests_reporter.h is *not* part of this set. It lives one
+    directory up, belongs to this package rather than to BayesTS, and is
+    GPL (>= 2) like the rest of the package. So is
+    src/bayests_rng_guard.cpp, which only asserts something about the
+    vendored headers, and src/DfmNormalGamma.cpp, which is the translation
+    between an R model object and the core's structs.
+
+Code previously published in bvartools
+--------------------------------------
+
+    create_dfmodel(), add_priors.dfmodel(), add_initial_values.dfmodel()
+    and the bem_dfmdata data set were released in bvartools
+    (https://github.com/franzmohr/bvartools) before they moved here. Those
+    releases were made under GPL (>= 2) and remain available under those
+    terms; this package carries the same license so that the same code does
+    not go out under two different notices.
+
+The bem_dfmdata data set
+------------------------
+
+    Not this package's data. It is derived from FRED-QD, redistributed via
+    the data sets that accompany
+
+        Chan, J., Koop, G., Poirier, D. J., & Tobias, J. L. (2019).
+        Bayesian econometric methods (2nd ed.). Cambridge University Press.
+
+    and documented in
+
+        McCracken, M. W., & Ng, S. (2016). FRED-MD: A monthly database for
+        macroeconomic research. Journal of Business & Economic Statistics,
+        34(4), 574-589.
+
+    The package license is a grant over this package's own work and does not
+    purport to license the underlying series, whose terms are the Federal
+    Reserve Bank of St. Louis's and the original sources'. data-raw/ records
+    how the object was produced from them. Anyone redistributing this data
+    set onward, or using it commercially, should check those terms rather
+    than rely on the notice at the top of this file.
+
+License text
+------------
+
+BSD 3-Clause License
+
+Copyright (c) 2026, Franz X. Mohr
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

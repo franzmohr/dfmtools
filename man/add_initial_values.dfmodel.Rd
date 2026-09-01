@@ -19,7 +19,7 @@ Adds initial values to a dynamic factor model, which was produced by
 function \code{\link{create_dfmodel}} in combination with \code{\link{add_priors.dfmodel}}.
 }
 \details{
-Currently, for argument \code{method} only the following specification is available:
+For argument \code{method} the following specifications are possible:
 \describe{
   \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
 }
@@ -30,8 +30,8 @@ Currently, for argument \code{method} only the following specification is availa
 data("bem_dfmdata")
 
 # Generate model data
-model <- create_dfmodel(data = bem_dfmdata, p = 1:2, n = 1,
-                        iterations = 20, burnin = 10)
+model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+                         iterations = 20, burnin = 10)
 # Number of iterations and burnin should be much higher.
 
 # Add prior specifications

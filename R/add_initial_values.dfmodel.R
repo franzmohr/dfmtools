@@ -9,7 +9,7 @@
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details
-#' Currently, for argument \code{method} only the following specification is available:
+#' For argument \code{method} the following specifications are possible:
 #' \describe{
 #'   \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
 #' }
@@ -20,8 +20,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_dfmodel(data = bem_dfmdata, p = 1:2, n = 1,
-#'                         iterations = 20, burnin = 10)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+#'                          iterations = 20, burnin = 10)
 #' # Number of iterations and burnin should be much higher.
 #'
 #' # Add prior specifications
@@ -36,12 +36,12 @@
 #'
 #' @export
 add_initial_values.dfmodel <- function(object, method = "prior", ...){
-
+  
   if (method == "prior") {
-
+    
     # lambda
     object$initial$lambda <- chol(object$priors$lambda$vinv) %*% stats::rnorm(nrow(object$priors$lambda$vinv))
-
+    
     # U
     sigma_shape <- object$priors$u$shape
     sigma_rate <- 1 / object$priors$u$rate
@@ -50,7 +50,7 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
       object$initial$uinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
     }
     rm(list = c("sigma_shape", "sigma_rate"))
-
+    
     # V
     sigma_shape <- object$priors$v$shape
     sigma_rate <- 1 / object$priors$v$rate
@@ -59,11 +59,12 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
       object$initial$vinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
     }
     rm(list = c("sigma_shape", "sigma_rate"))
-
+    
     if (object$model$p > 0) {
+      # A
       object$initial$a <- object$priors$a$mu + chol(object$priors$a$vinv) %*% stats::rnorm(object$model$n^2 * object$model$p)
     }
   }
-
+  
   return(object)
 }

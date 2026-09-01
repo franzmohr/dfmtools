@@ -11,24 +11,44 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// post_lambda
-arma::mat post_lambda(arma::mat& x, arma::mat& ff, arma::mat& prior_vinv, arma::sp_mat& uinv, arma::mat lambda);
-RcppExport SEXP _dfmtools_post_lambda(SEXP xSEXP, SEXP ffSEXP, SEXP prior_vinvSEXP, SEXP uinvSEXP, SEXP lambdaSEXP) {
+// DfmNormalGammaCoefficients
+Rcpp::List DfmNormalGammaCoefficients(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalGammaCoefficients(SEXP objectSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type ff(ffSEXP);
-    Rcpp::traits::input_parameter< arma::mat& >::type prior_vinv(prior_vinvSEXP);
-    Rcpp::traits::input_parameter< arma::sp_mat& >::type uinv(uinvSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type lambda(lambdaSEXP);
-    rcpp_result_gen = Rcpp::wrap(post_lambda(x, ff, prior_vinv, uinv, lambda));
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalGammaCoefficients(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmNormalGammaForecasts
+Rcpp::List DfmNormalGammaForecasts(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalGammaForecasts(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalGammaForecasts(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmNormalGammaLogLik
+Rcpp::List DfmNormalGammaLogLik(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalGammaLogLik(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalGammaLogLik(object));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_dfmtools_post_lambda", (DL_FUNC) &_dfmtools_post_lambda, 5},
+    {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
+    {"_dfmtools_DfmNormalGammaForecasts", (DL_FUNC) &_dfmtools_DfmNormalGammaForecasts, 1},
+    {"_dfmtools_DfmNormalGammaLogLik", (DL_FUNC) &_dfmtools_DfmNormalGammaLogLik, 1},
     {NULL, NULL, 0}
 };
 

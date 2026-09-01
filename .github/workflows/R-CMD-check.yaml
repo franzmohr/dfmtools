@@ -1,0 +1,63 @@
+# Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
+# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
+#
+# bvartools (>= 1.0.0) is not on CRAN yet, so the dependency is resolved from
+# GitHub. DESCRIPTION states that under Remotes:, which is what
+# setup-r-dependencies below reads; there is nothing to configure here. It is
+# also what makes a plain remotes::install_github("franzmohr/dfmtools") work for
+# a user. The cost is one note under --as-cran ("Unknown, possibly misspelled,
+# fields in DESCRIPTION: 'Remotes'"), which does not fail the run and which goes
+# away when the field is dropped ahead of a CRAN submission.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+name: R-CMD-check.yaml
+
+permissions: read-all
+
+jobs:
+  R-CMD-check:
+    runs-on: ${{ matrix.config.os }}
+
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: macos-latest,   r: 'release'}
+          - {os: windows-latest, r: 'release'}
+          - {os: ubuntu-latest,  r: 'devel', http-user-agent: 'release'}
+          - {os: ubuntu-latest,  r: 'release'}
+          - {os: ubuntu-latest,  r: 'oldrel-1'}
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Needed by the "checking top-level files" step, which reads README.md and
+      # NEWS.md; without it every run picks up a note.
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          http-user-agent: ${{ matrix.config.http-user-agent }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: true
+          # No vignettes, and no LaTeX on the runners either way.
+          build_args: 'c("--no-manual")'

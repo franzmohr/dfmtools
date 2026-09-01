@@ -1,0 +1,9 @@
+# Keeps the action versions in workflows/ current. Nothing else here is
+# dependabot's business: R dependencies are resolved from DESCRIPTION at run
+# time, not pinned in a lockfile.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

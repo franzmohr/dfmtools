@@ -54,8 +54,8 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_dfmodel(data = bem_dfmdata, p = 1:2, n = 1,
-#'                         iterations = 5000, burnin = 1000)
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
+#'                          iterations = 5000, burnin = 1000)
 #' # Number of iterations and burn-in should be much higher.
 #'
 #' # Add prior specifications
@@ -72,7 +72,7 @@ add_priors.dfmodel <- function(object,
                                a = list(vinv = 0.01),
                                v = list(shape = 5, rate = 4),
                                ...){
-
+  
   # Checks - Coefficient priors ----
   if (!is.null(lambda)) {
     if (!is.null(lambda$vinv)) {
@@ -83,7 +83,7 @@ add_priors.dfmodel <- function(object,
       stop("Argument 'lambda$vinv' is missing.")
     }
   }
-
+  
   if (!is.null(a)) {
     if (!is.null(a$vinv)) {
       if (a$vinv < 0) {
@@ -93,7 +93,7 @@ add_priors.dfmodel <- function(object,
       stop("Argument 'a$vinv' is missing.")
     }
   }
-
+  
   # Checks - Error priors ----
   if (length(u) < 2) {
     stop("Argument 'u' must be at least of length 2.")
@@ -111,7 +111,7 @@ add_priors.dfmodel <- function(object,
       stop("Argument 'u$rate' must be larger than 0.")
     }
   }
-
+  
   if (length(v) < 2) {
     stop("Argument 'v' must be at least of length 2.")
   } else {
@@ -128,33 +128,33 @@ add_priors.dfmodel <- function(object,
       stop("Argument 'v$rate' must be larger than 0.")
     }
   }
-
+  
   # Get model specs to obtain total number of coeffs
   m <- object$model$m
   n <- object$model$n
   p <- object$model$p
-
+  
   # Total number of freely estimated coefficients in lambda
   n_lambda <- (2 * m - n - 1) * n / 2
-
+  
   # Total # of estimated coefficients in measurement equation
   n_a <- n * n * p
-
+  
   # Priors for lambda ----
   object$priors$lambda <- list(vinv = diag(lambda$vinv, n_lambda))
-
+  
   # Priors for Phi ----
   if (n_a > 0) {
     object$priors$a <- list(mu = matrix(0, n_a),
-                                 vinv = diag(a$vinv, n_a))
+                            vinv = diag(a$vinv, n_a))
   }
-
+  
   # Error terms ----
   object$priors$u$shape <- matrix(u$shape, m)
   object$priors$u$rate <- matrix(u$rate, m)
-
+  
   object$priors$v$shape <- matrix(v$shape, n)
   object$priors$v$rate <- matrix(v$rate, n)
-
+  
   return(object)
 }

@@ -3,18 +3,13 @@
 
 ## usethis namespace: start
 #' @useDynLib dfmtools, .registration = TRUE
-#' @importFrom coda thin
 #' @importFrom Rcpp sourceCpp
 #' @import methods
 #' @importFrom bvartools add_priors
 #' @importFrom bvartools add_initial_values
-#' @importFrom bvartools draw_posterior
-#' @importFrom stats predict
-#' @importFrom Matrix chol
-#' @importFrom Matrix crossprod
-#' @importFrom Matrix diag
-#' @importFrom Matrix solve
-#' @exportPattern "^[[:alpha:]]+"
+#' @importFrom bvartools add_posterior_coefficients
+#' @importFrom bvartools add_posterior_forecasts
+#' @importFrom bvartools add_posterior_loglik
 ## usethis namespace: end
 NULL
 

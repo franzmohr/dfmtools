@@ -6,7 +6,7 @@
 \alias{dfmtools-package}
 \title{dfmtools: Bayesian Inference of Dynamic Factor Models}
 \description{
-Assists in the set-up of algorithms for Bayesian inference of dynamic factor models. Functions for posterior simulation, forecasting, impulse response analysis and forecast error variance decomposition are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
+Assists in the set-up of algorithms for Bayesian inference of dynamic factor models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
 }
 \seealso{
 Useful links:
@@ -17,7 +17,12 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Franz X. Mohr \email{franz.x.mohr@outlook.com} (0009-0003-8890-7781)
+\strong{Maintainer}: Franz X. Mohr \email{franz.x.mohr@outlook.com} (\href{https://orcid.org/0009-0003-8890-7781}{ORCID})
+
+Authors:
+\itemize{
+  \item Franz X. Mohr \email{franz.x.mohr@outlook.com} (\href{https://orcid.org/0009-0003-8890-7781}{ORCID})
+}
 
 }
 \keyword{internal}

@@ -1,12 +1,12 @@
-#' Create Dynamic Factor Models
+#' Create a Dynamic Factor Model
 #'
-#' Produces the input for the estimation of dynamic factor models (DFM).
+#' Produces the input for the estimation of a dynamic factor model (DFM).
 #'
-#' @param data a time-series object of endogenous variables that should be stationary.
-#' @param n an integer vector of the number of factors. See 'Details'.
+#' @param x a time-series object of stationary endogenous variables.
 #' @param p an integer vector of the lag order of the measurement equation. See 'Details'.
-#' @param normalize_data logical indicating whether each column of \code{data} should
-#' be normalized using \code{\link{scale}}. Defaults to \code{TRUE}.
+#' @param n an integer vector of the number of factors. See 'Details'.
+#' @param normalize_x logical indicating whether each column of \code{x} should
+#' be normalized using \code{scale}. Defaults to \code{TRUE}.
 #' @param error character specifying the model that should be used for the estimation
 #' of the covariance matrix of the error term. Default is \code{"gamma"}. See 'Details'.
 #' @param iterations an integer of MCMC draws excluding burn-in draws (defaults
@@ -19,7 +19,7 @@
 #' models (DFM) with measurement equation
 #' \deqn{x_t = \lambda f_t + u_t,}
 #' where
-#' \eqn{x_t} is an \eqn{M \times 1} vector of observed variables provided in argument \code{data},
+#' \eqn{x_t} is an \eqn{M \times 1} vector of observed variables,
 #' \eqn{f_t} is an \eqn{N \times 1} vector of unobserved factors and
 #' \eqn{\lambda} is the corresponding \eqn{M \times N} matrix of factor loadings.
 #' \eqn{u_t} is an \eqn{M \times 1} error term with \eqn{u_t \sim N(0, U)}.
@@ -40,13 +40,11 @@
 #' Off-diagonal elements are not estimated and set to zero.}
 #' }
 #'
-#' @return An object of class 'dfmodel', which contains the following elements:
+#' @return An object of class \code{'dfmodel'}, which contains the following elements:
 #' \item{data}{A list of data objects, which can be used for posterior simulation. Element
-#' \code{x} is a time-series object of normalized observable variables, i.e. each column has
+#' \code{X} is a time-series object of normalised observable variables, i.e. each column has
 #' zero mean and unity variance.}
 #' \item{model}{A list of model specifications.}
-#'
-#' If multiple models are generated, the output is an object of class 'modellist'.
 #'
 #' @examples
 #'
@@ -54,7 +52,7 @@
 #' data("bem_dfmdata")
 #'
 #' # Generate model data
-#' model <- create_dfmodel(data = bem_dfmdata, p = 1, n = 1,
+#' model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
 #'                         iterations = 5000, burnin = 1000)
 #'
 #' @references
@@ -65,21 +63,22 @@
 #' Lütkepohl, H. (2006). \emph{New introduction to multiple time series analysis} (2nd ed.). Berlin: Springer.
 #'
 #' @export
-create_dfmodel <- function(data, n = 1, p = 2, normalize_data = TRUE, error = "gamma", iterations = 20000, burnin = 2000) {
-
+create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma", iterations = 20000, burnin = 2000) {
+  
+  
   # Input checks ----
-  if (!"ts" %in% class(data)) {
-    stop("Argument 'data' must be an object of class 'ts'.")
+  if (!"ts" %in% class(x)) {
+    stop("Argument 'x' must be an object of class 'ts'.")
   }
-
+  
   if (any(p < 0)) {
     stop("Argument 'p' must be at least 0.")
   }
-
+  
   if (any(n < 1)) {
     stop("Argument 'n' must be at least 1.")
   }
-
+  
   if ("character" %in% class(error)) {
     if (!error %in% c("gamma")) {
       stop("Invalid specification of argument 'error'.")
@@ -87,58 +86,62 @@ create_dfmodel <- function(data, n = 1, p = 2, normalize_data = TRUE, error = "g
   } else {
     stop("Argument 'error' must be of class 'character'.")
   }
-
+  
   # Data preparation ----
-
-  if (is.null(dimnames(data))) {
-    tsp_temp <- stats::tsp(data)
-    data <- stats::ts(as.matrix(data), class = c("mts", "ts", "matrix"))
-    stats::tsp(data) <- tsp_temp
-    dimnames(data)[[2]] <- "y"
+  
+  if (is.null(dimnames(x))) {
+    tsp_temp <- stats::tsp(x)
+    data <- stats::ts(as.matrix(x), class = c("mts", "ts", "matrix"))
+    stats::tsp(x) <- tsp_temp
+    dimnames(x)[[2]] <- "y"
   }
-
+  
   # Normalise every column of x
-  if (normalize_data) {
-    data <- scale(data)
+  if (normalize_x) {
+    x <- scale(x)
   }
-
-  data_name <- dimnames(data)[[2]]
-  m <- NCOL(data)
-  tt <- nrow(data)
+  
+  data_name <- dimnames(x)[[2]]
+  m <- NCOL(x)
+  tt <- nrow(x)
   p_max <- max(p)
-
+  
   model <- NULL
   model$type <- "DFM"
   model$m <- m
   model$n <- 0
   model$p <- 0
   model$error <- error
+  # The sampler add_posterior_coefficients dispatches on. One error
+  # specification, hence one algorithm, but named rather than assumed: this is
+  # where a second one would be selected.
+  model$algorithm <- switch(error, "gamma" = "DfmNormalGamma")
   model$iterations <- iterations
   model$burnin <- burnin
-
-
-
+  
+  
+  
   result <- NULL
   for (j in n) {
     for (i in p) {
       model_i <- model
       model_i$n <- j
       model_i$p <- i
-
-      result_i <- list("data" = list("x" = data),
+      
+      result_i <- list("data" = list("x" = x),
                        "model" = model_i)
-
+      
       class(result_i) <- append("dfmodel", class(result_i))
-
+      
       result <- c(result, list(result_i))
     }
   }
-
+  
   if (length(result) == 1) {
     result <- result[[1]]
   } else {
     class(result) <- append("modellist", class(result))
   }
-
+  
   return(result)
 }

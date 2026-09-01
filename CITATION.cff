@@ -1,0 +1,26 @@
+# GitHub reads this file for the "Cite this repository" button. It is the same
+# reference as inst/CITATION, which is what citation("dfmtools") reads inside R;
+# a change to either belongs in both.
+cff-version: 1.2.0
+message: "If you use dfmtools in publications, please cite it as below."
+title: "dfmtools: Bayesian Inference of Dynamic Factor Models"
+abstract: >-
+  Assists in the set-up of algorithms for Bayesian inference of dynamic factor
+  models. Functions for posterior simulation and forecasting are largely based on
+  the introductory texts of Chan, Koop, Poirier and Tobias (2019) and Luetkepohl
+  (2006).
+type: software
+authors:
+  - given-names: "Franz X."
+    family-names: Mohr
+    email: franz.x.mohr@outlook.com
+    orcid: "https://orcid.org/0009-0003-8890-7781"
+repository-code: "https://github.com/franzmohr/dfmtools"
+url: "https://github.com/franzmohr/dfmtools"
+license: GPL-2.0-or-later
+keywords:
+  - r
+  - bayesian-inference
+  - dynamic-factor-models
+  - time-series
+  - econometrics

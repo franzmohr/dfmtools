@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest a model specification, method or convenience function
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do that you cannot do now?
+      description: The analysis you are trying to run, rather than the function you imagine.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What might it look like?
+      description: Sketch the call, if you have one in mind.
+      render: r
+    validations:
+      required: false
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference
+      description: >
+        A paper or textbook treatment of the sampler, if the request is for a new
+        specification. Note that samplers themselves live in
+        [BayesTS](https://github.com/franzmohr/BayesTS) and are vendored into
+        this package — see `src/core/VENDORED.md`.
+    validations:
+      required: false

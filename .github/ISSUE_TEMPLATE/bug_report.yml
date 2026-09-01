@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work, or produces the wrong numbers
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report. A reproducible example is
+        by far the most useful thing you can include.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reprex
+    attributes:
+      label: Reproducible example
+      description: >
+        Self-contained code, built on `bem_dfmdata` or on data simulated in the
+        example itself. Include the model specification — `p`, `n`, `error` and
+        the priors — since which code paths run depends on them.
+      render: r
+      placeholder: |
+        library(dfmtools)
+        data("bem_dfmdata")
+
+        model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                                iterations = 100, burnin = 50)
+        model <- add_priors(model)
+        model <- add_initial_values(model)
+        model <- add_posterior_coefficients(model)
+    validations:
+      required: true
+
+  - type: textarea
+    id: session
+    attributes:
+      label: sessionInfo()
+      description: Output of `sessionInfo()`, which pins the R, dfmtools and bvartools versions.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: install
+    attributes:
+      label: How was dfmtools installed?
+      placeholder: "remotes::install_github(\"franzmohr/dfmtools\"), commit abc1234"
+    validations:
+      required: false
