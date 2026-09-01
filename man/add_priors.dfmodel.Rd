@@ -20,13 +20,17 @@
 For the default specification the diagonal elements of the inverse prior variance-covariance matrix are set to 0.01.
 The variances need to be specified as precisions, i.e. as inverses of the variances.}
 
-\item{u}{a named list of prior specifications for the error variance-covariance matrix. See 'Details'.}
+\item{u}{a named list of prior specifications for the error variance-covariance matrix of the
+measurement equation. Which elements are required depends on argument \code{error} of
+\code{\link{create_dfmodel}}. See 'Details'.}
 
 \item{a}{a named list of prior specifications for the coefficients of the transition equation.
 For the default specification the diagonal elements of the inverse prior variance-covariance matrix are set to 0.01.
 The variances need to be specified as precisions, i.e. as inverses of the variances.}
 
-\item{v}{a named list of prior specifications for the error variance-covariance matrix. See 'Details'.}
+\item{v}{a named list of prior specifications for the error variance-covariance matrix of the
+transition equation. Which elements are required depends on argument \code{error} of
+\code{\link{create_dfmodel}}. See 'Details'.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -41,25 +45,35 @@ function \code{\link{create_dfmodel}}.
 Argument \code{lambda} can only contain the element \code{vinv}, which is a numeric specifying the prior
 precision of the loading factors of the measurement equation. Default is 0.01.
 
-The function assumes an inverse gamma prior for the errors of the measurement equation.
-Argument \code{u} can contain the following elements:
-\describe{
-  \item{\code{shape}}{a numeric or character specifying the prior shape parameter of the error terms
-  of the measurement equation. Default is 5.}
-  \item{\code{rate}}{a numeric specifying the prior rate parameter of the error terms of the measurement
-  equation. Default is 4.}
-}
-
 Argument \code{a} can only contain the element \code{vinv}, which is a numeric specifying the prior
 precision of the coefficients of the transition equation. Default is 0.01.
 
-The function assumes an inverse gamma prior for the errors of the transition equation.
-Argument \code{v} can contain the following elements:
+Arguments \code{u} and \code{v} specify the priors of the two error terms -- \eqn{u_t} of the
+measurement equation and \eqn{v_t} of the transition equation. Both take the same elements, at
+different widths: \code{u} describes \eqn{M} observed series and \code{v} describes \eqn{N}
+factors. Which elements are required depends on how the model was created.
+
+For \code{error = "gamma"} the function assumes an inverse gamma prior, and both arguments can
+contain the following elements:
 \describe{
-  \item{\code{shape}}{a numeric or character specifying the prior shape parameter of the error terms
-  of the transition equation. Default is 5.}
-  \item{\code{rate}}{a numeric specifying the prior rate parameter of the error terms of the transition
-  equation. Default is 4.}
+  \item{\code{shape}}{a numeric specifying the prior shape parameter. Default is 5.}
+  \item{\code{rate}}{a numeric specifying the prior rate parameter. Default is 4.}
+}
+
+For \code{error = "sv"} the log-volatility of every error term follows a random walk, and both
+arguments must contain all of the following. The names are those \code{bvartools} uses for the
+stochastic volatility priors of its VAR and VEC models, so that the two families read alike:
+\describe{
+  \item{\code{mu}}{a numeric of the prior mean of the initial state of the log-volatilities.}
+  \item{\code{v_i}}{a numeric of the prior precision of the initial state of the log-volatilities.}
+  \item{\code{shape}}{a numeric of the prior shape parameter of the variance of the
+  log-volatility innovations.}
+  \item{\code{rate}}{a numeric of the prior rate parameter of that variance.}
+  \item{\code{state_variance}}{a numeric of the initial draw for the variance of the
+  log-volatilities. A starting value rather than a prior; it is kept here because that is where
+  \code{bvartools} keeps it.}
+  \item{\code{offset}}{a numeric of the constant added before taking the log of the squared
+  errors, which keeps that logarithm finite when a residual lands on zero.}
 }
 }
 \examples{
@@ -79,10 +93,24 @@ model <- add_priors(model,
                     a = list(vinv = .01),
                     v = list(shape = 5, rate = 4))
 
+# The same for a model with stochastic volatility
+model_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv",
+                           iterations = 5000, burnin = 1000)
+model_sv <- add_priors(model_sv,
+                       lambda = list(vinv = .01),
+                       a = list(vinv = .01),
+                       u = list(mu = 0, v_i = .1, shape = 3, rate = .2,
+                                state_variance = .05, offset = 1e-4),
+                       v = list(mu = 0, v_i = .1, shape = 3, rate = .2,
+                                state_variance = .05, offset = 1e-4))
+
 }
 \references{
 Chan, J., Koop, G., Poirier, D. J., & Tobias J. L. (2019). \emph{Bayesian econometric methods}
 (2nd ed.). Cambridge: Cambridge University Press.
 
 Lütkepohl, H. (2007). \emph{New introduction to multiple time series analysis} (2nd ed.). Berlin: Springer.
+
+Omori, Y., Chib, S., Shephard, N., & Nakajima, J. (2007). Stochastic volatility with leverage.
+Fast and efficient likelihood inference. \emph{Journal of Econometrics 140}(2), 425--449.
 }

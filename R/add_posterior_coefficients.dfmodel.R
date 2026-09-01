@@ -89,6 +89,8 @@ add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL
 
         if (algorithm == "DfmNormalGamma") {
           object <- .DfmNormalGammaCoefficients(object)
+        } else if (algorithm == "DfmNormalStochvol") {
+          object <- .DfmNormalStochvolCoefficients(object)
         } else {
           stop("Algorithm '", algorithm, "' not supported.")
         }

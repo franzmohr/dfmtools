@@ -46,3 +46,31 @@ prepared_dfm <- function(iterations = 20, burnin = 10, ...) {
 # Number of freely estimated loadings, i.e. the M x N matrix less the fixed ones
 # and zeros of the identifying block.
 n_free_lambda <- function(m, n) (2 * m - n - 1) * n / 2
+
+# A stochastic volatility prior for one of the two error terms. add_priors() has
+# the gamma specification as its default, so an sv model has to be given this;
+# the widths are filled in from the model, so one list serves both u and v.
+sv_prior <- function(mu = 0, v_i = 1, shape = 3, rate = 0.2,
+                     state_variance = 0.05, offset = 1e-4) {
+  list(mu = mu, v_i = v_i, shape = shape, rate = rate,
+       state_variance = state_variance, offset = offset)
+}
+
+# prepared_dfm() for error = "sv".
+prepared_dfm_sv <- function(iterations = 20, burnin = 10, ...) {
+
+  sim <- sim_dfm(...)
+
+  object <- create_dfmodel(x = sim$x, p = sim$p, n = sim$n, error = "sv",
+                           iterations = iterations, burnin = burnin)
+  object <- add_priors(object, u = sv_prior(), v = sv_prior())
+  object <- add_initial_values(object)
+
+  list(object = object, sim = sim)
+}
+
+# The idiosyncratic variances a posterior implies, M x T: the stored object is a
+# precision path, m values per period, periods along a row.
+idiosyncratic_variance <- function(object, m, tt) {
+  matrix(1 / colMeans(object$posterior$u_sigma_inv$coeffs), m, tt)
+}

@@ -23,20 +23,8 @@ using core::fill_lagged_factors;
 using core::fill_lambda;
 using core::identified_loadings;
 using core::lambda_row_width;
-using core::stacked_response;
+using core::response_by_period;
 using core::transition_residuals;
-
-/// The observed series as the sampler works with them: k x tt, one period per
-/// column.
-///
-/// Built through stacked_response() rather than by transposing `train.y`,
-/// because `y` is allowed to arrive already stacked -- a single row or a single
-/// column of vec(y') is how the HDF5 files store it -- and only the stacked
-/// vector is the same object in all three cases.
-arma::mat response_by_period(const TrainData &train, const int k, const int tt)
-{
-    return arma::reshape(stacked_response(train), k, tt);
-}
 
 } // namespace
 

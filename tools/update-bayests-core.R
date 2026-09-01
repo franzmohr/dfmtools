@@ -11,9 +11,9 @@
 ## change one, change the other.
 ##
 ## Unlike bvartools, which mirrors the whole core, this package takes only what
-## DfmNormalGamma reaches -- it is the one sampler here, and compiling the other
-## thirteen would be a minute of build time and a larger shared object for code
-## that is never called. The set is *computed* rather than listed: the script
+## the dynamic factor models reach -- they are the samplers here, and compiling
+## the other thirteen would be a minute of build time and a larger shared object
+## for code that is never called. The set is *computed* rather than listed: the script
 ## starts from the entry points below and follows every #include of a
 ## "bayests/..." or "core/..." header until nothing new turns up, taking each
 ## header's .cpp alongside it. A list would go stale the first time upstream
@@ -51,12 +51,19 @@ keep <- c("core/VENDORED.md")
 
 ## What the package actually calls. Everything else is discovered from here.
 ##
-##   - the sampler's declaration and its numerics;
+##   - each sampler's declaration and its numerics;
 ##   - spec.cpp and inputs.cpp, which hold VarSpec::validate() and every
-##     Input::validate(). They are reached by no #include -- the sampler calls
+##     Input::validate(). They are reached by no #include -- the samplers call
 ##     them across translation units -- so they have to be named.
+##
+## Both dynamic factor models are here. They share most of what they reach --
+## dfm_support.h, model_support.h, chan_jeliazkov_2009 -- so the second one costs
+## its own two files plus the stochastic volatility mixture, and naming both is
+## what keeps the closure from silently dropping whichever is not listed.
 entry <- c("bayests/dfm_normal_gamma.h",
            "core/models/dfm_normal_gamma.cpp",
+           "bayests/dfm_normal_stochvol.h",
+           "core/models/dfm_normal_stochvol.cpp",
            "core/spec.cpp",
            "core/inputs.cpp")
 

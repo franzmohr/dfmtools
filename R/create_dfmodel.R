@@ -38,6 +38,14 @@
 #' \itemize{
 #'  \item{\code{"gamma"}: Only the diagonal elements of the covariance matrix are estimated using a gamma prior.
 #' Off-diagonal elements are not estimated and set to zero.}
+#'  \item{\code{"sv"}: Only the diagonal elements of the covariance matrix are estimated, and they move
+#' with time: the log-volatility of every error term follows a random walk of its own, estimated with the
+#' mixture approximation of Omori et al. (2007). This applies to both error terms, \eqn{u_t} of the
+#' measurement equation and \eqn{v_t} of the transition equation, and the two do different things.
+#' Volatility in \eqn{u_t} reweights the series that identify the factors, so a series that was noisy
+#' early and quiet later stops contributing on the same terms throughout. Volatility in \eqn{v_t} is the
+#' common component's own, and it is what keeps the \eqn{M} idiosyncratic variances from jointly absorbing
+#' a shock that every series felt at once. Off-diagonal elements are not estimated and set to zero.}
 #' }
 #'
 #' @return An object of class \code{'dfmodel'}, which contains the following elements:
@@ -55,12 +63,19 @@
 #' model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
 #'                         iterations = 5000, burnin = 1000)
 #'
+#' # The same with stochastic volatility in both error terms
+#' model_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv",
+#'                            iterations = 5000, burnin = 1000)
+#'
 #' @references
 #'
 #' Chan, J., Koop, G., Poirier, D. J., & Tobias, J. L. (2019). \emph{Bayesian Econometric Methods}
 #' (2nd ed.). Cambridge: University Press.
 #'
 #' Lütkepohl, H. (2006). \emph{New introduction to multiple time series analysis} (2nd ed.). Berlin: Springer.
+#'
+#' Omori, Y., Chib, S., Shephard, N., & Nakajima, J. (2007). Stochastic volatility with leverage.
+#' Fast and efficient likelihood inference. \emph{Journal of Econometrics 140}(2), 425--449.
 #'
 #' @export
 create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma", iterations = 20000, burnin = 2000) {
@@ -80,7 +95,7 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   }
   
   if ("character" %in% class(error)) {
-    if (!error %in% c("gamma")) {
+    if (!error %in% c("gamma", "sv")) {
       stop("Invalid specification of argument 'error'.")
     }
   } else {
@@ -112,10 +127,12 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   model$n <- 0
   model$p <- 0
   model$error <- error
-  # The sampler add_posterior_coefficients dispatches on. One error
-  # specification, hence one algorithm, but named rather than assumed: this is
-  # where a second one would be selected.
-  model$algorithm <- switch(error, "gamma" = "DfmNormalGamma")
+  # The sampler add_posterior_coefficients dispatches on. Named rather than
+  # derived from `error` at the point of use, so that the model object says which
+  # sampler produced it.
+  model$algorithm <- switch(error,
+                            "gamma" = "DfmNormalGamma",
+                            "sv" = "DfmNormalStochvol")
   model$iterations <- iterations
   model$burnin <- burnin
   

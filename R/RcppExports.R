@@ -13,3 +13,15 @@
     .Call(`_dfmtools_DfmNormalGammaLogLik`, object)
 }
 
+.DfmNormalStochvolCoefficients <- function(object) {
+    .Call(`_dfmtools_DfmNormalStochvolCoefficients`, object)
+}
+
+.DfmNormalStochvolForecasts <- function(object) {
+    .Call(`_dfmtools_DfmNormalStochvolForecasts`, object)
+}
+
+.DfmNormalStochvolLogLik <- function(object) {
+    .Call(`_dfmtools_DfmNormalStochvolLogLik`, object)
+}
+

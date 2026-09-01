@@ -66,7 +66,18 @@ add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, ...){
   # design matrix for a model without regressors.
   object[["model"]][["h"]] <- as.integer(n_ahead)
 
-  object <- .DfmNormalGammaForecasts(object)
+  algorithm <- object[["model"]][["algorithm"]]
+  if (is.null(algorithm)) {
+    stop("Element 'model$algorithm' is missing. Was the object produced by create_dfmodel?")
+  }
+
+  if (algorithm == "DfmNormalGamma") {
+    object <- .DfmNormalGammaForecasts(object)
+  } else if (algorithm == "DfmNormalStochvol") {
+    object <- .DfmNormalStochvolForecasts(object)
+  } else {
+    stop("Algorithm '", algorithm, "' not supported.")
+  }
 
   object[["posterior"]][["forecast"]] <- coda::as.mcmc(object[["posterior"]][["forecast"]])
 

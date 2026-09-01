@@ -19,11 +19,12 @@ knitr::opts_chunk$set(
 
 # dfmtools
 
-<!-- badges: start -->
 [![R-CMD-check](https://github.com/franzmohr/dfmtools/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franzmohr/dfmtools/actions/workflows/R-CMD-check.yaml)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-<!-- badges: end -->
+
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/franzmohr)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://www.buymeacoffee.com/franzmohr)
 
 Bayesian inference of dynamic factor models. `dfmtools` builds the model object,
 attaches priors and starting values, and hands the whole thing to a Gibbs
@@ -42,6 +43,16 @@ $$f_t = \sum_{i=1}^{p} A_i f_{t-i} + v_t, \qquad v_t \sim N(0, V).$$
 Five blocks are drawn in turn: the path of the factors, the loadings, the two
 error precisions and the transition coefficients. `U` and `V` are diagonal and
 estimated with independent gamma priors on their precisions.
+
+Both error terms may instead carry stochastic volatility, with
+`create_dfmodel(error = "sv")`. `U` and `V` then become `U_t` and `V_t`, the
+log-volatility of every error term following a random walk of its own, and the
+sampler gains two blocks. The two placements do different work: volatility in
+`u_t` reweights the series that identify the factors, so a series that was noisy
+early and quiet later stops contributing on the same terms throughout, while
+volatility in `v_t` is the common component's own and is what keeps the `M`
+idiosyncratic variances from jointly absorbing a shock that every series felt at
+once. The loadings and the transition stay constant either way.
 
 ## Installation
 
@@ -89,7 +100,11 @@ model <- add_initial_values(model)
 `create_dfmodel` normalises every column of `x` by default, so the loadings are
 comparable across series. Priors on `lambda` and `a` are specified as
 *precisions*; `u` and `v` take the shape and rate of the gamma prior on the error
-precisions.
+precisions. For `error = "sv"` those two arguments take a stochastic volatility
+specification instead — `mu`, `v_i`, `shape`, `rate`, `state_variance` and
+`offset`, the same six `bvartools` uses for its VAR and VEC models — and
+`add_initial_values` returns a log-volatility path per error term rather than a
+precision matrix.
 
 ```{r draw}
 set.seed(6023)

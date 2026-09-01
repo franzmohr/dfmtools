@@ -23,6 +23,17 @@ For argument \code{method} the following specifications are possible:
 \describe{
   \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
 }
+
+Which elements are added depends on argument \code{error} of \code{\link{create_dfmodel}}.
+For \code{error = "gamma"} the two error precisions are drawn from their gamma priors and stored
+as the diagonal matrices \code{uinv} and \code{vinv}. For \code{error = "sv"} they are replaced by
+a log-volatility path each -- \code{u_h}, \eqn{T \times M}, and \code{v_h}, \eqn{T \times N} --
+together with the state before the first period, \code{u_h_init} and \code{v_h_init}. Each path
+starts flat, at a draw from the prior on that initial state; a diffuse \code{v_i} therefore gives
+a starting volatility far from anything the data support, which costs burn-in rather than
+correctness. The variance of the log-volatility innovations is not among these: it is
+\code{state_variance} from \code{\link{add_priors.dfmodel}}, which the sampler reads from the
+prior and redraws every iteration.
 }
 \examples{
 

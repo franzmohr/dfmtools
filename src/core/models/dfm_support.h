@@ -6,6 +6,7 @@
 
 #include "bayests/arma.h"
 #include "core/algorithms/chan_jeliazkov_2009.h"
+#include "core/models/model_support.h"
 
 #include <algorithm>
 
@@ -29,6 +30,18 @@ namespace bayests::core
 ///
 /// `factors` is N x tt throughout -- one period per column -- and `a_mat` is the
 /// transition blocks side by side, N x Np, so A_j is columns (j-1)N .. jN-1.
+
+/// The observed series as the samplers work with them: M x tt, one period per
+/// column.
+///
+/// Built through stacked_response() rather than by transposing `train.y`,
+/// because `y` is allowed to arrive already stacked -- a single row or a single
+/// column of vec(y') is how the HDF5 files store it -- and only the stacked
+/// vector is the same object in all three cases.
+inline arma::mat response_by_period(const TrainData &train, const int k, const int tt)
+{
+    return arma::reshape(stacked_response(train), k, tt);
+}
 
 /// Free elements in row `i` of an M x N loading matrix: everything left of the
 /// diagonal while the row is inside the identifying block, the whole row after
@@ -118,6 +131,61 @@ inline void draw_diagonal_precision(arma::vec &precision, const arma::mat &resid
     }
 }
 
+/// Adds what the data contribute to the factor transition's posterior when the
+/// factor innovations' covariance moves with time. `precision` and `rhs` come in
+/// seeded with the prior's contribution and go out with both.
+///
+/// The constant-covariance case collapses: sum_t kron(x_t x_t', V^-1) is
+/// kron(X X', V^-1), which is why DfmNormalGamma never forms a per-period
+/// anything. With a V_t per period it does not, and the sum has to be taken.
+///
+/// Taking it as a sum of tt Kronecker products would be the direct spelling and
+/// is what the test checks this against. It is not what happens here, because V_t
+/// is diagonal: the N equations of the transition are then conditionally
+/// independent, so equation i's own weighted cross-product X W_i X' -- where W_i
+/// is the diagonal of period-by-period precisions of factor i -- is the whole of
+/// what the data give it, and the off-diagonal blocks that a Kronecker product
+/// would spend time filling with zeros are zero. That turns tt products of size
+/// (Np)^2 N^2 into N products of size (Np)^2 tt, and leaves nothing allocated per
+/// period.
+///
+/// The scatter is the one piece of index arithmetic worth reading twice.
+/// `a` is vec([A_1 .. A_p]) of an N x Np matrix, column-major, so element (i, c)
+/// of that matrix sits at c N + i -- row i of A occupies positions i, N + i,
+/// 2N + i, and so on. Entry (c, d) of equation i's cross-product therefore
+/// belongs at (c N + i, d N + i).
+///
+/// @param precision (N^2 p) square, added to in place.
+/// @param rhs (N^2 p), added to in place.
+/// @param x_a (N p) x tt lagged factors, as fill_lagged_factors() writes them.
+/// @param factors N x tt factor path.
+/// @param v_precision tt x N, one row per period: the diagonal of V_t^-1.
+inline void accumulate_transition_moments(arma::mat &precision, arma::vec &rhs,
+                                          const arma::mat &x_a, const arma::mat &factors,
+                                          const arma::mat &v_precision, const int n, const int p)
+{
+    const int np = n * p;
+
+    for (int i = 0; i < n; i++)
+    {
+        arma::mat x_weighted = x_a;
+        x_weighted.each_row() %= arma::trans(v_precision.col(i));
+
+        const arma::mat cross = x_weighted * arma::trans(x_a);
+        const arma::vec moment = x_weighted * arma::trans(factors.row(i));
+
+        for (int c = 0; c < np; c++)
+        {
+            const int row = c * n + i;
+            rhs(row) += moment(c);
+            for (int d = 0; d < np; d++)
+            {
+                precision(row, d * n + i) += cross(c, d);
+            }
+        }
+    }
+}
+
 /// Covariance of the first p factors, which is what the path's prior is.
 ///
 /// The factors before the sample are zero rather than drawn, so the first p
@@ -127,14 +195,22 @@ inline void draw_diagonal_precision(arma::vec &precision, const arma::mat &resid
 ///     f_1 = v_1,   f_2 = A_1 f_1 + v_2,   ...,   f_p = sum_{j<p} A_j f_{p-j} + v_p.
 ///
 /// Stacked, that is H f = v with H unit block lower triangular carrying -A_j on
-/// its j-th subdiagonal, so Cov(f_{1..p}) = H^-1 (I_p kron V) H^-T. Handing that
+/// its j-th subdiagonal, so Cov(f_{1..p}) = H^-1 Cov(v_{1..p}) H^-T. Handing that
 /// to chan_jeliazkov_2009 as `P_init` is what makes its prior-plus-transitions
 /// decomposition reproduce this model exactly rather than approximately: the
 /// blocks it then builds are the same ones the (tt N) square precision of the
 /// reference implementation has.
 ///
-/// H is unit triangular, hence exactly invertible, and V is positive definite,
-/// so the result is too -- which chan_jeliazkov_2009 requires of it.
+/// H is unit triangular, hence exactly invertible, and every V is positive
+/// definite, so the result is too -- which chan_jeliazkov_2009 requires of it.
+///
+/// `v_sigma` is either one N x N covariance that holds in every period, giving
+/// the block diagonal I_p kron V, or a (p N) x N stack of the first p periods'
+/// own covariances. The second is what a model whose factor innovations carry
+/// stochastic volatility has, and taking the first period's for all p of them
+/// there would misstate the prior by however much the volatility moved over the
+/// first p periods -- silently, since either shape runs. Dispatching on the
+/// height is the same arrangement chan_jeliazkov_2009 uses for the same reason.
 inline arma::mat initial_state_covariance(const arma::mat &a_mat, const arma::mat &v_sigma,
                                           const int n, const int p)
 {
@@ -149,9 +225,16 @@ inline arma::mat initial_state_covariance(const arma::mat &a_mat, const arma::ma
         }
     }
 
+    const int v_stride = (static_cast<int>(v_sigma.n_rows) == n) ? 0 : n;
+    arma::mat v_blocks(side, side, arma::fill::zeros);
+    for (int i = 0; i < p; i++)
+    {
+        v_blocks.submat(i * n, i * n, (i + 1) * n - 1, (i + 1) * n - 1) =
+            v_sigma.rows(i * v_stride, i * v_stride + n - 1);
+    }
+
     const arma::mat h_inv = arma::solve(arma::trimatl(h), arma::eye<arma::mat>(side, side));
-    return arma::symmatu(h_inv * arma::kron(arma::eye<arma::mat>(p, p), v_sigma) *
-                         arma::trans(h_inv));
+    return arma::symmatu(h_inv * v_blocks * arma::trans(h_inv));
 }
 
 /// One draw of the whole factor path, N x tt.
@@ -185,6 +268,83 @@ inline arma::mat draw_factor_path(const arma::mat &x_t, const arma::mat &lambda,
 
     return chan_jeliazkov_2009(x_t, lambda, u_sigma, v_sigma, a_mat, a_init,
                                initial_state_covariance(a_mat, v_sigma, n, p_state))
+        .cols(0, tt - 1);
+}
+
+/// Writes the per-period diagonal covariances of an error term into the stack
+/// chan_jeliazkov_2009 reads: one K x K block per period, block t holding
+/// diag(variance.row(t)).
+///
+/// `stack` must be (K tt) x K and must already be zero. Nothing here writes an
+/// off-diagonal element, so a caller that zeroes the buffer once before the
+/// chain starts pays tt K stores per draw instead of tt K^2 -- at 100 series over
+/// 300 periods, thirty thousand against three million, for a matrix whose
+/// off-diagonal was zero throughout.
+///
+/// `variance` is tt x K, one period per row: the layout the stochastic
+/// volatility block works in, so `arma::exp(h)` goes straight in.
+inline void fill_stacked_diagonal(arma::mat &stack, const arma::mat &variance)
+{
+    const arma::uword tt = variance.n_rows;
+    const arma::uword k = variance.n_cols;
+    for (arma::uword t = 0; t < tt; t++)
+    {
+        const arma::uword base = t * k;
+        for (arma::uword i = 0; i < k; i++)
+        {
+            stack(base + i, i) = variance(t, i);
+        }
+    }
+}
+
+/// One draw of the whole factor path when both error terms carry stochastic
+/// volatility, N x tt.
+///
+/// `u_stack` is (K tt) x K and `v_stack` is (N tt) x N, both in this model's
+/// indexing: block t is period t's covariance. `fill_stacked_diagonal` builds
+/// them. Everything draw_factor_path() says still applies -- the path is one
+/// Gaussian vector of block banded precision, drawn in a sweep over the periods
+/// -- and the loading matrix is still the same in every period, so the
+/// measurement design is still assembled once.
+///
+/// What is different is the indexing, and it is the one thing here that is easy
+/// to get wrong in a way that still runs. chan_jeliazkov_2009 indexes the
+/// transition that *produces* state column t by t - 1; unit_chan_jeliazkov.cpp
+/// pins that convention and kalman_durbin_koopman_2002 shares it. This model's
+/// column t is period t and its innovation is v_t ~ N(0, V_t), so block s of the
+/// stack handed over must hold V_{s+1} -- `v_stack` moved up by one period.
+/// Handing `v_stack` over unshifted would estimate a model whose volatility lags
+/// its own innovations by a period, which is a different model and not a broken
+/// one: nothing would fail.
+///
+/// The shift leaves the last block wanting V_tt, which does not exist. It
+/// belongs to state column tt, the one past the end of the sample that is
+/// dropped on the way out, and any positive definite matrix does there: f_tt
+/// enters the joint through that single transition and nothing else, so
+/// integrating it out is a Gaussian integral in f_tt alone and leaves the
+/// columns that are kept exactly as they were, whatever its covariance. The
+/// previous period's is reused because it is already the right shape and already
+/// positive definite.
+///
+/// The prior over the first p columns takes `v_stack` unshifted: those columns
+/// are the truncated transitions run from nothing, so the covariances they need
+/// are V_0 ... V_{p-1}, which is where the stack starts.
+inline arma::mat draw_factor_path_sv(const arma::mat &x_t, const arma::mat &lambda,
+                                     const arma::mat &u_stack, const arma::mat &v_stack,
+                                     const arma::mat &a_mat, const int n, const int p_state)
+{
+    const arma::uword tt = x_t.n_cols;
+    const arma::uword nn = static_cast<arma::uword>(n);
+    const arma::vec a_init(static_cast<arma::uword>(p_state) * nn, arma::fill::zeros);
+
+    arma::mat v_transitions(v_stack.n_rows, v_stack.n_cols);
+    v_transitions.head_rows((tt - 1) * nn) = v_stack.tail_rows((tt - 1) * nn);
+    v_transitions.tail_rows(nn) = v_stack.tail_rows(nn);
+
+    const arma::mat p_init = initial_state_covariance(
+        a_mat, v_stack.head_rows(static_cast<arma::uword>(p_state) * nn), n, p_state);
+
+    return chan_jeliazkov_2009(x_t, lambda, u_stack, v_transitions, a_mat, a_init, p_init)
         .cols(0, tt - 1);
 }
 

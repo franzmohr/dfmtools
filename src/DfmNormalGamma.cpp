@@ -3,9 +3,8 @@
 
 #include "bayests_r_io.h"
 #include "bayests_reporter.h"
+#include "dfm_r_translation.h"
 #include "bayests/dfm_normal_gamma.h"
-
-#include <algorithm>
 
 // Dynamic factor model with a normal prior on the loadings and on the factor
 // transition, and independent gamma priors on both error precisions. The
@@ -31,40 +30,7 @@
 namespace {
 
 using namespace bayests_r;
-
-/// R keeps the free loadings in `lower.tri()` order -- column-major, so every
-/// free row of column 0, then of column 1, and so on -- while the core wants
-/// them row by row, which is the order its equation-by-equation draw consumes
-/// them in and what makes each equation's slice of the prior contiguous.
-///
-/// This is that permutation: element `i` of the result is the R position of the
-/// core's `i`-th free loading, so `core = r.elem(order)` and, for the prior
-/// precision, `core = r.submat(order, order)`.
-///
-/// It matters for the prior, not for the starting value alone. dfmpost() got
-/// away with holding one order and slicing the other because `add_priors()`
-/// builds that precision as `diag(vinv, n_lambda)`, which reads the same either
-/// way; a caller who supplies anything else was served a permuted prior there
-/// and gets the right one here.
-arma::uvec lambda_row_major_order(const int m, const int n) {
-
-  arma::umat r_pos(m, n, arma::fill::zeros);
-  arma::uword pos = 0;
-  for (int j = 0; j < n; j++) {
-    for (int i = j + 1; i < m; i++) {
-      r_pos(i, j) = pos++;
-    }
-  }
-
-  arma::uvec order(pos);
-  arma::uword core = 0;
-  for (int i = 1; i < m; i++) {
-    for (int j = 0; j < std::min(i, n); j++) {
-      order(core++) = r_pos(i, j);
-    }
-  }
-  return order;
-}
+using dfmtools::lambda_row_major_order;
 
 /// The diagonal of a precision that R stores as a full matrix. Both of this
 /// model's error precisions are diagonal by assumption, and the core carries

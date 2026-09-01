@@ -57,7 +57,18 @@ add_posterior_loglik.dfmodel <- function(object, ...){
 
   class_of_object <- class(object)
 
-  object <- .DfmNormalGammaLogLik(object)
+  algorithm <- object[["model"]][["algorithm"]]
+  if (is.null(algorithm)) {
+    stop("Element 'model$algorithm' is missing. Was the object produced by create_dfmodel?")
+  }
+
+  if (algorithm == "DfmNormalGamma") {
+    object <- .DfmNormalGammaLogLik(object)
+  } else if (algorithm == "DfmNormalStochvol") {
+    object <- .DfmNormalStochvolLogLik(object)
+  } else {
+    stop("Algorithm '", algorithm, "' not supported.")
+  }
 
   class(object) <- class_of_object
 

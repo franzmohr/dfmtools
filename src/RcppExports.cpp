@@ -44,11 +44,47 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// DfmNormalStochvolCoefficients
+Rcpp::List DfmNormalStochvolCoefficients(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalStochvolCoefficients(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalStochvolCoefficients(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmNormalStochvolForecasts
+Rcpp::List DfmNormalStochvolForecasts(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalStochvolForecasts(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalStochvolForecasts(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmNormalStochvolLogLik
+Rcpp::List DfmNormalStochvolLogLik(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalStochvolLogLik(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalStochvolLogLik(object));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
     {"_dfmtools_DfmNormalGammaForecasts", (DL_FUNC) &_dfmtools_DfmNormalGammaForecasts, 1},
     {"_dfmtools_DfmNormalGammaLogLik", (DL_FUNC) &_dfmtools_DfmNormalGammaLogLik, 1},
+    {"_dfmtools_DfmNormalStochvolCoefficients", (DL_FUNC) &_dfmtools_DfmNormalStochvolCoefficients, 1},
+    {"_dfmtools_DfmNormalStochvolForecasts", (DL_FUNC) &_dfmtools_DfmNormalStochvolForecasts, 1},
+    {"_dfmtools_DfmNormalStochvolLogLik", (DL_FUNC) &_dfmtools_DfmNormalStochvolLogLik, 1},
     {NULL, NULL, 0}
 };
 
