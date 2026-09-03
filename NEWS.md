@@ -1,5 +1,56 @@
 # dfmtools (development version)
 
+* **Time varying loadings and transition coefficients**, with
+`create_dfmodel(tvp = TRUE)`. The measurement equation becomes
+$x_t = \lambda_t f_t + u_t$ and the transition
+$f_t = \sum_i A_{i,t} f_{t-i} + v_t$, with every freely estimated element of
+$\lambda_t$ and every element of the $A_{i,t}$ a random walk of its own, drawn as
+a whole path with the simulation smoother of Durbin and Koopman (2002). The new
+algorithm is `DfmTvpGamma`, beside `DfmNormalGamma` and `DfmNormalStochvol`, and
+`tvp` names the coefficients exactly as it does in `bvartools`' VAR and VEC
+models -- it moves *both* blocks, and a model in which only the loadings drifted
+would be a different one.
+
+    What this is for is the assumption a factor model makes most often and
+    defends least: that a series' exposure to the common component held over the
+    whole sample. A series can enter or leave that component -- a sector
+    reorganised, a country's trade opening -- without anything about the factor
+    itself changing, and a constant-loading model has nowhere to put it except
+    the idiosyncratic variance, which then carries it as noise the series is
+    credited with throughout, including in the periods where the exposure did
+    hold. Drift in the transition is the other half: the persistence of the
+    common component is what a forecast from it runs on, and it is not a constant
+    of nature either.
+
+    The leading $N \times N$ block of $\lambda_t$ does not move, because it is
+    not estimated. Only the product $\lambda_t f_t$ is identified, so that block
+    is the normalisation that pins the rotation and the scale of the factors;
+    letting it drift would let both wander over the sample, and a loading path
+    would then describe the normalisation as much as the exposure it is read as.
+
+    What changes for a caller of the existing models: nothing. `tvp = FALSE` is
+    the default and the draws of `DfmNormalGamma` and `DfmNormalStochvol` are
+    unchanged -- the only shared code the addition touched is one shape dispatch
+    in the vendored core, verified against the upstream fingerprint comparison as
+    72 fixtures unchanged and none moved. For `tvp = TRUE`, arguments `lambda`
+    and `a` of `add_priors()` take `shape` and `rate` on top of `vinv`, which is
+    the inverse gamma on the variance of the state innovations; `vinv` itself
+    then describes the state of the period before the sample rather than a
+    coefficient that holds throughout. There are no defaults for the pair, so a
+    call that forgets is told which elements are missing. `add_initial_values()`
+    returns `lambda` and `a` as matrices with one column per period, beside
+    `lambda_init`/`a_init` and `lambda_sigma_inv`/`a_sigma_inv`. In the posterior,
+    `lambda` and `a` widen from one number per coefficient to a whole path --
+    $M N \times T$ and $N^2 p \times T$ per draw, the periods stacked within a
+    row -- and each gains a `sigma` element holding the variance of its state
+    innovations. `add_posterior_forecasts()` holds both at their last in-sample
+    period, as every time varying model in this family does, while
+    `add_posterior_loglik()` scores every period under its own $\lambda_t$.
+
+    Only `error = "gamma"` for now. `error = "sv"` with `tvp = TRUE` is refused
+    rather than silently estimated as something else.
+
+
 * **Stochastic volatility in both error terms**, with
 `create_dfmodel(error = "sv")`. The measurement equation becomes
 $x_t = \lambda f_t + u_t$ with $u_t \sim N(0, U_t)$ and the transition

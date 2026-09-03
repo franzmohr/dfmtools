@@ -56,14 +56,17 @@ keep <- c("core/VENDORED.md")
 ##     Input::validate(). They are reached by no #include -- the samplers call
 ##     them across translation units -- so they have to be named.
 ##
-## Both dynamic factor models are here. They share most of what they reach --
-## dfm_support.h, model_support.h, chan_jeliazkov_2009 -- so the second one costs
-## its own two files plus the stochastic volatility mixture, and naming both is
-## what keeps the closure from silently dropping whichever is not listed.
+## All three dynamic factor models are here. They share most of what they reach
+## -- dfm_support.h, model_support.h, chan_jeliazkov_2009 -- so each one after the
+## first costs little more than its own two files, and naming every one of them is
+## what keeps the closure from silently dropping whichever is not listed. An
+## unlisted sampler is not an error here; it is a link error later.
 entry <- c("bayests/dfm_normal_gamma.h",
            "core/models/dfm_normal_gamma.cpp",
            "bayests/dfm_normal_stochvol.h",
            "core/models/dfm_normal_stochvol.cpp",
+           "bayests/dfm_tvp_gamma.h",
+           "core/models/dfm_tvp_gamma.cpp",
            "core/spec.cpp",
            "core/inputs.cpp")
 

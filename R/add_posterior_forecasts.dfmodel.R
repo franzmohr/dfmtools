@@ -75,6 +75,8 @@ add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, ...){
     object <- .DfmNormalGammaForecasts(object)
   } else if (algorithm == "DfmNormalStochvol") {
     object <- .DfmNormalStochvolForecasts(object)
+  } else if (algorithm == "DfmTvpGamma") {
+    object <- .DfmTvpGammaForecasts(object)
   } else {
     stop("Algorithm '", algorithm, "' not supported.")
   }

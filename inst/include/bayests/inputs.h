@@ -426,6 +426,97 @@ struct DfmNormalStochvolInput
     void validate() const;
 };
 
+/// Where the DfmTvpGamma chain starts.
+///
+/// DfmNormalGammaInitial with the two coefficient blocks widened from a point to
+/// a path, and each of them carrying the two extra pieces every random walk here
+/// needs: the precision of its innovations and the state of the period before
+/// the sample. The factor path is still not among these -- it is the first thing
+/// every draw produces.
+struct DfmTvpGammaInitial
+{
+    /// n_lambda x tt. Each column holds the free loadings of one period, row by
+    /// row and within a row left to right -- the same ordering
+    /// DfmNormalGammaInitial::lambda uses for its single vector, repeated once
+    /// per period.
+    arma::mat lambda;
+
+    /// n_lambda x n_lambda; only the diagonal is read.
+    arma::mat lambda_sigma_inv;
+
+    /// n_lambda; the free loadings of the period before the sample.
+    arma::vec lambda_init;
+
+    /// n_factor_a x tt, each column vec([A_1 .. A_p]) of one period. Ignored
+    /// when the factors have no dynamics.
+    arma::mat a;
+
+    /// n_factor_a x n_factor_a; only the diagonal is read.
+    arma::mat a_sigma_inv;
+
+    /// n_factor_a; the transition of the period before the sample.
+    arma::vec a_init;
+
+    /// k; the diagonal of the idiosyncratic precision, which does not move.
+    arma::vec u_sigma_inv;
+
+    /// n_factors; the diagonal of the factor innovation precision.
+    arma::vec v_sigma_inv;
+};
+
+/// Dynamic factor model whose loadings and factor transition follow random
+/// walks, with independent gamma priors on both error precisions.
+///
+///     x_t = Lambda_t f_t + u_t,                  u_t ~ N(0, U),  U diagonal,
+///     f_t = sum_{j=1..p} A_{j,t} f_{t-j} + v_t,  v_t ~ N(0, V),  V diagonal,
+///
+/// with every free element of Lambda and every element of [A_1 .. A_p] a random
+/// walk of its own. `Tvp` names the coefficients, exactly as it does in
+/// VarTvpGammaInput against VarNormalGammaInput, and it names *both* coefficient
+/// blocks: a model in which only the loadings drifted would be a different one,
+/// and is not what this is.
+///
+/// The identifying block of Lambda does not drift, because it is not drawn: the
+/// leading N x N block stays unit lower triangular in every period. Letting it
+/// move would leave the rotation and scale of the factors free to wander over
+/// the sample, and a loading path would then be a statement about the
+/// normalisation as much as about the exposure it is read as.
+///
+/// Everything DfmNormalGammaInput says about the data holds here unchanged:
+/// `train.y` holds the observed series and is the only data the model takes,
+/// there is no ForecastData, `spec.h` is the horizon, the free loadings run row
+/// by row, `a` is vec([A_1 .. A_p]) with the blocks side by side, and the
+/// factors before the sample are zero rather than drawn.
+///
+/// Del Negro, M., & Otrok, C. (2008). Dynamic factor models with time-varying
+/// parameters: measuring changes in international business cycles. Federal
+/// Reserve Bank of New York Staff Report No. 326.
+struct DfmTvpGammaInput
+{
+    VarSpec spec;
+    TrainData train;
+
+    /// The state equation of the free loadings, in the row-major order above.
+    RandomWalkPrior lambda_prior;
+
+    /// The state equation of the factor transition. Unused when the factors
+    /// have no dynamics.
+    RandomWalkPrior a_prior;
+
+    GammaPrior u_sigma_prior;  ///< k independent priors on the idiosyncratic precisions.
+    GammaPrior v_sigma_prior;  ///< n_factors independent priors on the factor innovations.
+
+    DfmTvpGammaInitial initial;
+
+    /// Whether the factors carry dynamics to draw. A transition of order zero is
+    /// a static factor model with serially independent factors, which this
+    /// sampler estimates -- there is then no transition path either, and the
+    /// model is a DFM with drifting loadings alone.
+    bool use_a() const { return spec.n_factor_a() > 0; }
+
+    void validate() const;
+};
+
 /// Where the VecNormalWishart chain starts.
 struct VecNormalWishartInitial
 {

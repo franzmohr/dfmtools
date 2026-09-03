@@ -9,6 +9,8 @@
 #' be normalized using \code{scale}. Defaults to \code{TRUE}.
 #' @param error character specifying the model that should be used for the estimation
 #' of the covariance matrix of the error term. Default is \code{"gamma"}. See 'Details'.
+#' @param tvp logical indicating whether the coefficients of the model are time varying.
+#' Defaults to \code{FALSE}. See 'Details'.
 #' @param iterations an integer of MCMC draws excluding burn-in draws (defaults
 #' to 20000).
 #' @param burnin an integer of MCMC draws used to initialize the sampler
@@ -48,6 +50,21 @@
 #' a shock that every series felt at once. Off-diagonal elements are not estimated and set to zero.}
 #' }
 #'
+#' If \code{tvp = TRUE}, the coefficients of the model follow random walks and are estimated as
+#' whole paths with the simulation smoother of Durbin and Koopman (2002). \emph{Both} coefficient
+#' blocks move: every freely estimated element of the loading matrix \eqn{\lambda_t} of the
+#' measurement equation, and every element of the coefficient matrices \eqn{A_{i, t}} of the
+#' transition equation. A loading is a series' exposure to the common component, and that it held
+#' over the whole sample is the assumption a factor model makes most often and defends least: a
+#' constant-loading model has nowhere to put a change in exposure except the idiosyncratic
+#' variance, which then carries it as noise the series is credited with throughout. The leading
+#' \eqn{N \times N} block of \eqn{\lambda_t} does not move, because it is not estimated -- it is
+#' the normalisation that identifies the factors, and letting it drift would let their rotation and
+#' scale wander over the sample.
+#'
+#' Time varying coefficients are currently available with \code{error = "gamma"} only, which is
+#' the algorithm \code{DfmTvpGamma}.
+#'
 #' @return An object of class \code{'dfmodel'}, which contains the following elements:
 #' \item{data}{A list of data objects, which can be used for posterior simulation. Element
 #' \code{X} is a time-series object of normalised observable variables, i.e. each column has
@@ -67,10 +84,21 @@
 #' model_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv",
 #'                            iterations = 5000, burnin = 1000)
 #'
+#' # And with time varying loadings and transition coefficients
+#' model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
+#'                             iterations = 5000, burnin = 1000)
+#'
 #' @references
 #'
 #' Chan, J., Koop, G., Poirier, D. J., & Tobias, J. L. (2019). \emph{Bayesian Econometric Methods}
 #' (2nd ed.). Cambridge: University Press.
+#'
+#' Del Negro, M., & Otrok, C. (2008). Dynamic factor models with time-varying parameters: measuring
+#' changes in international business cycles. \emph{Federal Reserve Bank of New York Staff Report}
+#' No. 326.
+#'
+#' Durbin, J., & Koopman, S. J. (2002). A simple and efficient simulation smoother for state space
+#' time series analysis. \emph{Biometrika 89}(3), 603--615.
 #'
 #' Lütkepohl, H. (2006). \emph{New introduction to multiple time series analysis} (2nd ed.). Berlin: Springer.
 #'
@@ -78,7 +106,7 @@
 #' Fast and efficient likelihood inference. \emph{Journal of Econometrics 140}(2), 425--449.
 #'
 #' @export
-create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma", iterations = 20000, burnin = 2000) {
+create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma", tvp = FALSE, iterations = 20000, burnin = 2000) {
   
   
   # Input checks ----
@@ -100,6 +128,16 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
     }
   } else {
     stop("Argument 'error' must be of class 'character'.")
+  }
+  
+  if (!"logical" %in% class(tvp)) {
+    stop("Argument 'tvp' must be of class 'logical'.")
+  }
+  
+  # Refused rather than silently ignored: a model that asked for drifting
+  # coefficients and got constant ones is output that looks like output.
+  if (tvp && error != "gamma") {
+    stop("Time varying coefficients are only available for error = \"gamma\".")
   }
   
   # Data preparation ----
@@ -127,12 +165,18 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   model$n <- 0
   model$p <- 0
   model$error <- error
+  model$tvp <- tvp
   # The sampler add_posterior_coefficients dispatches on. Named rather than
-  # derived from `error` at the point of use, so that the model object says which
-  # sampler produced it.
-  model$algorithm <- switch(error,
-                            "gamma" = "DfmNormalGamma",
-                            "sv" = "DfmNormalStochvol")
+  # derived from `error` and `tvp` at the point of use, so that the model object
+  # says which sampler produced it.
+  model$algorithm <- if (tvp) {
+    switch(error,
+           "gamma" = "DfmTvpGamma")
+  } else {
+    switch(error,
+           "gamma" = "DfmNormalGamma",
+           "sv" = "DfmNormalStochvol")
+  }
   model$iterations <- iterations
   model$burnin <- burnin
   

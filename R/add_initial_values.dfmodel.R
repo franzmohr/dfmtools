@@ -25,6 +25,15 @@
 #' \code{state_variance} from \code{\link{add_priors.dfmodel}}, which the sampler reads from the
 #' prior and redraws every iteration.
 #'
+#' For a model created with \code{tvp = TRUE} the two coefficient blocks are paths as well. Each
+#' gets three elements rather than one: \code{lambda} and \code{a}, matrices with one column per
+#' period; \code{lambda_init} and \code{a_init}, the state of the period before the sample, drawn
+#' from the prior on it; and \code{lambda_sigma_inv} and \code{a_sigma_inv}, the precision of the
+#' state innovations, drawn from the inverse gamma prior added by
+#' \code{\link{add_priors.dfmodel}}. Each path starts flat at its own initial state, which costs
+#' burn-in rather than correctness -- the sampler redraws the whole path from the data in its first
+#' iteration, and what is here only conditions that first draw.
+#'
 #' @examples
 #'
 #' # Load data
@@ -50,8 +59,15 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
 
   if (method == "prior") {
 
+    tvp <- isTRUE(object$model$tvp)
+
     # lambda
-    object$initial$lambda <- chol(object$priors$lambda$vinv) %*% stats::rnorm(nrow(object$priors$lambda$vinv))
+    if (tvp) {
+      object$initial <- .dfm_rw_initial(object, "lambda", object$priors$lambda,
+                                        nrow(object$priors$lambda$vinv))
+    } else {
+      object$initial$lambda <- chol(object$priors$lambda$vinv) %*% stats::rnorm(nrow(object$priors$lambda$vinv))
+    }
 
     error <- object$model$error
     if (is.null(error)) {
@@ -98,11 +114,54 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
 
     if (object$model$p > 0) {
       # A
-      object$initial$a <- object$priors$a$mu + chol(object$priors$a$vinv) %*% stats::rnorm(object$model$n^2 * object$model$p)
+      if (tvp) {
+        object$initial <- .dfm_rw_initial(object, "a", object$priors$a,
+                                          object$model$n^2 * object$model$p)
+      } else {
+        object$initial$a <- object$priors$a$mu + chol(object$priors$a$vinv) %*% stats::rnorm(object$model$n^2 * object$model$p)
+      }
     }
   }
 
   return(object)
+}
+
+# The starting values one random walk coefficient block needs: the state before
+# the sample, a path that starts flat at it, and the precision of the state
+# innovations. Written under `<name>`, `<name>_init` and `<name>_sigma_inv`,
+# which is what the C++ binding reads.
+#
+# One function for both blocks, so that the loadings and the transition cannot
+# drift apart in what they carry. `k` is the width -- freely estimated loadings
+# for lambda, transition coefficients for a -- and is passed rather than derived,
+# because only one of the two priors has a `mu` to count.
+#
+# A flat path costs burn-in rather than correctness: the sampler redraws the
+# whole path in its first iteration, from data, and what is here only conditions
+# that first draw.
+.dfm_rw_initial <- function(object, name, prior, k) {
+
+  tt <- nrow(object$data$x)
+  initial <- object$initial
+
+  mu <- if (is.null(prior$mu)) rep(0, k) else as.numeric(prior$mu)
+
+  # backsolve(chol(vinv), z) and not chol(vinv) %*% z: with vinv = R'R the first
+  # has covariance (R'R)^-1 = vinv^-1, which is the prior, and the second has
+  # covariance vinv, which is its inverse. See .dfm_sv_initial_state().
+  state <- mu + backsolve(chol(prior$vinv), stats::rnorm(k))
+
+  # The variance of the state innovations, from its own inverse gamma prior. The
+  # sampler is handed the precision and flips it back on the way in, which is the
+  # convention every time varying model in this family follows.
+  variance <- 1 / stats::rgamma(k, shape = as.numeric(prior$shape),
+                                rate = as.numeric(prior$rate))
+
+  initial[[name]] <- matrix(state, nrow = k, ncol = tt)
+  initial[[paste0(name, "_init")]] <- matrix(state)
+  initial[[paste0(name, "_sigma_inv")]] <- diag(1 / variance, k)
+
+  return(initial)
 }
 
 # One draw from the prior on the log-volatility before the sample,

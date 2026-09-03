@@ -25,6 +25,18 @@
 #' Argument \code{a} can only contain the element \code{vinv}, which is a numeric specifying the prior
 #' precision of the coefficients of the transition equation. Default is 0.01.
 #'
+#' For a model created with \code{tvp = TRUE} both coefficient blocks follow random walks, and both
+#' arguments must contain two further elements. \code{vinv} then describes the state of the period
+#' before the sample rather than a coefficient that holds throughout, and the pair below describes
+#' how far the state may drift from one period to the next. There are no defaults for them, so a
+#' call that forgets is told which elements are missing:
+#' \describe{
+#'   \item{\code{shape}}{a numeric of the prior shape parameter of the variance of the state
+#'   innovations.}
+#'   \item{\code{rate}}{a numeric of the prior rate parameter of that variance. The smaller it is,
+#'   the more tightly the coefficients are held to a constant.}
+#' }
+#'
 #' Arguments \code{u} and \code{v} specify the priors of the two error terms -- \eqn{u_t} of the
 #' measurement equation and \eqn{v_t} of the transition equation. Both take the same elements, at
 #' different widths: \code{u} describes \eqn{M} observed series and \code{v} describes \eqn{N}
@@ -93,6 +105,16 @@
 #'                        v = list(mu = 0, v_i = .1, shape = 3, rate = .2,
 #'                                 state_variance = .05, offset = 1e-4))
 #'
+#' # And for a model with time varying coefficients, where both coefficient
+#' # blocks take a state equation on top of the prior on their initial state
+#' model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
+#'                             iterations = 5000, burnin = 1000)
+#' model_tvp <- add_priors(model_tvp,
+#'                         lambda = list(vinv = .01, shape = 3, rate = .01),
+#'                         a = list(vinv = .01, shape = 3, rate = .01),
+#'                         u = list(shape = 5, rate = 4),
+#'                         v = list(shape = 5, rate = 4))
+#'
 #' @export
 add_priors.dfmodel <- function(object,
                                lambda = list(vinv = 0.01),
@@ -147,6 +169,23 @@ add_priors.dfmodel <- function(object,
                             vinv = diag(a$vinv, n_a))
   }
 
+  # State equations ----
+  #
+  # Where the coefficients drift, `vinv` above stops being a prior on the
+  # coefficients themselves and becomes one on the state of the period before the
+  # sample; what is added here is the inverse gamma on the variance of the state
+  # innovations. Both blocks take the same pair, at their own widths, and go
+  # through the same builder so that neither can end up with a field the other
+  # has not got. The names are those bvartools uses for the coefficient prior of
+  # its time varying VAR and VEC models.
+  if (isTRUE(object$model$tvp)) {
+    object$priors$lambda <- c(object$priors$lambda,
+                              .dfm_rw_prior(lambda, n_lambda, "lambda"))
+    if (n_a > 0) {
+      object$priors$a <- c(object$priors$a, .dfm_rw_prior(a, n_a, "a"))
+    }
+  }
+
   # Error terms ----
   #
   # The two differ only in their width, so both go through the same builder and
@@ -177,6 +216,37 @@ add_priors.dfmodel <- function(object,
       stop("Argument ", name, "$", field, " is missing.")
     }
   }
+  if (spec$shape < 0) {
+    stop("Argument '", name, "$shape' must be at least 0.")
+  }
+  if (spec$rate <= 0) {
+    stop("Argument '", name, "$rate' must be larger than 0.")
+  }
+
+  list(shape = matrix(spec$shape, k),
+       rate = matrix(spec$rate, k))
+}
+
+# The state equation of one of the two coefficient blocks: the inverse gamma on
+# the variance of the random walk innovations. `k` is the width -- the number of
+# freely estimated loadings for lambda, the number of transition coefficients for
+# a -- and `name` is what a message calls the argument.
+#
+# Required rather than defaulted, as the stochastic volatility specification
+# below is: a caller who asks for time varying coefficients and supplies no state
+# equation has not said how far they may drift, and a default would answer that
+# question for them without saying so.
+.dfm_rw_prior <- function(spec, k, name) {
+
+  required <- c("shape", "rate")
+  missing_fields <- setdiff(required, names(spec))
+  if (length(missing_fields) > 0) {
+    stop("Argument '", name, "' is missing the state equation ",
+         "specification", if (length(missing_fields) > 1) "s" else "", " ",
+         paste0("'", missing_fields, "'", collapse = ", "),
+         ", which a model with time varying coefficients needs.")
+  }
+
   if (spec$shape < 0) {
     stop("Argument '", name, "$shape' must be at least 0.")
   }

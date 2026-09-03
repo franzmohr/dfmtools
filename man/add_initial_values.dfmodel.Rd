@@ -34,6 +34,15 @@ a starting volatility far from anything the data support, which costs burn-in ra
 correctness. The variance of the log-volatility innovations is not among these: it is
 \code{state_variance} from \code{\link{add_priors.dfmodel}}, which the sampler reads from the
 prior and redraws every iteration.
+
+For a model created with \code{tvp = TRUE} the two coefficient blocks are paths as well. Each
+gets three elements rather than one: \code{lambda} and \code{a}, matrices with one column per
+period; \code{lambda_init} and \code{a_init}, the state of the period before the sample, drawn
+from the prior on it; and \code{lambda_sigma_inv} and \code{a_sigma_inv}, the precision of the
+state innovations, drawn from the inverse gamma prior added by
+\code{\link{add_priors.dfmodel}}. Each path starts flat at its own initial state, which costs
+burn-in rather than correctness -- the sampler redraws the whole path from the data in its first
+iteration, and what is here only conditions that first draw.
 }
 \examples{
 

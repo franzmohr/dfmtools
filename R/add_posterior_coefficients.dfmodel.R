@@ -91,13 +91,20 @@ add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL
           object <- .DfmNormalGammaCoefficients(object)
         } else if (algorithm == "DfmNormalStochvol") {
           object <- .DfmNormalStochvolCoefficients(object)
+        } else if (algorithm == "DfmTvpGamma") {
+          object <- .DfmTvpGammaCoefficients(object)
         } else {
           stop("Algorithm '", algorithm, "' not supported.")
         }
 
+        # `sigma` is only there where the coefficients drift: it is the variance
+        # of the random walk innovations, one number per coefficient, and it is
+        # a chain like any other.
         for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv")) {
-          if (!is.null(object[["posterior"]][[i]][["coeffs"]])) {
-            object[["posterior"]][[i]][["coeffs"]] <- coda::as.mcmc(object[["posterior"]][[i]][["coeffs"]])
+          for (j in c("coeffs", "sigma")) {
+            if (!is.null(object[["posterior"]][[i]][[j]])) {
+              object[["posterior"]][[i]][[j]] <- coda::as.mcmc(object[["posterior"]][[i]][[j]])
+            }
           }
         }
 

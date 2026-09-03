@@ -66,6 +66,8 @@ add_posterior_loglik.dfmodel <- function(object, ...){
     object <- .DfmNormalGammaLogLik(object)
   } else if (algorithm == "DfmNormalStochvol") {
     object <- .DfmNormalStochvolLogLik(object)
+  } else if (algorithm == "DfmTvpGamma") {
+    object <- .DfmTvpGammaLogLik(object)
   } else {
     stop("Algorithm '", algorithm, "' not supported.")
   }

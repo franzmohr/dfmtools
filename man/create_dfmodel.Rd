@@ -10,6 +10,7 @@ create_dfmodel(
   n = 1,
   normalize_x = TRUE,
   error = "gamma",
+  tvp = FALSE,
   iterations = 20000,
   burnin = 2000
 )
@@ -26,6 +27,9 @@ be normalized using \code{scale}. Defaults to \code{TRUE}.}
 
 \item{error}{character specifying the model that should be used for the estimation
 of the covariance matrix of the error term. Default is \code{"gamma"}. See 'Details'.}
+
+\item{tvp}{logical indicating whether the coefficients of the model are time varying.
+Defaults to \code{FALSE}. See 'Details'.}
 
 \item{iterations}{an integer of MCMC draws excluding burn-in draws (defaults
 to 20000).}
@@ -77,6 +81,21 @@ early and quiet later stops contributing on the same terms throughout. Volatilit
 common component's own, and it is what keeps the \eqn{M} idiosyncratic variances from jointly absorbing
 a shock that every series felt at once. Off-diagonal elements are not estimated and set to zero.}
 }
+
+If \code{tvp = TRUE}, the coefficients of the model follow random walks and are estimated as
+whole paths with the simulation smoother of Durbin and Koopman (2002). \emph{Both} coefficient
+blocks move: every freely estimated element of the loading matrix \eqn{\lambda_t} of the
+measurement equation, and every element of the coefficient matrices \eqn{A_{i, t}} of the
+transition equation. A loading is a series' exposure to the common component, and that it held
+over the whole sample is the assumption a factor model makes most often and defends least: a
+constant-loading model has nowhere to put a change in exposure except the idiosyncratic
+variance, which then carries it as noise the series is credited with throughout. The leading
+\eqn{N \times N} block of \eqn{\lambda_t} does not move, because it is not estimated -- it is
+the normalisation that identifies the factors, and letting it drift would let their rotation and
+scale wander over the sample.
+
+Time varying coefficients are currently available with \code{error = "gamma"} only, which is
+the algorithm \code{DfmTvpGamma}.
 }
 \examples{
 
@@ -91,10 +110,21 @@ model <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
 model_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv",
                            iterations = 5000, burnin = 1000)
 
+# And with time varying loadings and transition coefficients
+model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
+                            iterations = 5000, burnin = 1000)
+
 }
 \references{
 Chan, J., Koop, G., Poirier, D. J., & Tobias, J. L. (2019). \emph{Bayesian Econometric Methods}
 (2nd ed.). Cambridge: University Press.
+
+Del Negro, M., & Otrok, C. (2008). Dynamic factor models with time-varying parameters: measuring
+changes in international business cycles. \emph{Federal Reserve Bank of New York Staff Report}
+No. 326.
+
+Durbin, J., & Koopman, S. J. (2002). A simple and efficient simulation smoother for state space
+time series analysis. \emph{Biometrika 89}(3), 603--615.
 
 Lütkepohl, H. (2006). \emph{New introduction to multiple time series analysis} (2nd ed.). Berlin: Springer.
 

@@ -9,25 +9,29 @@ package at all.
 
 The same arrangement bvartools uses, and for the same reason: there is one
 implementation of each sampler, upstream, and the R packages are translation
-layers over it. `src/DfmNormalGamma.cpp` and `src/DfmNormalStochvol.cpp` are the
-whole of this package's half of that -- each turns a `dfmodel` list into the
-corresponding `bayests::...Input` and the draws back into a list. What the two
-share is in `src/dfm_r_translation.h`, which is one thing: the permutation
-between R's `lower.tri()` ordering of the free loadings and the row-major
-ordering the core draws them in.
+layers over it. `src/DfmNormalGamma.cpp`, `src/DfmNormalStochvol.cpp` and
+`src/DfmTvpGamma.cpp` are the whole of this package's half of that -- each turns
+a `dfmodel` list into the corresponding `bayests::...Input` and the draws back
+into a list. What the three share is in `src/dfm_r_translation.h`, which is one
+thing: the permutation between R's `lower.tri()` ordering of the free loadings
+and the row-major ordering the core draws them in.
 
 ## Which files, and why not all of them
 
-Only what the two dynamic factor models reach. This package has those two
-samplers; upstream has fifteen, and compiling the other thirteen would cost a
+Only what the three dynamic factor models reach. This package has those three
+samplers; upstream has sixteen, and compiling the other thirteen would cost a
 minute of build time and a larger shared object for code that is never called.
 bvartools mirrors the whole core because it uses twelve of them, which is a
 different trade.
 
-The second sampler was cheap to add: it shares `dfm_support.h`,
-`model_support.h` and `chan_jeliazkov_2009` with the first, so the closure grew
-by its own two files plus the stochastic volatility mixture -- five in all, from
-sixteen files to twenty-one.
+Each sampler after the first has been cheap to add, because they share
+`dfm_support.h`, `model_support.h` and `chan_jeliazkov_2009`.
+`DfmNormalStochvol` grew the closure by its own two files plus the stochastic
+volatility mixture -- five in all, from sixteen files to twenty-one.
+`DfmTvpGamma` grew it by four: its own two, and
+`kalman_durbin_koopman_2002.{h,cpp}`, which it needs for the loading paths and
+the transition path and which no constant-coefficient model reaches. Twenty-five
+now.
 
 The set is *computed* rather than listed. `tools/update-bayests-core.R` starts
 from
@@ -36,6 +40,8 @@ from
     src/core/models/dfm_normal_gamma.cpp
     include/bayests/dfm_normal_stochvol.h
     src/core/models/dfm_normal_stochvol.cpp
+    include/bayests/dfm_tvp_gamma.h
+    src/core/models/dfm_tvp_gamma.cpp
     src/core/spec.cpp
     src/core/inputs.cpp
 
@@ -47,9 +53,9 @@ a file that stops being reachable is reported rather than left behind.
 `spec.cpp` and `inputs.cpp` are named as entry points rather than discovered,
 because nothing includes them -- they hold `VarSpec::validate()` and every
 `Input::validate()`, which the samplers call across translation units. Each
-sampler has to be named for the same reason as the other: neither is reachable
-from the other's includes, so a sampler left off that list is simply not
-vendored, and the omission shows up as a link error rather than as a warning.
+sampler has to be named for the same reason as the others: none is reachable from
+another's includes, so a sampler left off that list is simply not vendored, and
+the omission shows up as a link error rather than as a warning.
 
 | Upstream | Here |
 | --- | --- |
@@ -112,5 +118,6 @@ Keep this list short; every entry is something a refresh has to reapply.
 `src/dfm_r_translation.h` belong to this package. The first implements the core's
 `Reporter` contract against R's console and `Rcpp::checkUserInterrupt()`; the
 second translates between an `Rcpp::List` and the core's structs; the third holds
-the one piece of that translation both dynamic factor bindings need. All three
-are GPL (>= 2) like the rest of the package, and `inst/COPYRIGHTS` says so.
+the one piece of that translation all three dynamic factor bindings need. All
+three are GPL (>= 2) like the rest of the package, and `inst/COPYRIGHTS` says
+so.

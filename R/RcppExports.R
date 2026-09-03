@@ -25,3 +25,15 @@
     .Call(`_dfmtools_DfmNormalStochvolLogLik`, object)
 }
 
+.DfmTvpGammaCoefficients <- function(object) {
+    .Call(`_dfmtools_DfmTvpGammaCoefficients`, object)
+}
+
+.DfmTvpGammaForecasts <- function(object) {
+    .Call(`_dfmtools_DfmTvpGammaForecasts`, object)
+}
+
+.DfmTvpGammaLogLik <- function(object) {
+    .Call(`_dfmtools_DfmTvpGammaLogLik`, object)
+}
+

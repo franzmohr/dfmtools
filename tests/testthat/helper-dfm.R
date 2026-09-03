@@ -69,8 +69,108 @@ prepared_dfm_sv <- function(iterations = 20, burnin = 10, ...) {
   list(object = object, sim = sim)
 }
 
+# The state equation one coefficient block of a time varying model needs, on top
+# of the `vinv` add_priors() already takes for it. There is no default for the
+# pair, so a tvp model has to be given this for both lambda and a.
+tvp_prior <- function(vinv = 0.01, shape = 3, rate = 0.01) {
+  list(vinv = vinv, shape = shape, rate = rate)
+}
+
+# prepared_dfm() for tvp = TRUE.
+prepared_dfm_tvp <- function(iterations = 20, burnin = 10, ...) {
+
+  sim <- sim_dfm(...)
+
+  object <- create_dfmodel(x = sim$x, p = sim$p, n = sim$n, tvp = TRUE,
+                           iterations = iterations, burnin = burnin)
+  object <- add_priors(object, lambda = tvp_prior(), a = tvp_prior())
+  object <- add_initial_values(object)
+
+  list(object = object, sim = sim)
+}
+
+# The loading path a posterior implies, (M N) x T: the stored object is the whole
+# M x N matrix per period, periods along a row. At one factor the rows are the M
+# series in order.
+loading_path <- function(object, m, n, tt) {
+  matrix(colMeans(object$posterior$lambda$coeffs), m * n, tt)
+}
+
+# A sample whose loadings really move: one factor, and every series' loading on a
+# ramp from `from` to `to` over the sample. What a constant-loading model cannot
+# find, and what makes a recovery test of this model worth running.
+#
+# The first loading is 1 at both ends because the identifying restriction fixes
+# it there -- see sim_dfm_known(), which says why at length. The others move by
+# enough that a sampler that ignored the period index would fail on the level as
+# well as on the direction.
+sim_dfm_drifting <- function(tt = 400, u_sd = 0.4, a = 0.6, seed = 7,
+                             from = c(1, 1.5, -0.8, 2.0, 0.5),
+                             to   = c(1, 0.3, -0.8, 0.6, 1.5)) {
+
+  set.seed(seed)
+
+  m <- length(from)
+
+  # Burn 50 periods in so the path does not start at the origin.
+  f <- numeric(tt + 50)
+  for (i in 2:(tt + 50)) {
+    f[i] <- a * f[i - 1] + stats::rnorm(1)
+  }
+  f <- f[-(1:50)]
+
+  share <- (seq_len(tt) - 1) / (tt - 1)
+  lambda <- outer(1 - share, from) + outer(share, to) # tt x m
+
+  x <- lambda * f + matrix(stats::rnorm(tt * m, sd = u_sd), tt, m)
+  colnames(x) <- paste0("x", seq_len(m))
+
+  list(x = stats::ts(x, start = c(1950, 1), frequency = 4),
+       f = f, lambda = lambda, from = from, to = to, u_sd = u_sd,
+       n = 1, m = m, tt = tt)
+}
+
 # The idiosyncratic variances a posterior implies, M x T: the stored object is a
 # precision path, m values per period, periods along a row.
 idiosyncratic_variance <- function(object, m, tt) {
   matrix(1 / colMeans(object$posterior$u_sigma_inv$coeffs), m, tt)
+}
+
+# A sample with parameters that are known exactly, for the tests that assert on
+# the numbers rather than on the shapes. sim_dfm() draws its loadings at random
+# and gives every series the same noise, neither of which a recovery test can
+# check itself against.
+#
+# The first loading is 1 because the identifying restriction fixes it there:
+# only the product lambda %*% f_t is identified, so a factor scaled by c and
+# loadings scaled by 1/c is the same model. Pinning the true value to the value
+# the sampler holds fixed is what makes the remaining loadings comparable to
+# truth directly, without rescaling the draw first.
+sim_dfm_known <- function(tt = 300,
+                          lambda = matrix(c(1, 1.5, -0.8, 2, 0.5, -1.2), 6, 1),
+                          u_sd = c(0.3, 0.5, 0.4, 0.6, 0.3, 0.5),
+                          a = 0.6, seed = 123) {
+
+  set.seed(seed)
+
+  m <- nrow(lambda)
+  n <- ncol(lambda)
+  a <- diag(a, n)
+
+  # Burn 50 periods in so the path does not start at the origin.
+  f <- matrix(0, tt + 50, n)
+  for (i in 2:(tt + 50)) {
+    f[i, ] <- a %*% f[i - 1, ] + stats::rnorm(n, sd = 1)
+  }
+  f <- f[-(1:50), , drop = FALSE]
+
+  # A different noise scale per series, so that the idiosyncratic variances are
+  # distinguishable from one another and a sampler that returned a common one
+  # would fail.
+  x <- f %*% t(lambda) + matrix(stats::rnorm(tt * m, sd = rep(u_sd, each = tt)), tt, m)
+  colnames(x) <- paste0("x", seq_len(m))
+
+  list(x = stats::ts(x, start = c(1950, 1), frequency = 4),
+       f = f, lambda = lambda, a = a, u_sd = u_sd,
+       n = n, m = m, tt = tt)
 }

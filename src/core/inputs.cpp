@@ -700,9 +700,7 @@ namespace
 /// factor model at all, and the two coefficient blocks. Only the error
 /// specification differs between them -- gamma priors on two precisions against
 /// two stochastic volatility blocks -- so only that is left to the callers.
-void validate_dfm_shape(const VarSpec &spec, arma::uword tt, const NormalPrior &lambda_prior,
-                        const arma::vec &initial_lambda, const NormalPrior &a_prior,
-                        const arma::vec &initial_a, bool use_a)
+void validate_dfm_dimensions(const VarSpec &spec, arma::uword tt)
 {
     const arma::uword k = static_cast<arma::uword>(spec.k);
     const arma::uword n = static_cast<arma::uword>(spec.n_factors);
@@ -743,6 +741,15 @@ void validate_dfm_shape(const VarSpec &spec, arma::uword tt, const NormalPrior &
         throw std::invalid_argument("a dynamic factor model has no contemporaneous coefficients "
                                     "to identify; expected structural false");
     }
+}
+
+/// The two coefficient blocks of a dynamic factor model whose coefficients do
+/// not move: a normal prior over the free loadings and one over the transition.
+void validate_dfm_shape(const VarSpec &spec, arma::uword tt, const NormalPrior &lambda_prior,
+                        const arma::vec &initial_lambda, const NormalPrior &a_prior,
+                        const arma::vec &initial_a, bool use_a)
+{
+    validate_dfm_dimensions(spec, tt);
 
     // The free loadings, in the row-major order the sampler draws them.
     const arma::uword n_lambda = static_cast<arma::uword>(spec.n_lambda());
@@ -751,6 +758,34 @@ void validate_dfm_shape(const VarSpec &spec, arma::uword tt, const NormalPrior &
     if (use_a)
     {
         validate_normal_block(a_prior, initial_a, static_cast<arma::uword>(spec.n_factor_a()), "a");
+    }
+}
+
+/// The two gamma-distributed error precisions a dynamic factor model carries.
+/// Both are diagonal, so both arrive as the diagonal rather than as a matrix --
+/// and a starting value that is not positive is not one, since the first factor
+/// draw inverts it.
+void validate_dfm_gamma_errors(const GammaPrior &u_prior, const arma::vec &initial_u,
+                               const GammaPrior &v_prior, const arma::vec &initial_v,
+                               arma::uword k, arma::uword n)
+{
+    require_length(u_prior.shape, k, "gamma prior shape of the idiosyncratic precision");
+    require_length(u_prior.rate, k, "gamma prior rate of the idiosyncratic precision");
+    require_length(initial_u, k, "initial idiosyncratic precision");
+
+    require_length(v_prior.shape, n, "gamma prior shape of the factor innovation precision");
+    require_length(v_prior.rate, n, "gamma prior rate of the factor innovation precision");
+    require_length(initial_v, n, "initial factor innovation precision");
+
+    if (initial_u.min() <= 0.0)
+    {
+        throw std::invalid_argument("every element of the initial idiosyncratic precision must be "
+                                    "positive");
+    }
+    if (initial_v.min() <= 0.0)
+    {
+        throw std::invalid_argument("every element of the initial factor innovation precision must "
+                                    "be positive");
     }
 }
 
@@ -764,27 +799,45 @@ void DfmNormalGammaInput::validate() const
 
     validate_dfm_shape(spec, tt, lambda_prior, initial.lambda, a_prior, initial.a, use_a());
 
-    // Both precisions are diagonal, so both arrive as the diagonal rather than
-    // as a matrix -- and a starting value that is not positive is not one, since
-    // the first factor draw inverts it.
-    require_length(u_sigma_prior.shape, k, "gamma prior shape of the idiosyncratic precision");
-    require_length(u_sigma_prior.rate, k, "gamma prior rate of the idiosyncratic precision");
-    require_length(initial.u_sigma_inv, k, "initial idiosyncratic precision");
+    validate_dfm_gamma_errors(u_sigma_prior, initial.u_sigma_inv, v_sigma_prior,
+                              initial.v_sigma_inv, k, n);
+}
 
-    require_length(v_sigma_prior.shape, n, "gamma prior shape of the factor innovation precision");
-    require_length(v_sigma_prior.rate, n, "gamma prior rate of the factor innovation precision");
-    require_length(initial.v_sigma_inv, n, "initial factor innovation precision");
+void DfmTvpGammaInput::validate() const
+{
+    const arma::uword k = static_cast<arma::uword>(spec.k);
+    const arma::uword tt = checked_periods(spec, train);
+    const arma::uword n = static_cast<arma::uword>(spec.n_factors);
 
-    if (initial.u_sigma_inv.min() <= 0.0)
+    validate_dfm_dimensions(spec, tt);
+
+    // Both state equations difference their path against its own lag, so a
+    // single period leaves nothing to difference -- the same floor every
+    // time-varying parameter model here has.
+    if (tt < 2)
     {
-        throw std::invalid_argument("every element of the initial idiosyncratic precision must be "
-                                    "positive");
+        throw std::invalid_argument("a time-varying parameter model needs at least two periods");
     }
-    if (initial.v_sigma_inv.min() <= 0.0)
+
+    // A single observed series leaves no free loading to give a state equation
+    // to: the whole of Lambda is then the identifying block. Skipped rather than
+    // demanded as a set of empty datasets, which is what a file would otherwise
+    // have to carry to describe a model with nothing in the block.
+    const arma::uword n_lambda = static_cast<arma::uword>(spec.n_lambda());
+    if (n_lambda > 0)
     {
-        throw std::invalid_argument("every element of the initial factor innovation precision must "
-                                    "be positive");
+        validate_tvp_block(lambda_prior, initial.lambda, initial.lambda_sigma_inv,
+                           initial.lambda_init, n_lambda, tt, "loading", "lambda");
     }
+
+    if (use_a())
+    {
+        validate_tvp_block(a_prior, initial.a, initial.a_sigma_inv, initial.a_init,
+                           static_cast<arma::uword>(spec.n_factor_a()), tt, "transition", "a");
+    }
+
+    validate_dfm_gamma_errors(u_sigma_prior, initial.u_sigma_inv, v_sigma_prior,
+                              initial.v_sigma_inv, k, n);
 }
 
 void DfmNormalStochvolInput::validate() const

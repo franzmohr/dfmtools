@@ -211,17 +211,27 @@ inline void accumulate_transition_moments(arma::mat &precision, arma::vec &rhs,
 /// there would misstate the prior by however much the volatility moved over the
 /// first p periods -- silently, since either shape runs. Dispatching on the
 /// height is the same arrangement chan_jeliazkov_2009 uses for the same reason.
+///
+/// `a_mat` dispatches on its height the same way, and for the same reason: one
+/// N x Np transition that holds in every period, or a (p N) x Np stack of the
+/// first p periods' own. A model whose transition drifts needs the second --
+/// f_i is produced by A_i, not by A_1 -- and both shapes run, so the stack is
+/// passed unshifted here even though chan_jeliazkov_2009 wants it shifted. These
+/// p blocks are the transitions the prior *is*, not transitions producing a
+/// later column.
 inline arma::mat initial_state_covariance(const arma::mat &a_mat, const arma::mat &v_sigma,
                                           const int n, const int p)
 {
     const int side = p * n;
+    const int a_stride = (static_cast<int>(a_mat.n_rows) == n) ? 0 : n;
     arma::mat h = arma::eye<arma::mat>(side, side);
     for (int i = 1; i < p; i++)
     {
         for (int j = 0; j < i; j++)
         {
             h.submat(i * n, j * n, (i + 1) * n - 1, (j + 1) * n - 1) =
-                -a_mat.cols((i - j - 1) * n, (i - j) * n - 1);
+                -a_mat.submat(i * a_stride, (i - j - 1) * n, i * a_stride + n - 1,
+                              (i - j) * n - 1);
         }
     }
 
@@ -345,6 +355,186 @@ inline arma::mat draw_factor_path_sv(const arma::mat &x_t, const arma::mat &lamb
         a_mat, v_stack.head_rows(static_cast<arma::uword>(p_state) * nn), n, p_state);
 
     return chan_jeliazkov_2009(x_t, lambda, u_stack, v_transitions, a_mat, a_init, p_init)
+        .cols(0, tt - 1);
+}
+
+/// An M x N loading matrix per period, carrying nothing but the identification:
+/// (M tt) x N, block t holding what identified_loadings() returns.
+///
+/// Built once before the chain and never rebuilt. The identifying block is the
+/// half of Lambda that does not drift -- it is not drawn in any period -- so the
+/// only cells fill_stacked_loadings() ever writes are the free ones, and the
+/// ones and zeros put here survive the whole chain.
+inline arma::mat stacked_identified_loadings(const int k, const int n, const int tt)
+{
+    arma::mat stack(static_cast<arma::uword>(k) * tt, n, arma::fill::zeros);
+    for (int t = 0; t < tt; t++)
+    {
+        stack.rows(t * k, t * k + n - 1).diag().ones();
+    }
+    return stack;
+}
+
+/// Writes a path of free loadings into the stack chan_jeliazkov_2009 reads as a
+/// measurement matrix per period: block t is Lambda_t, M x N.
+///
+/// `lambda` is n_lambda x tt, one period per column, each column in the row by
+/// row order fill_lambda() consumes -- so this is that function once per period,
+/// scattering into a submatrix instead of into a matrix.
+///
+/// `stack` must be (M tt) x N and must already carry the identifying block in
+/// every period; stacked_identified_loadings() builds it. Nothing here writes a
+/// fixed cell.
+inline void fill_stacked_loadings(arma::mat &stack, const arma::mat &lambda, const int k,
+                                  const int n)
+{
+    const int tt = static_cast<int>(lambda.n_cols);
+    for (int t = 0; t < tt; t++)
+    {
+        int pos = 0;
+        for (int i = 1; i < k; i++)
+        {
+            const int width = lambda_row_width(i, n);
+            stack.submat(t * k + i, 0, t * k + i, width - 1) =
+                arma::trans(lambda.submat(pos, t, pos + width - 1, t));
+            pos += width;
+        }
+    }
+}
+
+/// Writes a path of transition coefficients into the stack chan_jeliazkov_2009
+/// reads as a transition per period: block t is [A_1 .. A_p] of period t,
+/// N x Np.
+///
+/// `a` is (N^2 p) x tt, one period per column, each column vec([A_1 .. A_p]) --
+/// the same object DfmNormalGamma reshapes once, reshaped once per period.
+///
+/// Unshifted: block t is period t's own transition, which is what
+/// initial_state_covariance() wants and what draw_factor_path_tvp() shifts on
+/// the way into the band sampler. Shifting here instead would put the shift
+/// where the residuals and the state variance also read the stack, and quietly
+/// lag the model by a period in two blocks out of three.
+inline void fill_stacked_transition(arma::mat &stack, const arma::mat &a, const int n,
+                                    const int p)
+{
+    const int tt = static_cast<int>(a.n_cols);
+    for (int t = 0; t < tt; t++)
+    {
+        stack.rows(t * n, (t + 1) * n - 1) = arma::reshape(a.col(t), n, n * p);
+    }
+}
+
+/// The SUR design of the factor transition, one block per period: (N tt) x
+/// (N^2 p), block t holding kron(x_t', I_N) for the lagged factors x_t of period
+/// t, so that f_t = Z_t vec([A_1 .. A_p]_t).
+///
+/// The Kronecker product is scattered rather than formed. `a` is vec of an
+/// N x Np matrix, column-major, so element (i, c) of it sits at c N + i, which
+/// is the position row i of block t has to carry x_t(c) in. Every other cell is
+/// structurally zero: `z_a` is expected zeroed once before the chain and the
+/// cells this leaves alone stay zero for its whole life.
+///
+/// `x_a` is the (N p) x tt lagged factor matrix fill_lagged_factors() writes,
+/// zero before the sample -- so the first p periods carry the truncated
+/// transitions rather than a special case.
+inline void fill_transition_design(arma::mat &z_a, const arma::mat &x_a, const int n)
+{
+    const int tt = static_cast<int>(x_a.n_cols);
+    const int np = static_cast<int>(x_a.n_rows);
+    for (int t = 0; t < tt; t++)
+    {
+        for (int c = 0; c < np; c++)
+        {
+            const double value = x_a(c, t);
+            for (int i = 0; i < n; i++)
+            {
+                z_a(t * n + i, c * n + i) = value;
+            }
+        }
+    }
+}
+
+/// The transition residuals of a model whose transition moves with time,
+/// f_t - sum_j A_{j,t} f_{t-j}, N x tt.
+///
+/// The lagged factors are taken from `x_a`, which is zero before the sample, so
+/// the truncation of the first p periods needs no special case -- the same
+/// convention transition_residuals() follows for a constant transition, and the
+/// same one the prior over the first p states is derived under.
+inline arma::mat transition_residuals_tvp(const arma::mat &factors, const arma::mat &a_stack,
+                                          const arma::mat &x_a, const int n)
+{
+    const int tt = static_cast<int>(factors.n_cols);
+    arma::mat v = factors;
+    for (int t = 0; t < tt; t++)
+    {
+        v.col(t) -= a_stack.rows(t * n, (t + 1) * n - 1) * x_a.col(t);
+    }
+    return v;
+}
+
+/// One draw of the whole factor path when the loadings and the transition move
+/// with time, N x tt.
+///
+/// `lambda_stack` is (M tt) x N and `a_stack` is (N tt) x Np, both in this
+/// model's indexing: block t belongs to period t. fill_stacked_loadings() and
+/// fill_stacked_transition() build them. A model whose factors have no dynamics
+/// passes the N x N block of zeros draw_factor_path() takes, which is recognised
+/// by its height and used for every period.
+///
+/// Everything draw_factor_path() says about the algorithm still applies -- the
+/// path is one Gaussian vector of block banded precision, drawn in a sweep over
+/// the periods. What no longer applies is its last paragraph: the measurement
+/// matrix is *not* the same in every period any more, so chan_jeliazkov_2009
+/// forms Z_t' U^-1 Z_t once per period rather than once, which with many
+/// observed series is the dominant cost of the assembly. That is what a
+/// drifting Lambda costs, and there is no version of this model that avoids it.
+///
+/// The shift is the same one draw_factor_path_sv() applies to the covariances,
+/// and for the same reason: chan_jeliazkov_2009 indexes the transition that
+/// *produces* state column t by t - 1, while this model's block t is period t's
+/// own. Handing `a_stack` over unshifted would estimate a model whose
+/// coefficients lag the transitions they belong to by a period -- a different
+/// model, and not a broken one: nothing would fail.
+///
+/// The shift leaves the last block wanting A_tt, which does not exist. It
+/// belongs to state column tt, the one past the end of the sample that is
+/// dropped on the way out, and any transition does there: f_tt enters the joint
+/// through that single Gaussian factor and nothing else, so integrating it out
+/// is an integral in f_tt alone and leaves the kept columns exactly as they
+/// were, whatever coefficients produced it. The previous period's are reused
+/// because they are already the right shape.
+///
+/// The prior over the first p columns takes `a_stack` unshifted, exactly as
+/// draw_factor_path_sv() takes `v_stack` unshifted: those columns are the
+/// truncated transitions run from nothing, so the coefficients they need are
+/// A_0 ... A_{p-1}, which is where the stack starts.
+inline arma::mat draw_factor_path_tvp(const arma::mat &x_t, const arma::mat &lambda_stack,
+                                      const arma::mat &u_sigma, const arma::mat &v_sigma,
+                                      const arma::mat &a_stack, const int n, const int p_state)
+{
+    const arma::uword tt = x_t.n_cols;
+    const arma::uword nn = static_cast<arma::uword>(n);
+    const arma::vec a_init(static_cast<arma::uword>(p_state) * nn, arma::fill::zeros);
+
+    const bool a_is_stacked = a_stack.n_rows != nn;
+
+    const arma::mat a_prior_blocks =
+        a_is_stacked ? arma::mat(a_stack.head_rows(static_cast<arma::uword>(p_state) * nn))
+                     : a_stack;
+    const arma::mat p_init = initial_state_covariance(a_prior_blocks, v_sigma, n, p_state);
+
+    if (!a_is_stacked)
+    {
+        return chan_jeliazkov_2009(x_t, lambda_stack, u_sigma, v_sigma, a_stack, a_init, p_init)
+            .cols(0, tt - 1);
+    }
+
+    arma::mat a_transitions(a_stack.n_rows, a_stack.n_cols);
+    a_transitions.head_rows((tt - 1) * nn) = a_stack.tail_rows((tt - 1) * nn);
+    a_transitions.tail_rows(nn) = a_stack.tail_rows(nn);
+
+    return chan_jeliazkov_2009(x_t, lambda_stack, u_sigma, v_sigma, a_transitions, a_init, p_init)
         .cols(0, tt - 1);
 }
 

@@ -48,6 +48,18 @@ precision of the loading factors of the measurement equation. Default is 0.01.
 Argument \code{a} can only contain the element \code{vinv}, which is a numeric specifying the prior
 precision of the coefficients of the transition equation. Default is 0.01.
 
+For a model created with \code{tvp = TRUE} both coefficient blocks follow random walks, and both
+arguments must contain two further elements. \code{vinv} then describes the state of the period
+before the sample rather than a coefficient that holds throughout, and the pair below describes
+how far the state may drift from one period to the next. There are no defaults for them, so a
+call that forgets is told which elements are missing:
+\describe{
+  \item{\code{shape}}{a numeric of the prior shape parameter of the variance of the state
+  innovations.}
+  \item{\code{rate}}{a numeric of the prior rate parameter of that variance. The smaller it is,
+  the more tightly the coefficients are held to a constant.}
+}
+
 Arguments \code{u} and \code{v} specify the priors of the two error terms -- \eqn{u_t} of the
 measurement equation and \eqn{v_t} of the transition equation. Both take the same elements, at
 different widths: \code{u} describes \eqn{M} observed series and \code{v} describes \eqn{N}
@@ -103,6 +115,16 @@ model_sv <- add_priors(model_sv,
                                 state_variance = .05, offset = 1e-4),
                        v = list(mu = 0, v_i = .1, shape = 3, rate = .2,
                                 state_variance = .05, offset = 1e-4))
+
+# And for a model with time varying coefficients, where both coefficient
+# blocks take a state equation on top of the prior on their initial state
+model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
+                            iterations = 5000, burnin = 1000)
+model_tvp <- add_priors(model_tvp,
+                        lambda = list(vinv = .01, shape = 3, rate = .01),
+                        a = list(vinv = .01, shape = 3, rate = .01),
+                        u = list(shape = 5, rate = 4),
+                        v = list(shape = 5, rate = 4))
 
 }
 \references{

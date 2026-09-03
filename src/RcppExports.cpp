@@ -77,6 +77,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// DfmTvpGammaCoefficients
+Rcpp::List DfmTvpGammaCoefficients(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpGammaCoefficients(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpGammaCoefficients(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmTvpGammaForecasts
+Rcpp::List DfmTvpGammaForecasts(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpGammaForecasts(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpGammaForecasts(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmTvpGammaLogLik
+Rcpp::List DfmTvpGammaLogLik(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpGammaLogLik(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpGammaLogLik(object));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
@@ -85,6 +118,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalStochvolCoefficients", (DL_FUNC) &_dfmtools_DfmNormalStochvolCoefficients, 1},
     {"_dfmtools_DfmNormalStochvolForecasts", (DL_FUNC) &_dfmtools_DfmNormalStochvolForecasts, 1},
     {"_dfmtools_DfmNormalStochvolLogLik", (DL_FUNC) &_dfmtools_DfmNormalStochvolLogLik, 1},
+    {"_dfmtools_DfmTvpGammaCoefficients", (DL_FUNC) &_dfmtools_DfmTvpGammaCoefficients, 1},
+    {"_dfmtools_DfmTvpGammaForecasts", (DL_FUNC) &_dfmtools_DfmTvpGammaForecasts, 1},
+    {"_dfmtools_DfmTvpGammaLogLik", (DL_FUNC) &_dfmtools_DfmTvpGammaLogLik, 1},
     {NULL, NULL, 0}
 };
 
