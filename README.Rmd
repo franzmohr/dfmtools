@@ -76,6 +76,8 @@ Each step returns the same object with one more element on it.
 ```{r setup, message = FALSE}
 library(dfmtools)
 
+set.seed(123456789)
+
 data("bem_dfmdata")
 
 dim(bem_dfmdata)

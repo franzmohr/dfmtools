@@ -66,6 +66,8 @@ from. Each step returns the same object with one more element on it.
 ``` r
 library(dfmtools)
 
+set.seed(123456789)
+
 data("bem_dfmdata")
 
 dim(bem_dfmdata)
@@ -127,11 +129,11 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
 round(head(lambda, 6), 3)
 #>            f1     f2
 #> GDPC96  1.000  0.000
-#> PCECC96 3.396  1.000
-#> PCDGx   3.157  1.766
-#> PCESVx  2.104 -0.391
-#> PCNDx   2.482  0.782
-#> GPDIC96 4.038  0.787
+#> PCECC96 3.790  1.000
+#> PCDGx   3.602 -0.290
+#> PCESVx  2.120  1.469
+#> PCNDx   2.725  0.407
+#> GPDIC96 4.340  1.205
 ```
 
 The factor path is stored period by period, all `N` factors of a period
@@ -180,14 +182,14 @@ rownames(fc) <- paste0("h = ", 1:8)
 
 round(fc, 3)
 #>          10%    50%   90%
-#> h = 1 -1.084  0.031 1.183
-#> h = 2 -1.132  0.027 1.190
-#> h = 3 -1.128  0.015 1.195
-#> h = 4 -1.109  0.030 1.203
-#> h = 5 -1.191 -0.009 1.185
-#> h = 6 -1.164  0.037 1.204
-#> h = 7 -1.176 -0.007 1.187
-#> h = 8 -1.193 -0.021 1.190
+#> h = 1 -1.097  0.051 1.223
+#> h = 2 -1.151  0.033 1.220
+#> h = 3 -1.144  0.010 1.238
+#> h = 4 -1.143  0.029 1.224
+#> h = 5 -1.209 -0.008 1.192
+#> h = 6 -1.183  0.026 1.162
+#> h = 7 -1.219 -0.018 1.204
+#> h = 8 -1.221 -0.020 1.226
 ```
 
 Those are in the units of the normalised data. Multiplying by the sample
@@ -220,7 +222,7 @@ lppd <- sum(apply(ll, 2, logmeanexp))
 p_waic <- sum(apply(ll, 2, stats::var))
 
 round(-2 * (lppd - p_waic), 1)
-#> [1] 106686
+#> [1] 106690
 ```
 
 ### Several specifications at once
