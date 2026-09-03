@@ -460,6 +460,52 @@ struct DfmTvpGammaDraws
     bool has_factors() const { return factors.n_elem > 0; }
 };
 
+/// Posterior draws of a dynamic factor model whose loadings, factor transition
+/// and two error covariances all move with time.
+///
+/// DfmTvpGammaDraws with the two precisions widened from a point to a path, which
+/// is exactly what DfmNormalStochvolDraws does to DfmNormalGammaDraws. Every
+/// member but the two state variances is a path, which makes this the widest
+/// output of any model here.
+///
+/// `lambda` and `a` are the members whose height depends on which entry point
+/// produced them, the same arrangement VarTvpGammaDraws has, and `u_sigma_inv`
+/// and `v_sigma_inv` are read the way DfmNormalStochvolDraws' are: whole for the
+/// pointwise log likelihood, last period alone for a forecast.
+struct DfmTvpStochvolDraws
+{
+    /// (k * n_factors * tt) x iterations: one vectorised M x N loading matrix
+    /// per period, periods stacked within a column, the identifying block's
+    /// fixed ones and zeros included. Cut to k * n_factors for a forecast.
+    arma::mat lambda;
+
+    /// n_lambda x iterations: the variance of the loading random walks, one per
+    /// free element in the row-major order the prior uses.
+    arma::mat lambda_sigma;
+
+    /// (n_factors * tt) x iterations; each column is vec of the N x tt factor
+    /// path, periods along the columns of that matrix.
+    arma::mat factors;
+
+    /// (n_factor_a * tt) x iterations, one vec([A_1 .. A_p]) per period. Empty
+    /// when the factors have no dynamics; cut to n_factor_a for a forecast.
+    arma::mat a;
+
+    /// n_factor_a x iterations: the variance of the transition random walks.
+    arma::mat a_sigma;
+
+    /// (k * tt) x iterations: the diagonal of the idiosyncratic precision,
+    /// period by period, periods stacked within a column.
+    arma::mat u_sigma_inv;
+
+    /// (n_factors * tt) x iterations: the same for the factor innovations.
+    arma::mat v_sigma_inv;
+
+    arma::uword iterations() const { return u_sigma_inv.n_cols; }
+    bool has_a() const { return a.n_elem > 0; }
+    bool has_factors() const { return factors.n_elem > 0; }
+};
+
 /// Simulated forecast paths, (h * k) x draws: one column per posterior draw,
 /// horizons stacked within a column in the same variable order as the sample.
 struct ForecastDraws

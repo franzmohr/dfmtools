@@ -89,6 +89,22 @@ prepared_dfm_tvp <- function(iterations = 20, burnin = 10, ...) {
   list(object = object, sim = sim)
 }
 
+# prepared_dfm() for tvp = TRUE and error = "sv", which is the two specifications
+# at once: a state equation for each coefficient block and a volatility block for
+# each error term.
+prepared_dfm_tvp_sv <- function(iterations = 20, burnin = 10, ...) {
+
+  sim <- sim_dfm(...)
+
+  object <- create_dfmodel(x = sim$x, p = sim$p, n = sim$n, error = "sv", tvp = TRUE,
+                           iterations = iterations, burnin = burnin)
+  object <- add_priors(object, lambda = tvp_prior(), a = tvp_prior(),
+                       u = sv_prior(), v = sv_prior())
+  object <- add_initial_values(object)
+
+  list(object = object, sim = sim)
+}
+
 # The loading path a posterior implies, (M N) x T: the stored object is the whole
 # M x N matrix per period, periods along a row. At one factor the rows are the M
 # series in order.
@@ -104,7 +120,7 @@ loading_path <- function(object, m, n, tt) {
 # it there -- see sim_dfm_known(), which says why at length. The others move by
 # enough that a sampler that ignored the period index would fail on the level as
 # well as on the direction.
-sim_dfm_drifting <- function(tt = 400, u_sd = 0.4, a = 0.6, seed = 7,
+sim_dfm_drifting <- function(tt = 400, u_sd = 0.4, u_sd_to = u_sd, a = 0.6, seed = 7,
                              from = c(1, 1.5, -0.8, 2.0, 0.5),
                              to   = c(1, 0.3, -0.8, 0.6, 1.5)) {
 
@@ -122,11 +138,17 @@ sim_dfm_drifting <- function(tt = 400, u_sd = 0.4, a = 0.6, seed = 7,
   share <- (seq_len(tt) - 1) / (tt - 1)
   lambda <- outer(1 - share, from) + outer(share, to) # tt x m
 
-  x <- lambda * f + matrix(stats::rnorm(tt * m, sd = u_sd), tt, m)
+  # The idiosyncratic scale ramps too when `u_sd_to` differs from `u_sd`, which
+  # is what a model carrying both drifts has to tell apart from the loadings
+  # moving. With the default the two are equal and the scale is constant.
+  u_sd_t <- (1 - share) * u_sd + share * u_sd_to
+
+  x <- lambda * f + matrix(stats::rnorm(tt * m), tt, m) * u_sd_t
   colnames(x) <- paste0("x", seq_len(m))
 
   list(x = stats::ts(x, start = c(1950, 1), frequency = 4),
-       f = f, lambda = lambda, from = from, to = to, u_sd = u_sd,
+       f = f, lambda = lambda, from = from, to = to,
+       u_sd = u_sd, u_sd_to = u_sd_to, u_sd_t = u_sd_t,
        n = 1, m = m, tt = tt)
 }
 

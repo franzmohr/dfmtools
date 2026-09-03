@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Franz X. Mohr
 
-#include "bayests/dfm_tvp_gamma.h"
+#include "bayests/dfm_tvp_stochvol.h"
 
 #include "core/algorithms/kalman_durbin_koopman_2002.h"
+#include "core/algorithms/stochvol_ocsn_2007.h"
 #include "core/models/dfm_support.h"
 #include "core/models/model_support.h"
 
@@ -17,11 +18,11 @@ namespace bayests
 namespace
 {
 
-using core::draw_diagonal_precision;
 using core::draw_factor_path;
-using core::draw_normal_precision;
 using core::draw_random_walk_state;
+using core::draw_stochvol_state;
 using core::fill_lagged_factors;
+using core::fill_stacked_diagonal;
 using core::fill_stacked_loadings;
 using core::fill_stacked_transition;
 using core::fill_transition_design;
@@ -30,10 +31,30 @@ using core::response_by_period;
 using core::stacked_identified_loadings;
 using core::transition_residuals_tvp;
 
+/// The terminal period of a precision path, whatever the caller brought.
+///
+/// The forecast holds the volatility at its last in-sample value, so all it ever
+/// needs is the last block -- and a host that reads only that block out of a file
+/// hands over a matrix `width` rows tall rather than `width * tt`. Counting back
+/// from the end covers both without asking which one it was given. The same
+/// helper DfmNormalStochvol carries, for the same pair of shapes.
+arma::vec terminal_block(const arma::mat &path, const arma::uword draw, const arma::uword width,
+                         const char *what)
+{
+    if (path.n_rows == 0 || path.n_rows % width != 0)
+    {
+        throw std::invalid_argument(
+            std::string("posterior draws of ") + what + " must have a multiple of " +
+            std::to_string(width) + " rows, one block per period, got " +
+            std::to_string(path.n_rows));
+    }
+    return path.submat(path.n_rows - width, draw, path.n_rows - 1, draw);
+}
+
 } // namespace
 
-DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &input,
-                                                       Reporter &reporter) const
+DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvolInput &input,
+                                                             Reporter &reporter) const
 {
     input.validate();
 
@@ -52,15 +73,14 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     const bool use_a = n_a > 0;
 
     // A single observed series has no free loading: the whole of Lambda is then
-    // the identifying block. Nothing to draw, and nothing to give a state
-    // equation to.
+    // the identifying block.
     const bool use_lambda = n_lambda > 0;
 
-    DfmTvpGammaDraws out;
+    DfmTvpStochvolDraws out;
     out.lambda = arma::mat(static_cast<arma::uword>(k) * n * tt, iterations);
     out.factors = arma::mat(static_cast<arma::uword>(n) * tt, iterations);
-    out.u_sigma_inv = arma::mat(k, iterations);
-    out.v_sigma_inv = arma::mat(n, iterations);
+    out.u_sigma_inv = arma::mat(static_cast<arma::uword>(k) * tt, iterations);
+    out.v_sigma_inv = arma::mat(static_cast<arma::uword>(n) * tt, iterations);
 
     // The loadings: a path per free element, and the identifying block that is
     // the same in every period and is never drawn.
@@ -95,8 +115,7 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
         x_a = arma::mat(n * p, tt);
 
         // Zeroed once and never zeroed again: fill_transition_design() writes
-        // only the cells the Kronecker product is non-zero in, and the rest are
-        // structurally zero for the life of the chain.
+        // only the cells the Kronecker product is non-zero in.
         z_a = arma::zeros<arma::mat>(static_cast<arma::uword>(n) * tt, n_a);
 
         out.a = arma::mat(static_cast<arma::uword>(n_a) * tt, iterations);
@@ -106,8 +125,8 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     {
         // A transition of order zero is a zero transition, which is a thing
         // chan_jeliazkov_2009 can be handed: f_t = 0 f_{t-1} + v_t is exactly
-        // the serially independent factor this model then has. One code path
-        // rather than a special case, and the same one DfmNormalGamma takes.
+        // the serially independent -- but still heteroskedastic -- factor this
+        // model then has.
         a_stack = arma::zeros<arma::mat>(n, n);
     }
 
@@ -115,15 +134,34 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     // none.
     const int p_state = std::max(p, 1);
 
-    // Both error terms are diagonal, constant, and carried as the diagonal:
-    // this model's drift is in the coefficients.
-    const arma::vec u_post_shape = input.u_sigma_prior.shape + tt * 0.5;
-    const arma::vec &u_prior_rate = input.u_sigma_prior.rate;
-    arma::vec u_sigma_inv = input.initial.u_sigma_inv;
+    // Idiosyncratic volatility
+    arma::mat u_h = input.initial.u_h; // tt x k
+    arma::vec u_h_init = input.initial.u_h_init;
+    arma::vec u_h_sigma = input.initial.u_h_sigma;
+    const arma::vec &u_h_offset = input.u_sigma_prior.offset;
+    const arma::vec u_h_sigma_post_shape = input.u_sigma_prior.state.sigma.shape + tt * 0.5;
+    const arma::vec &u_h_sigma_prior_rate = input.u_sigma_prior.state.sigma.rate;
 
-    const arma::vec v_post_shape = input.v_sigma_prior.shape + tt * 0.5;
-    const arma::vec &v_prior_rate = input.v_sigma_prior.rate;
-    arma::vec v_sigma_inv = input.initial.v_sigma_inv;
+    // Factor innovation volatility
+    arma::mat v_h = input.initial.v_h; // tt x n
+    arma::vec v_h_init = input.initial.v_h_init;
+    arma::vec v_h_sigma = input.initial.v_h_sigma;
+    const arma::vec &v_h_offset = input.v_sigma_prior.offset;
+    const arma::vec v_h_sigma_post_shape = input.v_sigma_prior.state.sigma.shape + tt * 0.5;
+    const arma::vec &v_h_sigma_prior_rate = input.v_sigma_prior.state.sigma.rate;
+
+    // The two covariance stacks the factor path reads, one K x K or N x N block
+    // per period. Zeroed once and never zeroed again: both covariances are
+    // diagonal, so fill_stacked_diagonal only ever writes the diagonal.
+    arma::mat u_stack(static_cast<arma::uword>(k) * tt, k, arma::fill::zeros);
+    arma::mat v_stack(static_cast<arma::uword>(n) * tt, n, arma::fill::zeros);
+
+    arma::mat u_variance = arma::exp(u_h); // tt x k
+    arma::mat u_precision = 1.0 / u_variance;
+    arma::mat v_variance = arma::exp(v_h); // tt x n
+    arma::mat v_precision = 1.0 / v_variance;
+    fill_stacked_diagonal(u_stack, u_variance);
+    fill_stacked_diagonal(v_stack, v_variance);
 
     arma::mat factors, u, v;
 
@@ -133,15 +171,14 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
         reporter.check_interrupt();
         reporter.progress(draw + 1, draws);
 
-        const arma::mat u_sigma = arma::diagmat(1.0 / u_sigma_inv);
-        const arma::mat v_sigma = arma::diagmat(1.0 / v_sigma_inv);
-
         // Block 1: Draw the factor path ----
         //
-        // The measurement matrix now differs from period to period, so the
-        // assembly's Z' U^-1 Z is formed tt times rather than once. That is what
-        // a drifting Lambda costs; see draw_factor_path().
-        factors = draw_factor_path(x_t, lambda_stack, u_sigma, v_sigma, a_stack, n, p_state);
+        // The one call in this library that stacks all four of the band
+        // sampler's per-period arguments: a loading matrix, a measurement
+        // covariance, a transition and a transition covariance, each its own per
+        // period. draw_factor_path() carries the shift the last two need and the
+        // reason the first two do not.
+        factors = draw_factor_path(x_t, lambda_stack, u_stack, v_stack, a_stack, n, p_state);
 
         if (use_a)
         {
@@ -151,14 +188,16 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
         // Block 2: Draw the loading paths, row by row ----
         //
         // Row by row for the reason DfmNormalGamma draws the loadings equation
-        // by equation, which the state equation does not change: row i regresses
-        // on the first min(i, N) factors and carries min(i, N) free elements, so
-        // the rows share no design. Given the factors and a diagonal U they are
-        // also conditionally independent, so each row is a state path of its own
-        // width rather than a slice of one wide state.
+        // by equation: row i regresses on the first min(i, N) factors, so the
+        // rows share no design, and given the factors and a diagonal U they are
+        // conditionally independent.
         //
-        // While row i is inside the identifying block it carries the fixed unit
-        // loading on factor i, which moves to the left-hand side.
+        // Weighted per period as well as drifting, which is what neither of the
+        // two models this one sits between has. Row i carries one weight per
+        // period, so the periods in which series i was quiet identify its
+        // loading path and the periods in which it was wild largely do not --
+        // and the path is free to move between them, which is exactly the
+        // confusion the two halves of this model exist to tell apart.
         if (use_lambda)
         {
             int pos = 0;
@@ -169,7 +208,9 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
                 const arma::mat y_i =
                     (i < n) ? arma::mat(x_t.row(i) - factors.row(i)) : arma::mat(x_t.row(i));
 
-                const arma::mat u_sigma_i(1, 1, arma::fill::value(1.0 / u_sigma_inv(i)));
+                // One 1 x 1 covariance per period, which is the stacked shape
+                // the smoother reads for a single-row measurement.
+                const arma::mat u_sigma_i = u_variance.col(i);
                 const arma::mat sigma_i =
                     arma::diagmat(lambda_sigma.subvec(pos, pos + width - 1));
 
@@ -181,7 +222,6 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
                 pos += width;
             }
 
-            // Draw the state variance and the loadings before the sample
             draw_random_walk_state(lambda_sigma, lambda_init, lambda_path,
                                    lambda_sigma_post_shape, input.lambda_prior.sigma.rate,
                                    input.lambda_prior.initial_state);
@@ -189,39 +229,58 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
             fill_stacked_loadings(lambda_stack, lambda_path, k, n);
         }
 
-        // Block 3: Draw the idiosyncratic precision ----
+        // Block 3: Draw the idiosyncratic log-volatility ----
         //
-        // One measurement matrix per period, so the fitted values are formed
-        // period by period rather than as one product.
+        // The fitted values are formed period by period, the measurement matrix
+        // being one per period. Everything after that is DfmNormalStochvol's
+        // block unchanged: the k series are independent given the factors, so one
+        // call to the factored routine handles all of them.
         u = x_t;
         for (int t = 0; t < tt; t++)
         {
             u.col(t) -= lambda_stack.rows(t * k, (t + 1) * k - 1) * factors.col(t);
         }
-        draw_diagonal_precision(u_sigma_inv, u, u_post_shape, u_prior_rate);
+        u_h = stochvol_ocsn_2007(arma::trans(u), u_h, u_h_sigma, u_h_init, u_h_offset);
+        draw_stochvol_state(u_h_sigma, u_h_init, u_h, u_h_sigma_post_shape, u_h_sigma_prior_rate,
+                            input.u_sigma_prior.state.initial_state);
 
-        // Block 4: Draw the factor innovation precision ----
+        u_variance = arma::exp(u_h);
+        u_precision = 1.0 / u_variance;
+        fill_stacked_diagonal(u_stack, u_variance);
+
+        // Block 4: Draw the factor innovation log-volatility ----
+        //
+        // The residual of period t is the transition's, including the first p
+        // periods, where it is the transition truncated at the zero factors
+        // before the sample. Those are as much a draw from N(0, V_t) as the rest,
+        // so all tt of them inform the volatility.
         v = use_a ? transition_residuals_tvp(factors, a_stack, x_a, n) : factors;
-        draw_diagonal_precision(v_sigma_inv, v, v_post_shape, v_prior_rate);
+        v_h = stochvol_ocsn_2007(arma::trans(v), v_h, v_h_sigma, v_h_init, v_h_offset);
+        draw_stochvol_state(v_h_sigma, v_h_init, v_h, v_h_sigma_post_shape, v_h_sigma_prior_rate,
+                            input.v_sigma_prior.state.initial_state);
+
+        v_variance = arma::exp(v_h);
+        v_precision = 1.0 / v_variance;
+        fill_stacked_diagonal(v_stack, v_variance);
 
         // Block 5: Draw the transition path ----
         //
-        // As one state of N^2 p elements against the SUR design kron(x_t', I_N).
-        // The identity DfmNormalGamma turns on -- the N equations sharing their
-        // regressors, so the posterior precision collapses to kron(X X', V^-1)
-        // and no (tt N) x (N^2 p) matrix is ever built -- is about a single
-        // coefficient vector and does not survive the coefficients becoming a
-        // path: each period has its own, and the design has to be spelled out.
+        // As one state of N^2 p elements against the SUR design kron(x_t', I_N),
+        // measured with the covariance block 4 has just drawn -- so the smoother
+        // sees a heteroskedastic measurement equation, which is the stacked shape
+        // v_stack already is.
+        //
+        // Neither of the two economies the constant-coefficient models take
+        // survives here. DfmNormalGamma's Kronecker collapse is a statement about
+        // a single coefficient vector, and DfmNormalStochvol's
+        // accumulate_transition_moments() is about a single vector under a moving
+        // covariance; a path is neither, so the design is spelled out.
         if (use_a)
         {
             fill_transition_design(z_a, x_a, n);
 
-            // Against the precision block 4 has just drawn, not the one the
-            // factor path was drawn under at the top of the iteration -- the
-            // same conditioning DfmNormalGamma's transition block uses.
-            a_path = kalman_durbin_koopman_2002(factors, z_a, arma::diagmat(1.0 / v_sigma_inv),
-                                                arma::diagmat(a_sigma), a_B, a_init,
-                                                arma::diagmat(a_sigma))
+            a_path = kalman_durbin_koopman_2002(factors, z_a, v_stack, arma::diagmat(a_sigma),
+                                                a_B, a_init, arma::diagmat(a_sigma))
                          .cols(0, tt - 1);
 
             draw_random_walk_state(a_sigma, a_init, a_path, a_sigma_post_shape,
@@ -246,8 +305,11 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
             }
 
             out.factors.col(draw_pos) = arma::vectorise(factors);
-            out.u_sigma_inv.col(draw_pos) = u_sigma_inv;
-            out.v_sigma_inv.col(draw_pos) = v_sigma_inv;
+
+            // Periods stacked within a column, k or n values per period, which
+            // is the transpose of the tt x k the volatility block works in.
+            out.u_sigma_inv.col(draw_pos) = arma::vectorise(arma::trans(u_precision));
+            out.v_sigma_inv.col(draw_pos) = arma::vectorise(arma::trans(v_precision));
 
             if (use_lambda)
             {
@@ -265,9 +327,9 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     return out;
 }
 
-ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
-                                           const DfmTvpGammaDraws &coefficients,
-                                           Reporter &reporter) const
+ForecastDraws DfmTvpStochvolSampler::forecast(const DfmTvpStochvolInput &input,
+                                              const DfmTvpStochvolDraws &coefficients,
+                                              Reporter &reporter) const
 {
     const int k = input.spec.k;
     const int n = input.spec.n_factors;
@@ -304,9 +366,10 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
     }
 
     // The coefficients move, so what a forecast starts from is their last
-    // in-sample period and nothing wider. A caller that hands over the whole
-    // path has skipped the slice the io layer makes, and every horizon below
-    // would then read the first period's numbers out of it.
+    // in-sample period and nothing wider. The two precisions are read the other
+    // way -- terminal_block() takes the last block of whatever it is handed --
+    // because a path of them is what the log likelihood also wants, and cutting
+    // one to a period is unambiguous where cutting the other would not be.
     if (coefficients.lambda.n_rows != static_cast<arma::uword>(k) * n)
     {
         throw std::invalid_argument(
@@ -342,9 +405,7 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
     arma::mat fcst(h * k, draws);
 
     // The path carries the p factors the transition needs before the first
-    // horizon, so column p + i is horizon i and the lag lookup is one expression
-    // at every horizon rather than a split between what is history and what is
-    // already forecast.
+    // horizon, so column p + i is horizon i.
     arma::mat path(n, p + h);
 
     for (arma::uword draw = 0; draw < draws; draw++)
@@ -353,8 +414,18 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
         reporter.progress(static_cast<long long>(draw) + 1, static_cast<long long>(draws));
 
         const arma::mat lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
-        const arma::vec u_sd = 1.0 / arma::sqrt(coefficients.u_sigma_inv.col(draw));
-        const arma::vec v_sd = 1.0 / arma::sqrt(coefficients.v_sigma_inv.col(draw));
+
+        // Both volatilities held at the last in-sample period, as every
+        // stochastic volatility model here does: the variance of the
+        // log-volatility innovations is a state of the chain rather than
+        // something the draws carry, so there is nothing to extrapolate the
+        // random walk with.
+        const arma::vec u_sd = 1.0 / arma::sqrt(terminal_block(
+                                        coefficients.u_sigma_inv, draw,
+                                        static_cast<arma::uword>(k), "u_sigma_inv"));
+        const arma::vec v_sd = 1.0 / arma::sqrt(terminal_block(
+                                        coefficients.v_sigma_inv, draw,
+                                        static_cast<arma::uword>(n), "v_sigma_inv"));
 
         if (p > 0)
         {
@@ -383,8 +454,8 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
     return ForecastDraws{fcst};
 }
 
-arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
-                                             const DfmTvpGammaDraws &coefficients) const
+arma::mat DfmTvpStochvolSampler::log_likelihood(const DfmTvpStochvolInput &input,
+                                                const DfmTvpStochvolDraws &coefficients) const
 {
     const int k = input.spec.k;
     const int n = input.spec.n_factors;
@@ -412,8 +483,9 @@ arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
     const arma::mat x_t = response_by_period(input.train, k, tt);
     const arma::uword draws = coefficients.iterations();
 
-    // Every period under its own loadings, so the whole path is wanted here --
-    // not the single period a forecast slices out.
+    // Both paths whole: every period is scored under its own loadings and its own
+    // precision, and neither the terminal slice a forecast takes nor a single
+    // matrix would say what this model claims.
     const arma::uword width = static_cast<arma::uword>(k) * n;
     if (coefficients.lambda.n_rows != width * tt)
     {
@@ -423,6 +495,13 @@ arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
             std::to_string(width * tt) + " rows, got " +
             std::to_string(coefficients.lambda.n_rows));
     }
+    if (coefficients.u_sigma_inv.n_rows != static_cast<arma::uword>(k * tt))
+    {
+        throw std::invalid_argument(
+            "posterior draws of u_sigma_inv must have " + std::to_string(k * tt) + " rows for " +
+            std::to_string(k) + " series over " + std::to_string(tt) + " periods, got " +
+            std::to_string(coefficients.u_sigma_inv.n_rows));
+    }
 
     arma::mat loglik(draws, tt);
     const double part_a = -k * std::log(2 * arma::datum::pi) / 2;
@@ -430,20 +509,22 @@ arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
     for (arma::uword draw = 0; draw < draws; draw++)
     {
         const arma::mat factors = arma::reshape(coefficients.factors.col(draw), n, tt);
-        const arma::vec u_sigma_inv = coefficients.u_sigma_inv.col(draw);
+        const arma::mat u_sigma_inv = arma::reshape(coefficients.u_sigma_inv.col(draw), k, tt);
 
-        // U is diagonal and does not move, so the determinant term is a sum of
-        // logs formed once per draw and the quadratic form is a weighted sum of
-        // squares -- no k x k anything.
-        const double part_b = arma::accu(arma::log(u_sigma_inv)) / 2;
-
+        // U_t is diagonal, so the determinant term is a sum of logs and the
+        // quadratic form a weighted sum of squares -- no k x k anything. Both
+        // move inside the period loop here, which is what makes this the one of
+        // the four that shares neither model's shortcut: the fitted value changes
+        // with Lambda_t and the determinant with U_t.
         for (int i = 0; i < tt; i++)
         {
             const arma::mat lambda = arma::reshape(
                 coefficients.lambda.submat(i * width, draw, (i + 1) * width - 1, draw), k, n);
             const arma::vec u = x_t.col(i) - lambda * factors.col(i);
+            const arma::vec precision = u_sigma_inv.col(i);
 
-            const double part_c = -arma::dot(u_sigma_inv, arma::square(u)) / 2;
+            const double part_b = arma::accu(arma::log(precision)) / 2;
+            const double part_c = -arma::dot(precision, arma::square(u)) / 2;
             loglik(draw, i) = part_a + part_b + part_c;
         }
     }

@@ -38,10 +38,11 @@ test_that("create_dfmodel selects the time varying sampler", {
   expect_false(constant$model$tvp)
   expect_equal(constant$model$algorithm, "DfmNormalGamma")
 
-  # Refused rather than silently ignored: there is no sampler for it.
-  expect_error(create_dfmodel(x = sim$x, p = 1, n = 1, error = "sv", tvp = TRUE,
-                              iterations = 20, burnin = 10),
-               "only available for error")
+  # `tvp` and `error` are independent, so this one selects the model that
+  # carries both drifts rather than this one. See test-dfm_tvp_stochvol.R.
+  expect_equal(create_dfmodel(x = sim$x, p = 1, n = 1, error = "sv", tvp = TRUE,
+                              iterations = 20, burnin = 10)$model$algorithm,
+               "DfmTvpStochvol")
 
   expect_error(create_dfmodel(x = sim$x, p = 1, n = 1, tvp = "yes",
                               iterations = 20, burnin = 10),

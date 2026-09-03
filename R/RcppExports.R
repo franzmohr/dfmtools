@@ -37,3 +37,15 @@
     .Call(`_dfmtools_DfmTvpGammaLogLik`, object)
 }
 
+.DfmTvpStochvolCoefficients <- function(object) {
+    .Call(`_dfmtools_DfmTvpStochvolCoefficients`, object)
+}
+
+.DfmTvpStochvolForecasts <- function(object) {
+    .Call(`_dfmtools_DfmTvpStochvolForecasts`, object)
+}
+
+.DfmTvpStochvolLogLik <- function(object) {
+    .Call(`_dfmtools_DfmTvpStochvolLogLik`, object)
+}
+

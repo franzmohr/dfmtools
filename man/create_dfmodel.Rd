@@ -94,8 +94,12 @@ variance, which then carries it as noise the series is credited with throughout.
 the normalisation that identifies the factors, and letting it drift would let their rotation and
 scale wander over the sample.
 
-Time varying coefficients are currently available with \code{error = "gamma"} only, which is
-the algorithm \code{DfmTvpGamma}.
+The two arguments combine, and the four algorithms they select are
+\code{DfmNormalGamma}, \code{DfmNormalStochvol}, \code{DfmTvpGamma} and
+\code{DfmTvpStochvol}. Carrying both at once is not redundant: a series whose loading fell
+looks like a series whose idiosyncratic variance rose, and a period of common turbulence looks
+like a transition that changed, so a model with only one of the two has to explain the other
+with what it has.
 }
 \examples{
 
@@ -113,6 +117,10 @@ model_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv",
 # And with time varying loadings and transition coefficients
 model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
                             iterations = 5000, burnin = 1000)
+
+# Both at once
+model_tvp_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv", tvp = TRUE,
+                               iterations = 5000, burnin = 1000)
 
 }
 \references{

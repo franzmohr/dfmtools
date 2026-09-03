@@ -26,6 +26,7 @@ BSD 3-Clause portion
     inst/include/bayests/dfm_normal_gamma.h
     inst/include/bayests/dfm_normal_stochvol.h
     inst/include/bayests/dfm_tvp_gamma.h
+    inst/include/bayests/dfm_tvp_stochvol.h
     inst/include/bayests/inputs.h
     inst/include/bayests/priors.h
     inst/include/bayests/reporter.h
@@ -44,11 +45,12 @@ BSD 3-Clause portion
     src/core/models/dfm_normal_stochvol.cpp
     src/core/models/dfm_support.h
     src/core/models/dfm_tvp_gamma.cpp
+    src/core/models/dfm_tvp_stochvol.cpp
     src/core/models/model_support.h
     src/core/spec.cpp
 
-    That is not the whole of the BayesTS core, only what the three dynamic
-    factor models reach -- this package has those three samplers and does
+    That is not the whole of the BayesTS core, only what the four dynamic
+    factor models reach -- this package has those four samplers and does
     not need the other thirteen. tools/update-bayests-core.R computes that
     set by following the #include graph from them, so the list above is
     derived rather than curated, and the script refuses to finish when the
@@ -59,8 +61,9 @@ BSD 3-Clause portion
     GPL (>= 2) like the rest of the package. So is
     src/bayests_rng_guard.cpp, which only asserts something about the
     vendored headers, and src/DfmNormalGamma.cpp,
-    src/DfmNormalStochvol.cpp and src/DfmTvpGamma.cpp, which are the
-    translation between an R model object and the core's structs.
+    src/DfmNormalStochvol.cpp, src/DfmTvpGamma.cpp and
+    src/DfmTvpStochvol.cpp, which are the translation between an R model
+    object and the core's structs.
 
 Code previously published in bvartools
 --------------------------------------

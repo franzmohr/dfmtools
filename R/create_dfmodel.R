@@ -62,8 +62,12 @@
 #' the normalisation that identifies the factors, and letting it drift would let their rotation and
 #' scale wander over the sample.
 #'
-#' Time varying coefficients are currently available with \code{error = "gamma"} only, which is
-#' the algorithm \code{DfmTvpGamma}.
+#' The two arguments combine, and the four algorithms they select are
+#' \code{DfmNormalGamma}, \code{DfmNormalStochvol}, \code{DfmTvpGamma} and
+#' \code{DfmTvpStochvol}. Carrying both at once is not redundant: a series whose loading fell
+#' looks like a series whose idiosyncratic variance rose, and a period of common turbulence looks
+#' like a transition that changed, so a model with only one of the two has to explain the other
+#' with what it has.
 #'
 #' @return An object of class \code{'dfmodel'}, which contains the following elements:
 #' \item{data}{A list of data objects, which can be used for posterior simulation. Element
@@ -87,6 +91,10 @@
 #' # And with time varying loadings and transition coefficients
 #' model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
 #'                             iterations = 5000, burnin = 1000)
+#'
+#' # Both at once
+#' model_tvp_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv", tvp = TRUE,
+#'                                iterations = 5000, burnin = 1000)
 #'
 #' @references
 #'
@@ -134,11 +142,6 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
     stop("Argument 'tvp' must be of class 'logical'.")
   }
   
-  # Refused rather than silently ignored: a model that asked for drifting
-  # coefficients and got constant ones is output that looks like output.
-  if (tvp && error != "gamma") {
-    stop("Time varying coefficients are only available for error = \"gamma\".")
-  }
   
   # Data preparation ----
   
@@ -171,7 +174,8 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   # says which sampler produced it.
   model$algorithm <- if (tvp) {
     switch(error,
-           "gamma" = "DfmTvpGamma")
+           "gamma" = "DfmTvpGamma",
+           "sv" = "DfmTvpStochvol")
   } else {
     switch(error,
            "gamma" = "DfmNormalGamma",

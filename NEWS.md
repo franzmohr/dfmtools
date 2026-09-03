@@ -1,5 +1,48 @@
 # dfmtools (development version)
 
+* **Both drifts at once**, with `create_dfmodel(error = "sv", tvp = TRUE)`. The
+two arguments are now independent, so the four combinations select the four
+algorithms `DfmNormalGamma`, `DfmNormalStochvol`, `DfmTvpGamma` and the new
+`DfmTvpStochvol`. In that last one the measurement equation is
+$x_t = \lambda_t f_t + u_t$ with $u_t \sim N(0, U_t)$ and the transition
+$f_t = \sum_i A_{i,t} f_{t-i} + v_t$ with $v_t \sim N(0, V_t)$: nothing in it is
+held fixed but the normalisation.
+
+    Carrying both is not redundant, which is the point of having it. A series
+    whose loading fell looks like a series whose idiosyncratic variance rose, and
+    a period of common turbulence looks like a transition that changed; a model
+    with only one of the two drifts has to explain the other with what it has.
+    The two are separated because the loading paths are drawn weighted by their
+    own series' volatility period by period — the periods in which a series was
+    quiet identify its loading path and the periods in which it was wild largely
+    do not, while the path is free to move between them.
+
+    Nothing new to learn at the interface: the specification is the union of the
+    two that already existed. `add_priors()` takes the state equation
+    (`shape`, `rate` on top of `vinv`) for `lambda` and `a` and the six-element
+    stochastic volatility specification for `u` and `v`, in one call. All four
+    groups then carry a `shape` and a `rate`, at four different widths, and each
+    pair belongs to the random walk of the block it sits in.
+    `add_initial_values()` returns four paths. In the posterior, `lambda` and `a`
+    are $t$ times wider because the coefficients drift and `u_sigma_inv` and
+    `v_sigma_inv` are $t$ times wider because the variances do — this is the only
+    model here in which all four are paths. `add_posterior_forecasts()` holds
+    every one of them at its last in-sample period;
+    `add_posterior_loglik()` scores every period under its own $\lambda_t$ *and*
+    its own $U_t$.
+
+    **Draws are unchanged** for the three models that existed before. The
+    vendored core was refreshed for this and the change it brought to shared code
+    is one merge — the factor path draw, which was three near-copies of a period
+    shift convention and is now one function serving all four models. Verified
+    upstream with the fingerprint comparison rather than argued: 74 fixtures
+    unchanged, none moved, over the merge and again over the new sampler.
+
+    One thing that changed for a caller: `create_dfmodel(error = "sv",
+    tvp = TRUE)` used to be an error naming the combination as unavailable, and
+    is now a model.
+
+
 * **Time varying loadings and transition coefficients**, with
 `create_dfmodel(tvp = TRUE)`. The measurement equation becomes
 $x_t = \lambda_t f_t + u_t$ and the transition

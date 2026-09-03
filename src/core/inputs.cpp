@@ -789,6 +789,44 @@ void validate_dfm_gamma_errors(const GammaPrior &u_prior, const arma::vec &initi
     }
 }
 
+/// One of the two stochastic volatility blocks a dynamic factor model carries.
+/// They differ in their width and in what a message calls them, and in nothing
+/// else, so reading both through one function is what keeps the two from drifting
+/// apart. `errors` and `block` are the only two words that differ.
+void validate_dfm_stochvol_block(const StochvolPrior &prior, const arma::mat &h,
+                                 const arma::vec &h_init, const arma::vec &h_sigma,
+                                 arma::uword width, arma::uword tt, const char *errors,
+                                 const char *block)
+{
+    const std::string of_errors(errors);
+    const std::string of_block(block);
+
+    require_length(prior.offset, width, ("log-volatility offset of the " + of_errors).c_str());
+    require_length(prior.state.sigma.shape, width,
+                   ("prior shape of the " + of_block + " log-volatility variance").c_str());
+    require_length(prior.state.sigma.rate, width,
+                   ("prior rate of the " + of_block + " log-volatility variance").c_str());
+    require_length(prior.state.initial_state.mu, width,
+                   ("prior mean of the initial " + of_block + " log-volatility").c_str());
+    require_square(prior.state.initial_state.v_inv, width,
+                   ("prior precision of the initial " + of_block + " log-volatility").c_str());
+
+    require_shape(h, tt, width, ("initial " + of_block + " log-volatility").c_str());
+    require_length(h_init, width,
+                   ("initial " + of_block + " log-volatility before the sample").c_str());
+    require_length(h_sigma, width,
+                   ("initial variance of the " + of_block + " log-volatility innovations").c_str());
+
+    // The variance is divided by, once per period, inside the banded draw of the
+    // log-volatility path. A zero there is an infinity that only surfaces as a
+    // non-finite draw several steps later.
+    if (h_sigma.min() <= 0.0)
+    {
+        throw std::invalid_argument("every element of the initial variance of the " + of_block +
+                                    " log-volatility innovations must be positive");
+    }
+}
+
 } // namespace
 
 void DfmNormalGammaInput::validate() const
@@ -840,6 +878,42 @@ void DfmTvpGammaInput::validate() const
                               initial.v_sigma_inv, k, n);
 }
 
+void DfmTvpStochvolInput::validate() const
+{
+    const arma::uword k = static_cast<arma::uword>(spec.k);
+    const arma::uword tt = checked_periods(spec, train);
+    const arma::uword n = static_cast<arma::uword>(spec.n_factors);
+
+    validate_dfm_dimensions(spec, tt);
+
+    // Four random walks here, and every one of them differences its path against
+    // its own lag, so a single period leaves nothing to difference.
+    if (tt < 2)
+    {
+        throw std::invalid_argument("a time-varying parameter model needs at least two periods");
+    }
+
+    // A single observed series leaves no free loading to give a state equation
+    // to; see DfmTvpGammaInput::validate().
+    const arma::uword n_lambda = static_cast<arma::uword>(spec.n_lambda());
+    if (n_lambda > 0)
+    {
+        validate_tvp_block(lambda_prior, initial.lambda, initial.lambda_sigma_inv,
+                           initial.lambda_init, n_lambda, tt, "loading", "lambda");
+    }
+
+    if (use_a())
+    {
+        validate_tvp_block(a_prior, initial.a, initial.a_sigma_inv, initial.a_init,
+                           static_cast<arma::uword>(spec.n_factor_a()), tt, "transition", "a");
+    }
+
+    validate_dfm_stochvol_block(u_sigma_prior, initial.u_h, initial.u_h_init, initial.u_h_sigma,
+                                k, tt, "idiosyncratic errors", "idiosyncratic");
+    validate_dfm_stochvol_block(v_sigma_prior, initial.v_h, initial.v_h_init, initial.v_h_sigma,
+                                n, tt, "factor innovations", "factor-innovation");
+}
+
 void DfmNormalStochvolInput::validate() const
 {
     const arma::uword k = static_cast<arma::uword>(spec.k);
@@ -856,56 +930,13 @@ void DfmNormalStochvolInput::validate() const
         throw std::invalid_argument("a stochastic volatility model needs at least two periods");
     }
 
-    // The idiosyncratic volatility: one log-volatility per observed series.
-    require_length(u_sigma_prior.offset, k, "log-volatility offset of the idiosyncratic errors");
-    require_length(u_sigma_prior.state.sigma.shape, k,
-                   "prior shape of the idiosyncratic log-volatility variance");
-    require_length(u_sigma_prior.state.sigma.rate, k,
-                   "prior rate of the idiosyncratic log-volatility variance");
-    require_length(u_sigma_prior.state.initial_state.mu, k,
-                   "prior mean of the initial idiosyncratic log-volatility");
-    require_square(u_sigma_prior.state.initial_state.v_inv, k,
-                   "prior precision of the initial idiosyncratic log-volatility");
-
-    require_shape(initial.u_h, tt, k, "initial idiosyncratic log-volatility");
-    require_length(initial.u_h_init, k,
-                   "initial idiosyncratic log-volatility before the sample");
-    require_length(initial.u_h_sigma, k,
-                   "initial variance of the idiosyncratic log-volatility innovations");
-
-    // The factor innovations': one per factor, not per series. This is the pair
-    // of lengths a file is most likely to get wrong, k and n_factors being the
-    // two counts a factor model carries.
-    require_length(v_sigma_prior.offset, n, "log-volatility offset of the factor innovations");
-    require_length(v_sigma_prior.state.sigma.shape, n,
-                   "prior shape of the factor-innovation log-volatility variance");
-    require_length(v_sigma_prior.state.sigma.rate, n,
-                   "prior rate of the factor-innovation log-volatility variance");
-    require_length(v_sigma_prior.state.initial_state.mu, n,
-                   "prior mean of the initial factor-innovation log-volatility");
-    require_square(v_sigma_prior.state.initial_state.v_inv, n,
-                   "prior precision of the initial factor-innovation log-volatility");
-
-    require_shape(initial.v_h, tt, n, "initial factor-innovation log-volatility");
-    require_length(initial.v_h_init, n,
-                   "initial factor-innovation log-volatility before the sample");
-    require_length(initial.v_h_sigma, n,
-                   "initial variance of the factor-innovation log-volatility innovations");
-
-    // Both variances are divided by, once per period, inside the banded draw of
-    // the log-volatility path. A zero there is an infinity that only surfaces as
-    // a non-finite draw several steps later.
-    if (initial.u_h_sigma.min() <= 0.0)
-    {
-        throw std::invalid_argument("every element of the initial variance of the idiosyncratic "
-                                    "log-volatility innovations must be positive");
-    }
-    if (initial.v_h_sigma.min() <= 0.0)
-    {
-        throw std::invalid_argument("every element of the initial variance of the "
-                                    "factor-innovation log-volatility innovations must be "
-                                    "positive");
-    }
+    // One block per error term, at its own width. That pair of lengths is what a
+    // file is most likely to get wrong -- k and n_factors are the two counts a
+    // factor model carries -- so the two calls name which is which.
+    validate_dfm_stochvol_block(u_sigma_prior, initial.u_h, initial.u_h_init, initial.u_h_sigma,
+                                k, tt, "idiosyncratic errors", "idiosyncratic");
+    validate_dfm_stochvol_block(v_sigma_prior, initial.v_h, initial.v_h_init, initial.v_h_sigma,
+                                n, tt, "factor innovations", "factor-innovation");
 }
 
 void VecKlgs2010Input::validate() const

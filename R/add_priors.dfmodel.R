@@ -37,6 +37,12 @@
 #'   the more tightly the coefficients are held to a constant.}
 #' }
 #'
+#' The two specifications are independent of one another: a model created with \code{tvp = TRUE}
+#' and \code{error = "sv"} takes the state equation above for \code{lambda} and \code{a} and the
+#' six-element stochastic volatility specification below for \code{u} and \code{v}. All four groups
+#' then carry a \code{shape} and a \code{rate}, at four different widths, and each pair belongs to
+#' the random walk of the block it sits in.
+#'
 #' Arguments \code{u} and \code{v} specify the priors of the two error terms -- \eqn{u_t} of the
 #' measurement equation and \eqn{v_t} of the transition equation. Both take the same elements, at
 #' different widths: \code{u} describes \eqn{M} observed series and \code{v} describes \eqn{N}

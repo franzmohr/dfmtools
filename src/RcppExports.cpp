@@ -110,6 +110,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// DfmTvpStochvolCoefficients
+Rcpp::List DfmTvpStochvolCoefficients(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpStochvolCoefficients(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpStochvolCoefficients(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmTvpStochvolForecasts
+Rcpp::List DfmTvpStochvolForecasts(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpStochvolForecasts(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpStochvolForecasts(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmTvpStochvolLogLik
+Rcpp::List DfmTvpStochvolLogLik(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpStochvolLogLik(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpStochvolLogLik(object));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
@@ -121,6 +154,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmTvpGammaCoefficients", (DL_FUNC) &_dfmtools_DfmTvpGammaCoefficients, 1},
     {"_dfmtools_DfmTvpGammaForecasts", (DL_FUNC) &_dfmtools_DfmTvpGammaForecasts, 1},
     {"_dfmtools_DfmTvpGammaLogLik", (DL_FUNC) &_dfmtools_DfmTvpGammaLogLik, 1},
+    {"_dfmtools_DfmTvpStochvolCoefficients", (DL_FUNC) &_dfmtools_DfmTvpStochvolCoefficients, 1},
+    {"_dfmtools_DfmTvpStochvolForecasts", (DL_FUNC) &_dfmtools_DfmTvpStochvolForecasts, 1},
+    {"_dfmtools_DfmTvpStochvolLogLik", (DL_FUNC) &_dfmtools_DfmTvpStochvolLogLik, 1},
     {NULL, NULL, 0}
 };
 

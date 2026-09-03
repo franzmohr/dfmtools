@@ -9,17 +9,18 @@ package at all.
 
 The same arrangement bvartools uses, and for the same reason: there is one
 implementation of each sampler, upstream, and the R packages are translation
-layers over it. `src/DfmNormalGamma.cpp`, `src/DfmNormalStochvol.cpp` and
-`src/DfmTvpGamma.cpp` are the whole of this package's half of that -- each turns
-a `dfmodel` list into the corresponding `bayests::...Input` and the draws back
-into a list. What the three share is in `src/dfm_r_translation.h`, which is one
-thing: the permutation between R's `lower.tri()` ordering of the free loadings
-and the row-major ordering the core draws them in.
+layers over it. `src/DfmNormalGamma.cpp`, `src/DfmNormalStochvol.cpp`,
+`src/DfmTvpGamma.cpp` and `src/DfmTvpStochvol.cpp` are the whole of this
+package's half of that -- each turns a `dfmodel` list into the corresponding
+`bayests::...Input` and the draws back into a list. What the four share is in
+`src/dfm_r_translation.h`, which is one thing: the permutation between R's
+`lower.tri()` ordering of the free loadings and the row-major ordering the core
+draws them in.
 
 ## Which files, and why not all of them
 
-Only what the three dynamic factor models reach. This package has those three
-samplers; upstream has sixteen, and compiling the other thirteen would cost a
+Only what the four dynamic factor models reach. This package has those four
+samplers; upstream has seventeen, and compiling the other thirteen would cost a
 minute of build time and a larger shared object for code that is never called.
 bvartools mirrors the whole core because it uses twelve of them, which is a
 different trade.
@@ -30,8 +31,9 @@ Each sampler after the first has been cheap to add, because they share
 volatility mixture -- five in all, from sixteen files to twenty-one.
 `DfmTvpGamma` grew it by four: its own two, and
 `kalman_durbin_koopman_2002.{h,cpp}`, which it needs for the loading paths and
-the transition path and which no constant-coefficient model reaches. Twenty-five
-now.
+the transition path and which no constant-coefficient model reaches.
+`DfmTvpStochvol` grew it by two, its own, having nothing left to reach for that
+the three before it had not already brought. Twenty-seven now.
 
 The set is *computed* rather than listed. `tools/update-bayests-core.R` starts
 from
@@ -42,6 +44,8 @@ from
     src/core/models/dfm_normal_stochvol.cpp
     include/bayests/dfm_tvp_gamma.h
     src/core/models/dfm_tvp_gamma.cpp
+    include/bayests/dfm_tvp_stochvol.h
+    src/core/models/dfm_tvp_stochvol.cpp
     src/core/spec.cpp
     src/core/inputs.cpp
 
@@ -118,6 +122,6 @@ Keep this list short; every entry is something a refresh has to reapply.
 `src/dfm_r_translation.h` belong to this package. The first implements the core's
 `Reporter` contract against R's console and `Rcpp::checkUserInterrupt()`; the
 second translates between an `Rcpp::List` and the core's structs; the third holds
-the one piece of that translation all three dynamic factor bindings need. All
+the one piece of that translation all four dynamic factor bindings need. All
 three are GPL (>= 2) like the rest of the package, and `inst/COPYRIGHTS` says
 so.

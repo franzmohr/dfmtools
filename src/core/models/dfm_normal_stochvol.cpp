@@ -18,7 +18,7 @@ namespace
 {
 
 using core::accumulate_transition_moments;
-using core::draw_factor_path_sv;
+using core::draw_factor_path;
 using core::draw_normal_precision;
 using core::draw_stochvol_state;
 using core::fill_lagged_factors;
@@ -152,7 +152,7 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
         // hold covariances already, and chan_jeliazkov_2009 takes their
         // precisions itself -- one diagonal reciprocal per period, since it
         // recognises a diagonal covariance and does not factorise one.
-        factors = draw_factor_path_sv(x_t, lambda, u_stack, v_stack, a_mat, n, p_state);
+        factors = draw_factor_path(x_t, lambda, u_stack, v_stack, a_mat, n, p_state);
 
         // Block 2: Draw the loadings, equation by equation ----
         //
