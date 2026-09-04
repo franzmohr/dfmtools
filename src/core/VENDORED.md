@@ -20,10 +20,31 @@ draws them in.
 ## Which files, and why not all of them
 
 Only what the four dynamic factor models reach. This package has those four
-samplers; upstream has seventeen, and compiling the other thirteen would cost a
+samplers; upstream has eighteen, and compiling the other fourteen would cost a
 minute of build time and a larger shared object for code that is never called.
 bvartools mirrors the whole core because it uses twelve of them, which is a
 different trade.
+
+**`FavarNormalWishart` is the one upstream sampler that belongs here and is not
+yet taken.** A factor augmented VAR is a factor model -- it reaches
+`dfm_support.h` and the band sampler like the four above it -- so bvartools skips
+it as it skips them, and this is where it would go. It is left out for now for
+the reason this section exists: there is no `src/FavarNormalWishart.cpp` binding
+and no R entry point, so vendoring it would compile a sampler nothing can call,
+which is the trade the paragraph above declines. Adding it is two lines in
+`entry` below, and the closure will pull in `favar_support.h` and
+`core/algorithms/wishart.{h,cpp}` on its own.
+
+What *is* already here from that work is the second entry point on the band
+sampler. `core/algorithms/chan_jeliazkov_2009.cpp` now carries
+`chan_jeliazkov_2009_conditional`, which holds the trailing elements of every
+state column at observed values instead of drawing them -- what a state vector
+that is part data needs -- and `dfm_support.h` carries
+`draw_conditional_factor_path()` beside `draw_factor_path()`, on the same
+one-block-or-stack contract and with the same shift convention. Neither is
+reached by the four samplers here. Both arrived through files this package
+already vendors, and upstream verified the refactor that introduced them left
+every fingerprint unmoved.
 
 Each sampler after the first has been cheap to add, because they share
 `dfm_support.h`, `model_support.h` and `chan_jeliazkov_2009`.

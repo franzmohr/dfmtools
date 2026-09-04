@@ -1,5 +1,30 @@
 # dfmtools (development version)
 
+* **Vendored BayesTS core refreshed.** **Draws are unchanged**, for all four
+  dynamic factor models. Upstream's own fingerprint comparison reports 76
+  fixtures unchanged and none moved over the shared code this picks up.
+
+    Two things arrive that nothing here calls yet, both from upstream's work on a
+    factor augmented VAR. `core/algorithms/chan_jeliazkov_2009.cpp` gains a
+    second entry point, `chan_jeliazkov_2009_conditional`, which holds the
+    trailing elements of every state column at observed values instead of drawing
+    them -- what a state vector that is part data needs -- and
+    `core/models/dfm_support.h` gains `draw_conditional_factor_path()` beside
+    `draw_factor_path()`, on the same one-block-or-stack contract and with the
+    same shift convention. The four samplers here reach neither. Their arrival
+    split the band sampler into an assembly, a conditioning step and a draw;
+    upstream verified that split moved no fingerprint.
+
+    The rest is type surface for a model this package does not yet have.
+    `FavarNormalWishart` is a factor model and so belongs here rather than in
+    bvartools, which skips it; it is *not* vendored, because there is no binding
+    and no R entry point, and compiling a sampler nothing can call is the trade
+    `src/core/VENDORED.md` declines. Adding it later is two lines in that
+    script's `entry` list. What is compiled in meanwhile is its `Input`,
+    `Initial` and `Draws` structs, its `validate()`, `n_obs_factors` with
+    `n_state()`, `n_favar_lambda()` and `n_favar_a()`, and `TrainData::f_obs` --
+    all in files every model shares and copied whole.
+
 * **Both drifts at once**, with `create_dfmodel(error = "sv", tvp = TRUE)`. The
 two arguments are now independent, so the four combinations select the four
 algorithms `DfmNormalGamma`, `DfmNormalStochvol`, `DfmTvpGamma` and the new

@@ -347,6 +347,67 @@ inline arma::mat draw_factor_path(const arma::mat &x_t, const arma::mat &lambda,
         .cols(0, tt - 1);
 }
 
+/// One draw of the unobserved part of a state path whose trailing elements are
+/// data, (n - known.n_rows) x tt.
+///
+/// draw_factor_path() for a factor augmented VAR, and every word of it still
+/// applies: the four per-period arguments each arrive as one block or as a stack
+/// of one per period, the two that describe the transition go in shifted and the
+/// two that describe the measurement do not, and the prior over the first p
+/// states takes both transition arguments unshifted. It lives here, beside its
+/// sibling, so that the shift convention has one home rather than two -- getting
+/// it wrong estimates a different model rather than failing.
+///
+/// `n` is the width of the *whole* state, the unobserved factors and the
+/// observed ones together, because that is what the transition runs over and
+/// what `a_mat`, `v_sigma` and `lambda` are sized against. Only the leading
+/// n - known.n_rows elements come back.
+///
+/// Two differences from draw_factor_path(), and neither is a choice:
+///
+///   - `lambda` measures the whole state, [Lambda_f Lambda_y], and `x_t` is the
+///     panel as it stands. The observed factors' contribution to the
+///     measurement is one of the cross terms the conditioning removes, so
+///     subtracting Lambda_y y_t from the panel here as well would subtract it
+///     twice.
+///   - there is no trailing column to drop. The state column past the end of
+///     the sample would be half data and half not, so the conditional entry
+///     point never builds it, which is exact rather than nearly so -- the term
+///     it would contribute is a normalised Gaussian density in that column
+///     alone. `unit_chan_jeliazkov.cpp` checks that as linear algebra.
+///
+/// The prior over the first p states covers the whole state, observed half
+/// included: those columns are the truncated transitions run from nothing, the
+/// same zero-before-the-sample convention every model here follows, and the
+/// conditioning then holds their observed half at the data like any other
+/// column.
+inline arma::mat draw_conditional_factor_path(const arma::mat &x_t, const arma::mat &lambda,
+                                              const arma::mat &u_sigma, const arma::mat &v_sigma,
+                                              const arma::mat &a_mat, const arma::mat &known,
+                                              const int n, const int p_state)
+{
+    const arma::uword nn = static_cast<arma::uword>(n);
+    const arma::uword prior_rows = static_cast<arma::uword>(p_state) * nn;
+    const arma::vec a_init(prior_rows, arma::fill::zeros);
+
+    const bool v_is_stacked = v_sigma.n_rows != nn;
+    const bool a_is_stacked = a_mat.n_rows != nn;
+
+    const arma::mat v_prior_blocks =
+        v_is_stacked ? arma::mat(v_sigma.head_rows(prior_rows)) : v_sigma;
+    const arma::mat a_prior_blocks =
+        a_is_stacked ? arma::mat(a_mat.head_rows(prior_rows)) : a_mat;
+
+    const arma::mat p_init =
+        initial_state_covariance(a_prior_blocks, v_prior_blocks, n, p_state);
+
+    const arma::mat v_transitions = v_is_stacked ? shifted_by_one_period(v_sigma, nn) : v_sigma;
+    const arma::mat a_transitions = a_is_stacked ? shifted_by_one_period(a_mat, nn) : a_mat;
+
+    return chan_jeliazkov_2009_conditional(x_t, lambda, u_sigma, v_transitions, a_transitions,
+                                           a_init, p_init, known);
+}
+
 /// Writes the per-period diagonal covariances of an error term into the stack
 /// chan_jeliazkov_2009 reads: one K x K block per period, block t holding
 /// diag(variance.row(t)).
