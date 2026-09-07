@@ -49,3 +49,15 @@
     .Call(`_dfmtools_DfmTvpStochvolLogLik`, object)
 }
 
+.FavarNormalWishartCoefficients <- function(object) {
+    .Call(`_dfmtools_FavarNormalWishartCoefficients`, object)
+}
+
+.FavarNormalWishartForecasts <- function(object) {
+    .Call(`_dfmtools_FavarNormalWishartForecasts`, object)
+}
+
+.FavarNormalWishartLogLik <- function(object) {
+    .Call(`_dfmtools_FavarNormalWishartLogLik`, object)
+}
+

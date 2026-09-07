@@ -91,6 +91,18 @@ struct VarSpec
     /// before a forecast path is simulated.
     bool structural = false;
 
+    /// The quantile a quantile regression model estimates, in (0, 1). The only
+    /// field here that is not an integer, and the only one a model may leave at
+    /// its default while still being well specified: every model that is not an
+    /// asymmetric Laplace one ignores it, and the ALD samplers are the only ones
+    /// whose validate() checks the range.
+    ///
+    /// One quantile per model file rather than a vector, so that a grid of
+    /// quantiles is a list of models -- which is what the R level already does
+    /// with a vector of lag orders, and which lets the grid be run in parallel
+    /// without the sampler knowing.
+    double quantile = 0.5;
+
     /// Total length of the chain.
     int draws() const { return iterations + burnin; }
 

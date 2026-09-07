@@ -69,6 +69,8 @@ entry <- c("bayests/dfm_normal_gamma.h",
            "core/models/dfm_tvp_gamma.cpp",
            "bayests/dfm_tvp_stochvol.h",
            "core/models/dfm_tvp_stochvol.cpp",
+           "bayests/favar_normal_wishart.h",
+           "core/models/favar_normal_wishart.cpp",
            "core/spec.cpp",
            "core/inputs.cpp")
 

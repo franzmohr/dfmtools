@@ -10,32 +10,42 @@ package at all.
 The same arrangement bvartools uses, and for the same reason: there is one
 implementation of each sampler, upstream, and the R packages are translation
 layers over it. `src/DfmNormalGamma.cpp`, `src/DfmNormalStochvol.cpp`,
-`src/DfmTvpGamma.cpp` and `src/DfmTvpStochvol.cpp` are the whole of this
-package's half of that -- each turns a `dfmodel` list into the corresponding
-`bayests::...Input` and the draws back into a list. What the four share is in
-`src/dfm_r_translation.h`, which is one thing: the permutation between R's
-`lower.tri()` ordering of the free loadings and the row-major ordering the core
-draws them in.
+`src/DfmTvpGamma.cpp`, `src/DfmTvpStochvol.cpp` and
+`src/FavarNormalWishart.cpp` are the whole of this package's half of that --
+each turns a `dfmodel` or `favarmodel` list into the corresponding
+`bayests::...Input` and the draws back into a list. What the four dynamic factor
+bindings share is in `src/dfm_r_translation.h`, which is one thing: the
+permutation between R's `lower.tri()` ordering of the free loadings and the
+row-major ordering the core draws them in. The FAVAR binding does not use it --
+its identification is an identity block rather than a unit lower triangle, so
+every row after the block is free across its whole width and the free elements
+are a plain rectangle.
 
 ## Which files, and why not all of them
 
-Only what the four dynamic factor models reach. This package has those four
-samplers; upstream has eighteen, and compiling the other fourteen would cost a
-minute of build time and a larger shared object for code that is never called.
-bvartools mirrors the whole core because it uses twelve of them, which is a
-different trade.
+Only what the five factor models reach. This package has those five samplers;
+upstream has twenty, and compiling the other fifteen would cost a minute of build
+time and a larger shared object for code that is never called. bvartools mirrors
+the whole core because it uses fourteen of them, which is a different trade.
 
-**`FavarNormalWishart` is the one upstream sampler that belongs here and is not
-yet taken.** A factor augmented VAR is a factor model -- it reaches
-`dfm_support.h` and the band sampler like the four above it -- so bvartools skips
-it as it skips them, and this is where it would go. It is left out for now for
-the reason this section exists: there is no `src/FavarNormalWishart.cpp` binding
-and no R entry point, so vendoring it would compile a sampler nothing can call,
-which is the trade the paragraph above declines. Adding it is two lines in
-`entry` below, and the closure will pull in `favar_support.h` and
-`core/algorithms/wishart.{h,cpp}` on its own.
+**`FavarNormalWishart` is now taken.** A factor augmented VAR is a factor model
+-- it reaches `dfm_support.h` and the band sampler like the four above it -- so
+bvartools skips it as it skips them, and this is where it goes. Adding it was two
+lines in `entry` below, and the closure pulled in `favar_support.h` and
+`core/algorithms/wishart.{h,cpp}` on its own, exactly as this section predicted
+before it was done: five files, from twenty-seven to thirty-two. It arrives with
+a binding and an R entry point -- `create_favarmodel()` and the four `favarmodel`
+methods -- so it is not the sampler-nothing-can-call this section otherwise
+declines.
 
-What *is* already here from that work is the second entry point on the band
+Two things about it belong here rather than in the R docs. Its observed factors
+go into `TrainData::f_obs`, not into `x` or `z`: those are the regressor layouts,
+and the observed block is half of the *state*, appearing on the left of the
+transition as well as the right. And its forecast is the one here that is wider
+than `k` -- each horizon carries the panel followed by the observed factors,
+which have no other object to go in.
+
+Also here from that work is the second entry point on the band
 sampler. `core/algorithms/chan_jeliazkov_2009.cpp` now carries
 `chan_jeliazkov_2009_conditional`, which holds the trailing elements of every
 state column at observed values instead of drawing them -- what a state vector
@@ -54,7 +64,9 @@ volatility mixture -- five in all, from sixteen files to twenty-one.
 `kalman_durbin_koopman_2002.{h,cpp}`, which it needs for the loading paths and
 the transition path and which no constant-coefficient model reaches.
 `DfmTvpStochvol` grew it by two, its own, having nothing left to reach for that
-the three before it had not already brought. Twenty-seven now.
+the three before it had not already brought. `FavarNormalWishart` grew it by
+five: its own two, `favar_support.h`, and `wishart.{h,cpp}`, which no factor
+model with a diagonal transition precision reaches. Thirty-two now.
 
 The set is *computed* rather than listed. `tools/update-bayests-core.R` starts
 from
@@ -67,6 +79,8 @@ from
     src/core/models/dfm_tvp_gamma.cpp
     include/bayests/dfm_tvp_stochvol.h
     src/core/models/dfm_tvp_stochvol.cpp
+    include/bayests/favar_normal_wishart.h
+    src/core/models/favar_normal_wishart.cpp
     src/core/spec.cpp
     src/core/inputs.cpp
 
@@ -143,6 +157,7 @@ Keep this list short; every entry is something a refresh has to reapply.
 `src/dfm_r_translation.h` belong to this package. The first implements the core's
 `Reporter` contract against R's console and `Rcpp::checkUserInterrupt()`; the
 second translates between an `Rcpp::List` and the core's structs; the third holds
-the one piece of that translation all four dynamic factor bindings need. All
+the one piece of that translation the four dynamic factor bindings need and the
+FAVAR binding does not. All
 three are GPL (>= 2) like the rest of the package, and `inst/COPYRIGHTS` says
 so.

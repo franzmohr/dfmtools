@@ -143,6 +143,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// FavarNormalWishartCoefficients
+Rcpp::List FavarNormalWishartCoefficients(Rcpp::List object);
+RcppExport SEXP _dfmtools_FavarNormalWishartCoefficients(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(FavarNormalWishartCoefficients(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// FavarNormalWishartForecasts
+Rcpp::List FavarNormalWishartForecasts(Rcpp::List object);
+RcppExport SEXP _dfmtools_FavarNormalWishartForecasts(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(FavarNormalWishartForecasts(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// FavarNormalWishartLogLik
+Rcpp::List FavarNormalWishartLogLik(Rcpp::List object);
+RcppExport SEXP _dfmtools_FavarNormalWishartLogLik(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(FavarNormalWishartLogLik(object));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
@@ -157,6 +190,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmTvpStochvolCoefficients", (DL_FUNC) &_dfmtools_DfmTvpStochvolCoefficients, 1},
     {"_dfmtools_DfmTvpStochvolForecasts", (DL_FUNC) &_dfmtools_DfmTvpStochvolForecasts, 1},
     {"_dfmtools_DfmTvpStochvolLogLik", (DL_FUNC) &_dfmtools_DfmTvpStochvolLogLik, 1},
+    {"_dfmtools_FavarNormalWishartCoefficients", (DL_FUNC) &_dfmtools_FavarNormalWishartCoefficients, 1},
+    {"_dfmtools_FavarNormalWishartForecasts", (DL_FUNC) &_dfmtools_FavarNormalWishartForecasts, 1},
+    {"_dfmtools_FavarNormalWishartLogLik", (DL_FUNC) &_dfmtools_FavarNormalWishartLogLik, 1},
     {NULL, NULL, 0}
 };
 

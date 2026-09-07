@@ -1,5 +1,60 @@
 # dfmtools (development version)
 
+* **`create_favarmodel()`**, a factor augmented VAR. **Draws are unchanged** for
+  the four dynamic factor models: this adds a fifth sampler beside them and
+  touches none of their code paths.
+
+  ```
+  x_t = lambda_f f_t + lambda_y y_t + e_t,   e_t ~ N(0, R),  R diagonal,
+  s_t = sum_j Phi_j s_{t-j} + v_t,           v_t ~ N(0, Q),  s_t = (f_t', y_t')',
+  ```
+
+  after Bernanke, Boivin and Eliasz (2005). The observed block `y_t` is part of
+  the *state*, not a set of regressors: it appears on the left of the transition
+  as well as the right, and `Q` is unrestricted so that its cross block -- the
+  correlation between the factor innovations and the shock to the observed
+  variables -- can be read. That is what the model is estimated for.
+
+  Five methods: `add_priors()`, `add_initial_values()`,
+  `add_posterior_coefficients()`, `add_posterior_forecasts()` and
+  `add_posterior_loglik()`, all on class `favarmodel`.
+
+  This is what the previous entry described as arriving without a binding. The
+  sampler is now vendored -- `tools/update-bayests-core.R` gained two entry
+  points and the closure pulled in `favar_support.h` and `wishart.{h,cpp}` on its
+  own, twenty-seven files to thirty-two -- and `src/FavarNormalWishart.cpp` is
+  the binding it was waiting for.
+
+  **Three things differ from the dynamic factor models and are worth knowing.**
+
+  *The identification is an identity block, not a unit lower triangle.* The
+  leading `n x n` block of the factor loadings is the identity and the observed
+  columns of those rows are zero, so the first `n` panel series are the factors
+  plus idiosyncratic noise exactly. A dynamic factor model can use a unit lower
+  triangle because its `V` is diagonal and the two restrictions together admit
+  only the identity rotation; a FAVAR has no diagonal `Q` to offer, so the
+  triangle alone would leave the loadings free to wander along a ridge. Order the
+  panel so that its first `n` columns are the series you will define the factors
+  by.
+
+  *The prior on `Q` is a Wishart*, not a set of independent gammas -- the only
+  error block in this package that is not a diagonal. `df` defaults to the width
+  of the state and `scale` to the identity of that size.
+
+  *The forecast is wider than the panel.* Each horizon carries the `k` panel
+  series followed by the `n_obs` observed ones, `h * (k + n_obs)` columns in all,
+  because past the end of the sample the observed variables are no longer data
+  and are forecast alongside the factors.
+
+  One thing to watch when reading loadings: with the default `normalize_x = TRUE`
+  each panel column is divided by its own standard deviation, so a loading comes
+  back on that standardised scale. It is correct there and not comparable with
+  one implied by the raw data until the normalisation is undone.
+
+  Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the effects of
+  monetary policy: A factor-augmented vector autoregressive (FAVAR) approach.
+  *The Quarterly Journal of Economics, 120*(1), 387-422.
+
 * **Vendored BayesTS core refreshed.** **Draws are unchanged**, for all four
   dynamic factor models. Upstream's own fingerprint comparison reports 76
   fixtures unchanged and none moved over the shared code this picks up.

@@ -27,6 +27,7 @@ BSD 3-Clause portion
     inst/include/bayests/dfm_normal_stochvol.h
     inst/include/bayests/dfm_tvp_gamma.h
     inst/include/bayests/dfm_tvp_stochvol.h
+    inst/include/bayests/favar_normal_wishart.h
     inst/include/bayests/inputs.h
     inst/include/bayests/priors.h
     inst/include/bayests/reporter.h
@@ -40,18 +41,22 @@ BSD 3-Clause portion
     src/core/algorithms/stochvol_ocsn_2007.cpp
     src/core/algorithms/stochvol_ocsn_2007.h
     src/core/algorithms/triangular_packing.h
+    src/core/algorithms/wishart.cpp
+    src/core/algorithms/wishart.h
     src/core/inputs.cpp
     src/core/models/dfm_normal_gamma.cpp
     src/core/models/dfm_normal_stochvol.cpp
     src/core/models/dfm_support.h
     src/core/models/dfm_tvp_gamma.cpp
     src/core/models/dfm_tvp_stochvol.cpp
+    src/core/models/favar_normal_wishart.cpp
+    src/core/models/favar_support.h
     src/core/models/model_support.h
     src/core/spec.cpp
 
     That is not the whole of the BayesTS core, only what the four dynamic
-    factor models reach -- this package has those four samplers and does
-    not need the other thirteen. tools/update-bayests-core.R computes that
+    factor models and the factor augmented VAR reach -- this package has
+    those five samplers and does not need the other fifteen. tools/update-bayests-core.R computes that
     set by following the #include graph from them, so the list above is
     derived rather than curated, and the script refuses to finish when the
     two disagree.

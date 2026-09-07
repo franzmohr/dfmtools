@@ -3,7 +3,7 @@ Title: Bayesian Inference of Dynamic Factor Models
 Version: 0.1.0
 Date: 2026-09-01
 Authors@R: person(c("Franz", "X."), "Mohr", email = "franz.x.mohr@outlook.com", role = c("aut","cre"), comment = c(ORCID = "0009-0003-8890-7781"))
-Description: Assists in the set-up of algorithms for Bayesian inference of dynamic factor models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
+Description: Assists in the set-up of algorithms for Bayesian inference of dynamic factor models and factor augmented vector autoregressive models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
 License: GPL (>= 2)
 Depends:
     R (>= 3.5),
@@ -18,5 +18,5 @@ Encoding: UTF-8
 URL: https://github.com/franzmohr/dfmtools
 BugReports: https://github.com/franzmohr/dfmtools/issues
 Remotes: franzmohr/bvartools
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0
 Config/testthat/edition: 3
