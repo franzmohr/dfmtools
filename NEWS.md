@@ -30,6 +30,17 @@
   every block from the data in its first iteration -- so it is burn-in rather
   than correctness.
 
+* **`create_dfmodel()` accepts a univariate `ts`.** The branch meant to handle
+  input with no column names assigned the matrix conversion to a local that
+  nothing read, so `x` stayed a vector and naming it failed with `'dimnames'
+  applied to non-array`. A `ts` matrix whose `dimnames` had been stripped reached
+  the same branch and failed on the length of the names instead. Both are now
+  converted and named -- `y` for a single column, `y1`, `y2`, ... for several --
+  and the series keeps its time index, which `scale()` would otherwise have
+  dropped from a vector. The condition keys on the column names rather than on
+  `dimnames` as a whole, so a matrix carrying row names but no column names is
+  named here too instead of carrying empty names onward.
+
 * **`create_dfmodel()` rejects more factors than observed series**, naming the
   cause, instead of leaving it to the sampler. `n` equal to the number of columns
   of `x` is a valid specification and still runs -- the elements below the

@@ -83,6 +83,7 @@ test_that("as many factors as series is allowed, more than that is not", {
   expect_s3_class(create_dfmodel(x = sim$x, p = 1, n = 1:4), "modellist")
   expect_error(create_dfmodel(x = sim$x, p = 1, n = 1:5),
                "must not exceed the number of observed series")
+})
 
 test_that("a univariate ts is turned into a one-column matrix and named", {
 
@@ -174,6 +175,30 @@ test_that("an unnamed ts matrix carries through the whole preparation", {
   expect_equal(ncol(object$posterior$lambda$coeffs), 2)
   expect_equal(ncol(object$posterior$u_sigma_inv$coeffs), 2)
 
+})
+
+test_that("a univariate ts carries through to a posterior", {
+
+  set.seed(17)
+  uni <- stats::ts(stats::rnorm(60), start = c(1980, 1), frequency = 4)
+
+  object <- create_dfmodel(x = uni, p = 1, n = 1, iterations = 20, burnin = 10)
+  object <- add_priors(object)
+  object <- add_initial_values(object)
+
+  set.seed(18)
+  object <- add_posterior_coefficients(object)
+
+  expect_false(isTRUE(object$error))
+
+  # One series with one factor leaves no freely estimated loading, so this
+  # reaches the sampler at all only because the empty block is carried through --
+  # single_series() in test-add_initial_values.R covers that specification given
+  # as a one-column matrix. What is tested here is the vector, which is the form
+  # a univariate ts actually arrives in.
+  expect_equal(dim(object$posterior$lambda$coeffs), c(20L, 1L))
+  expect_true(all(object$posterior$lambda$coeffs == 1))
+  expect_equal(ncol(object$posterior$factors$coeffs), 60)
 })
 
 test_that("create_dfmodel rejects invalid input", {
