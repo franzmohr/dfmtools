@@ -1,4 +1,4 @@
-# dfmtools (development version)
+# dfmtools 0.2.0
 
 * **Generalised impulse responses and forecast error variance
   decompositions** for class `favarmodel`. `irf()` gained a `type` argument --

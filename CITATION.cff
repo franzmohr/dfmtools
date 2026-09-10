@@ -6,7 +6,8 @@ message: "If you use dfmtools in publications, please cite it as below."
 title: "dfmtools: Bayesian Inference of Dynamic Factor Models"
 abstract: >-
   Assists in the set-up of algorithms for Bayesian inference of dynamic factor
-  models. Functions for posterior simulation and forecasting are largely based on
+  models and factor augmented vector autoregressive models. Functions for
+  posterior simulation and forecasting are largely based on
   the introductory texts of Chan, Koop, Poirier and Tobias (2019) and Luetkepohl
   (2006).
 type: software
