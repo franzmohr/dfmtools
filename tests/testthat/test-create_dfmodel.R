@@ -60,6 +60,31 @@ test_that("a single specification is returned unwrapped", {
   expect_false(inherits(object, "modellist"))
 })
 
+test_that("as many factors as series is allowed, more than that is not", {
+
+  sim <- sim_dfm(tt = 40, m = 4, n = 1)
+
+  # N = M is a real specification: the identifying block is then the whole
+  # leading square of lambda, and the N(N - 1)/2 elements below its diagonal are
+  # still freely estimated. The sampler runs it.
+  expect_s3_class(create_dfmodel(x = sim$x, p = 1, n = 4), "dfmodel")
+
+  # N above M is not, because the unit lower triangle that pins the rotation and
+  # scale of the factors needs one row of lambda per factor to be pinned with.
+  # Caught here rather than left to add_priors(), where the count of free
+  # loadings it implies is merely a wrong number -- and, far enough above M, a
+  # negative one that surfaces as diag() refusing a negative dimension.
+  expect_error(create_dfmodel(x = sim$x, p = 1, n = 5),
+               "must not exceed the number of observed series, which is 4")
+  expect_error(create_dfmodel(x = sim$x, p = 1, n = 20),
+               "cannot have more factors than series")
+
+  # And the same for a vector of n, where one entry reaching past M is enough.
+  expect_s3_class(create_dfmodel(x = sim$x, p = 1, n = 1:4), "modellist")
+  expect_error(create_dfmodel(x = sim$x, p = 1, n = 1:5),
+               "must not exceed the number of observed series")
+})
+
 test_that("create_dfmodel rejects invalid input", {
 
   sim <- sim_dfm(tt = 40, m = 4, n = 1)

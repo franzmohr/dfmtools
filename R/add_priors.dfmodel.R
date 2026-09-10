@@ -161,7 +161,7 @@ add_priors.dfmodel <- function(object,
   }
 
   # Total number of freely estimated coefficients in lambda
-  n_lambda <- (2 * m - n - 1) * n / 2
+  n_lambda <- .dfm_n_lambda(m, n)
 
   # Total # of estimated coefficients in measurement equation
   n_a <- n * n * p
@@ -208,6 +208,25 @@ add_priors.dfmodel <- function(object,
 
   return(object)
 }
+
+# The number of freely estimated elements of the M x N loading matrix.
+#
+# Only the product lambda f_t is identified, so the leading N x N block of lambda
+# is fixed unit lower triangular -- ones on the diagonal, zeros above -- which
+# pins both the rotation and the scale of the factors. That leaves min(i, N) free
+# elements in row i, and summing over the M rows gives N(2M - N - 1)/2.
+#
+# The count is zero for the one model that has a single observed series and a
+# single factor: the whole of lambda is then the identifying block, the loading
+# is 1, and what is left is x_t = f_t + u_t with an AR(p) factor -- an
+# unobserved-components model, which the sampler estimates like any other. So a
+# zero here is a width to carry through, not a specification to reject, and both
+# this file and add_initial_values.dfmodel() build empty blocks rather than
+# calling chol() on a 0 x 0 matrix.
+#
+# create_dfmodel() has already rejected N above M, which is the case that would
+# make this negative.
+.dfm_n_lambda <- function(m, n) (2 * m - n - 1) * n / 2
 
 # The inverse gamma prior on one of the two error precisions. `k` is the width --
 # the number of observed series for u, the number of factors for v -- and `name`
@@ -260,8 +279,12 @@ add_priors.dfmodel <- function(object,
     stop("Argument '", name, "$rate' must be larger than 0.")
   }
 
-  list(shape = matrix(spec$shape, k),
-       rate = matrix(spec$rate, k))
+  # rep_len() rather than the scalar directly, because `k` is zero for the
+  # loadings of a model with a single observed series and matrix(3, 0) is an
+  # error rather than an empty matrix. See .dfm_n_lambda() for why that width is
+  # a real specification and not a mistake to reject.
+  list(shape = matrix(rep_len(spec$shape, k), nrow = k, ncol = 1),
+       rate = matrix(rep_len(spec$rate, k), nrow = k, ncol = 1))
 }
 
 # The stochastic volatility prior on one of the two error terms. Stored under the

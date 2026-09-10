@@ -20,7 +20,8 @@ create_dfmodel(
 
 \item{p}{an integer vector of the lag order of the measurement equation. See 'Details'.}
 
-\item{n}{an integer vector of the number of factors. See 'Details'.}
+\item{n}{an integer vector of the number of factors, which must not exceed the number
+of columns of \code{x}. See 'Details'.}
 
 \item{normalize_x}{logical indicating whether each column of \code{x} should
 be normalized using \code{scale}. Defaults to \code{TRUE}.}
@@ -66,6 +67,16 @@ where
 
 If integer vectors are provided as arguments \code{p} or \code{n}, the function will
 produce a distinct model for all possible combinations of those specifications.
+
+Only the product \eqn{\lambda f_t} is identified, so the leading \eqn{N \times N} block of
+\eqn{\lambda} is fixed unit lower triangular -- ones on the diagonal, zeros above -- which pins
+both the rotation and the scale of the factors. That leaves \eqn{N(2M - N - 1)/2} freely
+estimated loadings and requires \eqn{N \le M}, since the block needs one row of \eqn{\lambda}
+per factor to be fixed with; a larger \code{n} is rejected here rather than left to the sampler.
+\eqn{N = M} is allowed, and the \eqn{N(N - 1)/2} elements below the diagonal of the leading
+block remain free. The one specification with no free loading at all is \eqn{M = N = 1}, where
+\eqn{\lambda} is the single fixed one and the model reduces to \eqn{x_t = f_t + u_t} with an
+AR(\eqn{p}) factor; that is estimated like any other, with an empty loading block throughout.
 
 Argument \code{error} specifies the structure of the covariance matrix of
 the error term and how it is estimated. Possible specifications are:

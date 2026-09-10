@@ -4,7 +4,8 @@
 #'
 #' @param x a time-series object of stationary endogenous variables.
 #' @param p an integer vector of the lag order of the measurement equation. See 'Details'.
-#' @param n an integer vector of the number of factors. See 'Details'.
+#' @param n an integer vector of the number of factors, which must not exceed the number
+#' of columns of \code{x}. See 'Details'.
 #' @param normalize_x logical indicating whether each column of \code{x} should
 #' be normalized using \code{scale}. Defaults to \code{TRUE}.
 #' @param error character specifying the model that should be used for the estimation
@@ -34,6 +35,16 @@
 #'
 #' If integer vectors are provided as arguments \code{p} or \code{n}, the function will
 #' produce a distinct model for all possible combinations of those specifications.
+#'
+#' Only the product \eqn{\lambda f_t} is identified, so the leading \eqn{N \times N} block of
+#' \eqn{\lambda} is fixed unit lower triangular -- ones on the diagonal, zeros above -- which pins
+#' both the rotation and the scale of the factors. That leaves \eqn{N(2M - N - 1)/2} freely
+#' estimated loadings and requires \eqn{N \le M}, since the block needs one row of \eqn{\lambda}
+#' per factor to be fixed with; a larger \code{n} is rejected here rather than left to the sampler.
+#' \eqn{N = M} is allowed, and the \eqn{N(N - 1)/2} elements below the diagonal of the leading
+#' block remain free. The one specification with no free loading at all is \eqn{M = N = 1}, where
+#' \eqn{\lambda} is the single fixed one and the model reduces to \eqn{x_t = f_t + u_t} with an
+#' AR(\eqn{p}) factor; that is estimated like any other, with an empty loading block throughout.
 #'
 #' Argument \code{error} specifies the structure of the covariance matrix of
 #' the error term and how it is estimated. Possible specifications are:
@@ -161,6 +172,21 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   m <- NCOL(x)
   tt <- nrow(x)
   p_max <- max(p)
+
+  # More factors than series is not a model. Only the product lambda f_t is
+  # identified, so the leading N x N block of lambda is fixed unit lower
+  # triangular, and there has to be one row per factor to fix it with. Rejected
+  # here rather than left to the sampler, because the count of free loadings
+  # that add_priors() derives from an N above M is a wrong number rather than an
+  # impossible one -- at N far enough above M it turns negative, and what a
+  # caller then sees is diag() complaining about a negative dimension.
+  #
+  # N equal to M is allowed and does run: the identifying block is then the
+  # whole of the leading square, and N(N - 1)/2 loadings are still free below it.
+  if (any(n > m)) {
+    stop("Argument 'n' must not exceed the number of observed series, which is ",
+         m, ". A dynamic factor model cannot have more factors than series.")
+  }
   
   model <- NULL
   model$type <- "DFM"

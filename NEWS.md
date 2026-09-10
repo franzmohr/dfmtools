@@ -1,3 +1,43 @@
+# dfmtools (development version)
+
+* **A dynamic factor model with a single observed series and a single factor is
+  estimated rather than crashing.** It is the one specification whose loading
+  matrix is entirely fixed -- the identifying restriction makes the leading
+  `n x n` block of lambda unit lower triangular, which at `m = 1` and
+  `n = 1` is the whole of it -- so the count of freely estimated loadings,
+  `(2m - n - 1)n/2`, is zero. `add_priors()` built an empty prior for that block
+  and `add_initial_values()` then called `chol()` on it, which reported a
+  zero-dimensional matrix and said nothing about the model. Both now carry the
+  empty block through, for constant and for time-varying coefficients alike, and
+  all four samplers estimate the result: `x_t = f_t + u_t` with an AR(`p`)
+  factor, which is an unobserved-components model.
+
+* **`add_initial_values()` on class `dfmodel` draws its starting values at the
+  scale of the prior rather than its inverse.** Every `vinv` here is a
+  precision, so a draw from the prior has standard deviation `1/sqrt(vinv)`,
+  which is what `backsolve(chol(vinv), z)` gives; the loadings and the
+  transition coefficients of a constant-coefficient model instead used
+  `chol(vinv) %*% z`, which gives `sqrt(vinv)`. The drifting blocks and the
+  log-volatilities already had it right, so the file held both arrangements at
+  once; all four now go through one function.
+
+  The two forms agree at `vinv = 1` and nowhere else, and they diverge in
+  opposite directions as the prior tightens: at the default precision of 0.01
+  the starting values were a hundred times tighter than the prior, and at a
+  precision of 100 they would have been a hundred times looser, so it was the
+  caller stating a firm prior who was thrown furthest from it. This affects
+  where the chains start and not what they converge to -- the sampler redraws
+  every block from the data in its first iteration -- so it is burn-in rather
+  than correctness.
+
+* **`create_dfmodel()` rejects more factors than observed series**, naming the
+  cause, instead of leaving it to the sampler. `n` equal to the number of columns
+  of `x` is a valid specification and still runs -- the elements below the
+  diagonal of the leading block are freely estimated -- but `n` above it is not a
+  model, and the count of free loadings it implied was merely a wrong number that
+  turned negative far enough out, where a caller saw `diag()` refusing a negative
+  dimension. A vector `n` is checked entry by entry.
+
 # dfmtools 0.2.0
 
 * **Generalised impulse responses and forecast error variance
