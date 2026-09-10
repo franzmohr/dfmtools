@@ -241,6 +241,25 @@ vapply(models, function(z) sprintf("p = %d, n = %d", z$model$p, z$model$n), "")
 #> [1] "p = 1, n = 1" "p = 2, n = 1" "p = 1, n = 2" "p = 2, n = 2"
 ```
 
+### Factor augmented VARs
+
+`create_favarmodel()` fits a factor augmented VAR, where a block of
+observed variables joins the factors in the state and the transition
+runs over both. The chain is the same one — `add_priors()`,
+`add_initial_values()`, `add_posterior_coefficients()` — and `irf()`
+computes impulse responses from the result.
+
+Identification is the part worth reading about rather than guessing
+at. `Q` is unrestricted by construction, which is what the model is
+estimated for, so it has no preferred rotation and a recursive
+ordering is an assumption the estimated model cannot test. The
+vignette [Identifying a monetary policy
+shock](vignettes/favar-monetary-policy.Rmd) works one through on the
+design of Bernanke, Boivin and Eliasz (2005), from ordering the panel
+to reading the responses:
+
+    vignette("favar-monetary-policy", package = "dfmtools")
+
 ## Where the sampler lives
 
 Posterior simulation is not implemented in R. `src/core/` and
@@ -263,6 +282,11 @@ sampler: Armadillo’s RNG is R’s own.
   [BayesTS](https://github.com/franzmohr/BayesTS/issues)
 
 ## References
+
+Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the
+effects of monetary policy: A factor-augmented vector autoregressive
+(FAVAR) approach. *The Quarterly Journal of Economics*, 120(1),
+387-422.
 
 Chan, J., Koop, G., Poirier, D. J., & Tobias, J. L. (2019). *Bayesian
 Econometric Methods* (2nd ed.). Cambridge: Cambridge University Press.
