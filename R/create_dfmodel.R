@@ -145,11 +145,20 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   
   # Data preparation ----
   
-  if (is.null(dimnames(x))) {
+  # A univariate `x` arrives as a vector and everything below it wants a matrix,
+  # so the conversion has to be assigned back to `x` -- naming a vector is an
+  # error rather than a no-op, and `scale()` would drop the `tsp` of a vector
+  # while it keeps that of a matrix. `as.matrix()` drops `tsp` too, hence the
+  # copy either side of it.
+  #
+  # Keyed on the column names rather than on `dimnames` as a whole, so that a
+  # matrix which has row names but no column names is named here as well instead
+  # of carrying empty names through to the output.
+  if (is.null(colnames(x))) {
     tsp_temp <- stats::tsp(x)
-    data <- stats::ts(as.matrix(x), class = c("mts", "ts", "matrix"))
+    x <- stats::ts(as.matrix(x))
     stats::tsp(x) <- tsp_temp
-    dimnames(x)[[2]] <- "y"
+    colnames(x) <- if (NCOL(x) == 1) "y" else paste0("y", seq_len(NCOL(x)))
   }
   
   # Normalise every column of x
