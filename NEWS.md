@@ -1,5 +1,22 @@
 # dfmtools (development version)
 
+* **`add_priors()` on class `favarmodel` gained a `slow` argument**, the panel
+  series assumed not to react to the observed block within the period. Their
+  loadings on the observed columns of `lambda` are pinned at zero, which is the
+  restriction Bernanke, Boivin and Eliasz identify a monetary policy shock with:
+  once the factors are slow-moving, a recursive ordering with the policy rate
+  last says something the data has not already been asked to say.
+
+  Series are given by name or by index, and the identifying first `n` may be
+  listed without effect -- the identification has zeroed their observed columns
+  already, which is also why those `n` should themselves be slow-moving. The
+  restriction is a prior rather than a hard zero; `slow = list(series = ...,
+  vinv = ...)` sets the precision it is held at, `1e12` by default, which leaves
+  a loading at zero to eight decimal places.
+
+  This was previously possible only by writing into `priors$lambda$vinv` at
+  hand-computed offsets, which the argument now does.
+
 * **`irf()`** on class `favarmodel`, the response of an observable to a
   recursively identified shock to one element of the state. A shock is an
   element of `s_t = (f_t', y_t')'` -- a factor or an observed variable -- because

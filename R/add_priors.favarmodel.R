@@ -13,6 +13,10 @@
 #' @param v a named list of prior specifications for the precision of the state
 #' innovations, with elements \code{df} and \code{scale}. Unlike every other
 #' error block in this package this one is a full matrix; see 'Details'.
+#' @param slow the panel series that do not respond to the observed block within
+#' the period, as a character or integer vector, or a named list with elements
+#' \code{series} and \code{vinv}. Defaults to \code{NULL}, no restriction. See
+#' 'Details'.
 #' @param ... not used.
 #'
 #' @details The idiosyncratic precisions get independent gamma priors, one per
@@ -29,6 +33,23 @@
 #' \code{\link{create_favarmodel}} for why the identification is an identity
 #' block rather than the unit lower triangle a dynamic factor model uses.
 #'
+#' Argument \code{slow} names the series that are assumed not to react to the
+#' observed block within the period -- output, employment and prices, against
+#' financial variables that reprice on the day. Their loadings on the observed
+#' columns of \eqn{\lambda} are pinned at zero, which is the restriction
+#' Bernanke, Boivin and Eliasz identify a monetary policy shock with: the
+#' factors are then slow-moving too, so a recursive ordering with the policy rate
+#' last says something the data has not already been asked to say. Listing one of
+#' the first \eqn{n} series is allowed and does nothing, the identification
+#' having zeroed their observed columns already -- which is also why those
+#' \eqn{n} should themselves be slow-moving series.
+#'
+#' The restriction is a prior, not a hard zero: element \code{vinv} of the list
+#' form sets the precision it is held at, \code{1e12} by default, which leaves a
+#' loading at zero to eight decimal places. Nothing stops a series from being
+#' slow against one observed variable and not another, but \code{slow} does not
+#' express that; write into \code{priors$lambda$vinv} directly for it.
+#'
 #' @return The model object with an additional element \code{priors}.
 #'
 #' @examples
@@ -39,12 +60,23 @@
 #'                            p = 1, n = 1, iterations = 5000, burnin = 1000)
 #' model <- add_priors(model)
 #'
+#' # Real quantities are assumed not to react to the observed block within the
+#' # quarter, financial variables to be free to.
+#' model <- add_priors(model, slow = c("PCECC96", "PCDGx", "PCESVx", "PCNDx"))
+#'
+#' @references
+#'
+#' Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the effects of
+#' monetary policy: A factor-augmented vector autoregressive (FAVAR) approach.
+#' \emph{The Quarterly Journal of Economics, 120}(1), 387--422.
+#'
 #' @export
 add_priors.favarmodel <- function(object,
                                   lambda = list(vinv = 0.01),
                                   a = list(vinv = 0.01),
                                   u = list(shape = 5, rate = 4),
                                   v = list(df = NULL, scale = NULL),
+                                  slow = NULL,
                                   ...) {
 
   m <- object[["model"]][["m"]]
@@ -68,6 +100,38 @@ add_priors.favarmodel <- function(object,
   }
   object[["priors"]][["lambda"]] <- list(mu = matrix(0, n_lambda),
                                          vinv = diag(lambda[["vinv"]], n_lambda))
+
+  # The slow-moving restriction ----
+  if (!is.null(slow)) {
+
+    slow_vinv <- 1e12
+    if (is.list(slow)) {
+      if (!is.null(slow[["vinv"]])) {
+        slow_vinv <- slow[["vinv"]]
+      }
+      slow <- slow[["series"]]
+    }
+    if (!is.numeric(slow_vinv) || length(slow_vinv) != 1 || slow_vinv < 0) {
+      stop("Argument 'slow$vinv' must be a single number of at least 0.")
+    }
+
+    if (length(slow) > 0) {
+
+      series <- vapply(slow, .favar_position, integer(1),
+                       names = .favar_panel_names(object, m), argument = "slow")
+
+      # The first n series have no free loading to restrict; the prior mean is
+      # zero already, so all that is left is to hold them there.
+      series <- unique(series[series > n])
+
+      if (length(series) > 0) {
+        position <- as.vector(outer((series - n - 1) * n_state,
+                                    n + seq_len(n_obs), "+"))
+        object[["priors"]][["lambda"]][["vinv"]][cbind(position, position)] <-
+          slow_vinv
+      }
+    }
+  }
 
   if (n_a > 0) {
     if (is.null(a[["vinv"]]) || a[["vinv"]] < 0) {

@@ -10,6 +10,7 @@
   a = list(vinv = 0.01),
   u = list(shape = 5, rate = 4),
   v = list(df = NULL, scale = NULL),
+  slow = NULL,
   ...
 )
 }
@@ -29,6 +30,11 @@ precisions, with elements \code{shape} and \code{rate}.}
 \item{v}{a named list of prior specifications for the precision of the state
 innovations, with elements \code{df} and \code{scale}. Unlike every other
 error block in this package this one is a full matrix; see 'Details'.}
+
+\item{slow}{the panel series that do not respond to the observed block within
+the period, as a character or integer vector, or a named list with elements
+\code{series} and \code{vinv}. Defaults to \code{NULL}, no restriction. See
+'Details'.}
 
 \item{...}{not used.}
 }
@@ -52,6 +58,23 @@ panel series identify the factors and carry no free loading at all, and every
 series after them loads freely on the whole state. See
 \code{\link{create_favarmodel}} for why the identification is an identity
 block rather than the unit lower triangle a dynamic factor model uses.
+
+Argument \code{slow} names the series that are assumed not to react to the
+observed block within the period -- output, employment and prices, against
+financial variables that reprice on the day. Their loadings on the observed
+columns of \eqn{\lambda} are pinned at zero, which is the restriction
+Bernanke, Boivin and Eliasz identify a monetary policy shock with: the
+factors are then slow-moving too, so a recursive ordering with the policy rate
+last says something the data has not already been asked to say. Listing one of
+the first \eqn{n} series is allowed and does nothing, the identification
+having zeroed their observed columns already -- which is also why those
+\eqn{n} should themselves be slow-moving series.
+
+The restriction is a prior, not a hard zero: element \code{vinv} of the list
+form sets the precision it is held at, \code{1e12} by default, which leaves a
+loading at zero to eight decimal places. Nothing stops a series from being
+slow against one observed variable and not another, but \code{slow} does not
+express that; write into \code{priors$lambda$vinv} directly for it.
 }
 \examples{
 
@@ -61,4 +84,13 @@ model <- create_favarmodel(x = bem_dfmdata[, -1], y = bem_dfmdata[, 1, drop = FA
                            p = 1, n = 1, iterations = 5000, burnin = 1000)
 model <- add_priors(model)
 
+# Real quantities are assumed not to react to the observed block within the
+# quarter, financial variables to be free to.
+model <- add_priors(model, slow = c("PCECC96", "PCDGx", "PCESVx", "PCNDx"))
+
+}
+\references{
+Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the effects of
+monetary policy: A factor-augmented vector autoregressive (FAVAR) approach.
+\emph{The Quarterly Journal of Economics, 120}(1), 387--422.
 }
