@@ -1,5 +1,28 @@
 # dfmtools (development version)
 
+* **Generalised impulse responses and forecast error variance
+  decompositions** for class `favarmodel`. `irf()` gained a `type` argument --
+  `"oir"` (the Cholesky default), `"gir"` for the generalised response of
+  Pesaran and Shin, which needs no ordering, and `"feir"` for the reduced-form
+  response -- and `fevd()` is new, on the `bvartools` generic, so its result
+  plots with that package's method.
+
+  A decomposition of a panel series carries one column per state shock plus an
+  `"idiosyncratic"` column: the series' own error is white noise, so it enters
+  the forecast error variance once at every horizon rather than accumulating,
+  but it enters it all the same, and the share of the forecast error the common
+  component does not explain is usually the more informative number. An observed
+  variable has no such column, being part of the state and measured without
+  error. Under `"oir"` the shares sum to one; under `"gir"` they overlap, and
+  `normalise_gir = TRUE` rescales the state shares to fill exactly the share the
+  state accounts for, leaving the idiosyncratic column alone.
+
+  Note that `"gir"` does not respect the slow-moving restriction: a generalised
+  shock to the policy rate moves a slow series on impact, through its loadings
+  on the factors, which is what `add_priors(slow = )` was imposed to rule out.
+  The two identify different shocks, and `irf()` documents the difference rather
+  than picking for you.
+
 * **A vignette, "Identifying a monetary policy shock"**, working the Bernanke,
   Boivin and Eliasz design end to end on `bem_dfmdata`: ordering the panel so
   that slow-moving series identify the factors, `add_priors(slow = )` for the

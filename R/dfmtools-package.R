@@ -11,6 +11,7 @@
 #' @importFrom bvartools add_posterior_forecasts
 #' @importFrom bvartools add_posterior_loglik
 #' @importFrom bvartools irf
+#' @importFrom bvartools fevd
 ## usethis namespace: end
 NULL
 

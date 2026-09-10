@@ -11,6 +11,7 @@
   n_ahead = 5,
   ci = 0.95,
   shock = 1,
+  type = "oir",
   order = NULL,
   cumulative = FALSE,
   keep_draws = FALSE,
@@ -38,9 +39,14 @@ response is wanted, among the \eqn{k} panel series followed by the
 is one standard deviation of the orthogonalised innovation. Negative values
 give the mirrored response.}
 
+\item{type}{the identification. \code{"oir"}, the default, orthogonalises the
+state innovations with the Cholesky factor of \eqn{Q}; \code{"gir"} gives the
+generalised response of Pesaran and Shin, which needs no ordering;
+\code{"feir"} leaves the innovations alone. See 'Details'.}
+
 \item{order}{the Cholesky ordering, as a character or integer permutation of
 the state. Defaults to the state's own order, factors before observed
-variables.}
+variables. Only meaningful for \code{type = "oir"}.}
 
 \item{cumulative}{logical indicating whether the responses should be
 accumulated over the horizon. Defaults to \code{FALSE}.}
@@ -59,7 +65,7 @@ with one row per draw and one column per horizon instead.
 }
 \description{
 Computes the posterior distribution of the response of one variable to a
-recursively identified shock to one element of the state.
+shock to one element of the state.
 }
 \details{
 Shocks live in the transition equation, so an impulse is always an
@@ -79,16 +85,38 @@ and for a panel series it is carried through the loadings,
 \eqn{\lambda_{j \cdot} \Psi_h P e_i}, because that is the only way the panel
 moves at all.
 
-\eqn{P} is the lower Cholesky factor of \eqn{Q}, taken in the order given by
-argument \code{order}. A shock is therefore assumed to leave every element
-ordered before the impulse unmoved on impact and to move all of those after
-it. That assumption is the identification and nothing in the estimated model
-tests it: \eqn{Q} is unrestricted by construction, which is what a factor
-augmented VAR is estimated for, and a different ordering gives a different
-answer from the same draws. Order the state deliberately. Bernanke, Boivin
-and Eliasz place the slow-moving factors first and the policy rate last, so
-that policy responds to the factors within the period and they respond to it
-only with a lag.
+\eqn{P} is what argument \code{type} chooses, and it is where the
+identification lives. Under \code{"oir"} it is the lower Cholesky factor of
+\eqn{Q} taken in the order given by \code{order}, so a shock is assumed to
+leave every element ordered before the impulse unmoved on impact and to move
+all of those after it. That assumption is not tested by anything in the
+estimated model: \eqn{Q} is unrestricted by construction, which is what a
+factor augmented VAR is estimated for, and a different ordering gives a
+different answer from the same draws. Order the state deliberately. Bernanke,
+Boivin and Eliasz place the slow-moving factors first and the policy rate
+last, so that policy responds to the factors within the period and they
+respond to it only with a lag.
+
+Under \code{"gir"}, \eqn{P e_i} is replaced by \eqn{Q e_i / \sqrt{q_{ii}}},
+the generalised response of Pesaran and Shin. There is no ordering to choose:
+the shock to element \eqn{i} moves the others by as much as their estimated
+covariance with it says they do, which is a description of the reduced form
+rather than a structural claim. It answers a different question from
+\code{"oir"} rather than answering the same one without an assumption, and
+the two coincide only for the element ordered first. Under \code{"feir"} the
+innovations are left alone, \eqn{P = I}, which is a reduced-form response and
+not a structural one at all.
+
+Note what \code{"gir"} does to the slow-moving restriction of
+\code{\link{add_priors.favarmodel}}. That restriction zeroes a slow series'
+loading on the observed block, so an orthogonalised shock to the policy rate
+cannot move it on impact. A generalised shock can and generally does, because
+it moves the factor innovations by their estimated covariance with the policy
+innovation and the response then reaches the series through its loadings on
+the factors. The two are not in conflict -- they identify different shocks --
+but a generalised response is not the Bernanke, Boivin and Eliasz object, and
+reading it as one gives back the contemporaneous effect the restriction was
+imposed to rule out.
 
 Names are taken from the columns of \code{x} and \code{y} -- which, for a
 \code{\link[stats]{ts}} built without column names, are R's own
@@ -133,4 +161,10 @@ monetary policy: A factor-augmented vector autoregressive (FAVAR) approach.
 
 Luetkepohl, H. (2006). \emph{New introduction to multiple time series
 analysis} (2nd ed.). Berlin: Springer.
+
+Pesaran, H. H., & Shin, Y. (1998). Generalized impulse response analysis in
+linear multivariate models. \emph{Economics Letters, 58}(1), 17--29.
+}
+\seealso{
+\code{\link{fevd.favarmodel}} for the variance decomposition.
 }
