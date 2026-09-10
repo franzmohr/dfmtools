@@ -1,0 +1,242 @@
+---
+title: "Identifying a monetary policy shock"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Identifying a monetary policy shock}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.4,
+  dpi = 120
+)
+```
+
+A factor augmented VAR exists to answer a question a small VAR answers badly.
+Estimate the effect of monetary policy in a three- or five-variable VAR and the
+price level rises after a contractionary shock -- the price puzzle -- which is
+not a result but a symptom: the central bank sees more than the three variables
+do, so what the VAR reads as a policy shock is partly the bank reacting to
+information the VAR never saw. Bernanke, Boivin and Eliasz (2005) put the
+information back by summarising a large panel into a few factors and putting
+those in the VAR beside the policy rate.
+
+This vignette follows their design on the data that ships with the package. It
+is their *design*, not their numbers: they use 120 monthly series through
+2001:8, and `bem_dfmdata` is quarterly.
+
+```{r setup}
+library(dfmtools)
+data("bem_dfmdata")
+```
+
+## The model
+
+The panel is a measurement equation on the whole state,
+
+$$x_t = \lambda_f f_t + \lambda_y y_t + e_t, \qquad e_t \sim N(0, R),$$
+
+with $R$ diagonal, and the state is a VAR in the factors and the observed
+variables together,
+
+$$s_t = \sum_{i=1}^{p} \Phi_i s_{t-i} + v_t, \qquad s_t = (f_t', y_t')', \qquad
+v_t \sim N(0, Q).$$
+
+The policy rate is $y_t$. It is part of the state rather than a regressor: it
+appears on the left of the transition as well as the right, and $Q$ is
+unrestricted so that its cross block -- the correlation between the factor
+innovations and the shock to the policy rate -- is estimated rather than
+assumed. That block is the whole reason to fit the model, and it is also why the
+model cannot identify anything on its own. An unrestricted $Q$ has no preferred
+rotation. The identification has to come from outside.
+
+## Ordering the panel
+
+Two restrictions do the work, and both are decisions about the order of the
+columns of `x`.
+
+The first is the normalisation `create_favarmodel()` imposes: the leading
+$n \times n$ block of $\lambda_f$ is the identity and the observed columns of
+those rows are zero. Factor $i$ is therefore panel series $i$ plus idiosyncratic
+noise, exactly. That fixes the rotation, but it also means the first $n$ columns
+of the panel are a substantive choice and not a formality.
+
+The second is Bernanke, Boivin and Eliasz's own. Divide the panel into
+*slow-moving* series -- output, employment, prices, which do not react to a
+policy surprise within the period -- and *fast-moving* ones -- interest rates,
+spreads, equity, the exchange rate, which reprice on the day. Slow-moving
+series are restricted to load zero on the policy rate contemporaneously.
+Combine that with the normalisation and the factors inherit the property: if
+the series that define them cannot react within the period, neither can they.
+
+So the identifying columns must be slow-moving ones, and it is worth picking
+series that are broad rather than headline, since whatever goes first *becomes*
+a factor.
+
+```{r panel}
+identifiers <- c("INDPRO", "PAYEMS", "CPIAUCSL")
+
+slow <- c(identifiers,
+          "GDPC96", "PCECC96", "IPFINAL", "USPRIV", "UNRATE",
+          "AWHMAN", "PCECTPI", "GDPCTPI", "HOUST")
+
+fast <- c("TB3MS", "GS1", "GS10", "GS10TB3Mx", "M1REALx", "M2REALx",
+          "BUSLOANSx", "EXUSUKx", "S.P.500", "S.P.div.yield",
+          "TB3SMFFM", "AAAFFM")
+
+panel <- bem_dfmdata[, c(slow, fast)]
+ffr <- bem_dfmdata[, "FEDFUNDS", drop = FALSE]
+```
+
+`bem_dfmdata` arrives with the FRED-QD transformations already applied, so the
+real quantities and the price indices are growth rates. `FEDFUNDS` is not
+transformed and stays in percentage points, which is what makes a response to it
+readable later.
+
+```{r data}
+c(quarters = nrow(panel), series = ncol(panel))
+round(summary(as.numeric(ffr)), 2)
+```
+
+## Estimation
+
+Three factors and four lags, the quarterly counterpart of their three factors
+and thirteen monthly lags.
+
+```{r model}
+model <- create_favarmodel(x = panel, y = ffr, p = 4, n = 3,
+                           iterations = 4000, burnin = 1000)
+```
+
+`normalize_x = TRUE` is the default and divides each panel column by its own
+standard deviation. Without it a factor extracted from series of different
+scales is a factor of the largest of them. The consequence to remember is that a
+panel response comes back in standard deviations of that series rather than in
+its units.
+
+Argument `slow` of `add_priors()` carries the second restriction. The
+identifying three are listed with the rest, which is allowed and does nothing --
+the normalisation has already zeroed their observed columns -- but says plainly
+that they belong to the slow group, which is the condition the identification
+rests on.
+
+```{r priors}
+model <- add_priors(model, slow = slow)
+model <- add_initial_values(model)
+```
+
+The restriction is a prior held at a precision of `1e12`, not a hard zero. That
+is close enough to be exact in practice, and it is worth checking rather than
+assuming.
+
+```{r estimate}
+set.seed(20050201)
+model <- add_posterior_coefficients(model)
+
+lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
+                 ncol(panel), model$model$n + model$model$n_obs)
+
+range(lambda[seq_along(slow), 4])          # slow block, loading on FEDFUNDS
+range(lambda[-seq_along(slow), 4])         # fast block
+```
+
+The slow block is at zero to eight decimal places while the fast block is not,
+which is the restriction doing what it was asked to.
+
+## The shock
+
+`irf()` identifies the shock with the Cholesky factor of $Q$ in the order given
+by `order`, which defaults to the state's own: the factors, then the observed
+block. The policy rate is therefore ordered last, so it may respond to the
+factors within the period and they may respond to it only with a lag -- the
+recursive assumption of Bernanke, Boivin and Eliasz, which the slow-moving
+restriction is what makes credible.
+
+```{r policy}
+policy <- irf(model, impulse = "FEDFUNDS", response = "FEDFUNDS", n_ahead = 20)
+plot(policy, main = "Federal funds rate")
+```
+
+One standard deviation of the orthogonalised innovation is a little over thirty
+basis points on impact. Most of it is gone within two quarters, leaving a small
+and persistent remainder -- and the band covers zero from the first quarter on,
+which is worth registering before reading anything downstream of it.
+
+## Reading the responses
+
+The panel is in growth rates, so a response to be read as a level response has
+to be accumulated. That is `cumulative = TRUE`, and forgetting it is the easiest
+way to mistake a hump-shaped decline in the level of output for noise in its
+growth rate.
+
+```{r responses, fig.height = 6}
+opar <- par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
+
+for (v in c("GDPC96", "INDPRO", "PCECC96", "CPIAUCSL")) {
+  plot(irf(model, impulse = "FEDFUNDS", response = v, n_ahead = 20,
+           cumulative = TRUE),
+       main = v, ylab = "Std. deviations")
+}
+
+par(opar)
+```
+
+The medians have the shape Bernanke, Boivin and Eliasz report. Output,
+industrial production and consumption fall, trough about two years out and
+recover, and the price level falls monotonically rather than rising, so there is
+no price puzzle of the kind a small VAR on the same sample produces.
+
+The bands are another matter, and they are the result as much as the medians
+are: they cover zero at every horizon in all four panels. Twenty-four quarterly
+series is a thin panel beside their 120 monthly ones, the sample runs through a
+decade over which the funds rate could not move, and four lags of a four-wide
+state is a small model to ask this of. The exercise shows that the machinery
+reproduces their design and their qualitative pattern. It does not show that the
+pattern is distinguishable from zero on this data.
+
+Unemployment is a level already and is not accumulated.
+
+```{r unemployment}
+plot(irf(model, impulse = "FEDFUNDS", response = "UNRATE", n_ahead = 20),
+     main = "Unemployment rate")
+```
+
+Note which of these are read through the loadings. `GDPC96`, `PCECC96` and
+`UNRATE` are ordinary panel series that never enter the transition; their
+responses are $\lambda_{j \cdot} \Psi_h P e_i$, the state's response carried
+through their row of the loadings. That is what the factor structure buys -- a
+response for every series in the panel, from a VAR of width four. `INDPRO` and
+`CPIAUCSL` are identifying series, so what is plotted for them is the response
+of factors one and three.
+
+## What this is not
+
+Two things separate the above from a replication of Bernanke, Boivin and Eliasz.
+
+The data is the first. Theirs is monthly, 120 series, 1959:1 to 2001:8, and
+stops before the zero lower bound; this is quarterly FRED-QD through 2015Q3,
+which includes a long stretch over which the funds rate could not move. Their
+panel is in their replication files and FRED-MD is the monthly successor, and
+either drops into the code above unchanged.
+
+The estimator is the second. They report two estimators, a two-step principal
+components procedure and the one-step likelihood-based one. This package
+implements the one-step: the factors, the loadings, the transition and both
+error blocks are drawn jointly, so the uncertainty about the factors is carried
+into the response bands rather than bootstrapped back in afterwards. The
+two-step estimator is not available here.
+
+## References
+
+Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the effects of
+monetary policy: A factor-augmented vector autoregressive (FAVAR) approach.
+*The Quarterly Journal of Economics, 120*(1), 387--422.
+
+McCracken, M. W., & Ng, S. (2016). FRED-MD: A monthly database for
+macroeconomic research. *Journal of Business & Economic Statistics, 34*(4),
+574--589.

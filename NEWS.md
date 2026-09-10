@@ -1,5 +1,19 @@
 # dfmtools (development version)
 
+* **A vignette, "Identifying a monetary policy shock"**, working the Bernanke,
+  Boivin and Eliasz design end to end on `bem_dfmdata`: ordering the panel so
+  that slow-moving series identify the factors, `add_priors(slow = )` for the
+  contemporaneous restriction, and `irf()` with the funds rate ordered last.
+
+  It is their design rather than their numbers -- theirs is a monthly panel of
+  120 series through 2001:8, this is quarterly FRED-QD -- and the vignette says
+  where the two part company. The medians reproduce their qualitative pattern,
+  including the absence of a price puzzle; the credible bands cover zero at every
+  horizon, which the vignette reports rather than buries.
+
+  `knitr` and `rmarkdown` join Suggests, and DESCRIPTION gains a
+  `VignetteBuilder` field.
+
 * **`add_priors()` on class `favarmodel` gained a `slow` argument**, the panel
   series assumed not to react to the observed block within the period. Their
   loadings on the observed columns of `lambda` are pinned at zero, which is the

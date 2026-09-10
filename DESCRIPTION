@@ -11,7 +11,10 @@ Depends:
 Imports: coda, methods, Rcpp (>= 0.12.14), stats
 LinkingTo: Rcpp, RcppArmadillo
 Suggests:
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 SystemRequirements: GNU make
 LazyData: true
 Encoding: UTF-8
