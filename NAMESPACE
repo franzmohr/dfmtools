@@ -10,6 +10,7 @@ S3method(add_posterior_loglik,dfmodel)
 S3method(add_posterior_loglik,favarmodel)
 S3method(add_priors,dfmodel)
 S3method(add_priors,favarmodel)
+S3method(irf,favarmodel)
 export(create_dfmodel)
 export(create_favarmodel)
 import(methods)
@@ -19,6 +20,7 @@ importFrom(bvartools,
   add_posterior_coefficients,
   add_posterior_forecasts,
   add_posterior_loglik,
-  add_priors
+  add_priors,
+  irf
 )
 useDynLib(dfmtools, .registration = TRUE)

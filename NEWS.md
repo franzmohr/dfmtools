@@ -1,5 +1,25 @@
 # dfmtools (development version)
 
+* **`irf()`** on class `favarmodel`, the response of an observable to a
+  recursively identified shock to one element of the state. A shock is an
+  element of `s_t = (f_t', y_t')'` -- a factor or an observed variable -- because
+  that is where the model's dynamics are; the panel's own error is idiosyncratic
+  and propagates nothing. A response is any observable: the `k` panel series
+  followed by the `n_obs` observed ones, the order `add_posterior_forecasts()`
+  already returns. A panel response is carried through the loadings, which is
+  what lets a factor's shock be read on a series that never enters the
+  transition.
+
+  Identification is the Cholesky factor of `Q` in the order given by argument
+  `order`, which defaults to the state's own, factors before observed variables.
+  Nothing in the estimated model tests that ordering -- `Q` is unrestricted by
+  construction, which is what the model is estimated for -- so a different one
+  gives a different answer from the same draws.
+
+  The return value carries class `bvarirf`, so `plot()` from **bvartools**
+  works on it, and `keep_draws = TRUE` returns the posterior itself rather than
+  its quantiles.
+
 * **`create_favarmodel()`**, a factor augmented VAR. **Draws are unchanged** for
   the four dynamic factor models: this adds a fifth sampler beside them and
   touches none of their code paths.

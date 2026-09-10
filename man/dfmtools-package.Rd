@@ -6,7 +6,7 @@
 \alias{dfmtools-package}
 \title{dfmtools: Bayesian Inference of Dynamic Factor Models}
 \description{
-Assists in the set-up of algorithms for Bayesian inference of dynamic factor models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
+Assists in the set-up of algorithms for Bayesian inference of dynamic factor models and factor augmented vector autoregressive models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
 }
 \seealso{
 Useful links:
