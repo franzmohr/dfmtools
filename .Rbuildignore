@@ -10,6 +10,8 @@
 ^\.Rhistory$
 ^CONTRIBUTING\.md$
 ^CITATION\.cff$
+^vignettes/.*\.orig$
+^vignettes/precompile\.R$
 ## R CMD build cleans the top level of src/ only, so the vendored core's build
 ## products would otherwise be shipped in the tarball -- the same reason
 ## src/Makevars has to name them in OBJECTS.

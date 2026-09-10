@@ -7,7 +7,16 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "figures/favar-monetary-policy-",
+  fig.width = 7,
+  fig.height = 4.4,
+  dpi = 120
+)
+```
 
 A factor augmented VAR exists to answer a question a small VAR answers badly.
 Estimate the effect of monetary policy in a three- or five-variable VAR and the
@@ -22,11 +31,8 @@ This vignette follows their design on the data that ships with the package. It
 is their *design*, not their numbers: they use 120 monthly series through
 2001:8, and `bem_dfmdata` is quarterly.
 
-
-``` r
+```{r setup}
 library(dfmtools)
-#> Lade nötiges Paket: bvartools
-#> Lade nötiges Paket: coda
 data("bem_dfmdata")
 ```
 
@@ -73,8 +79,7 @@ So the identifying columns must be slow-moving ones, and it is worth picking
 series that are broad rather than headline, since whatever goes first *becomes*
 a factor.
 
-
-``` r
+```{r panel}
 identifiers <- c("INDPRO", "PAYEMS", "CPIAUCSL")
 
 slow <- c(identifiers,
@@ -94,14 +99,9 @@ real quantities and the price indices are growth rates. `FEDFUNDS` is not
 transformed and stays in percentage points, which is what makes a response to it
 readable later.
 
-
-``` r
+```{r data}
 c(quarters = nrow(panel), series = ncol(panel))
-#> quarters   series 
-#>      225       24
 round(summary(as.numeric(ffr)), 2)
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>    0.07    2.97    5.14    5.26    6.92   17.78
 ```
 
 ## Estimation
@@ -109,8 +109,7 @@ round(summary(as.numeric(ffr)), 2)
 Three factors and four lags, the quarterly counterpart of their three factors
 and thirteen monthly lags.
 
-
-``` r
+```{r model}
 model <- create_favarmodel(x = panel, y = ffr, p = 4, n = 3,
                            iterations = 4000, burnin = 1000)
 ```
@@ -127,8 +126,7 @@ the normalisation has already zeroed their observed columns -- but says plainly
 that they belong to the slow group, which is the condition the identification
 rests on.
 
-
-``` r
+```{r priors}
 model <- add_priors(model, slow = slow)
 model <- add_initial_values(model)
 ```
@@ -137,8 +135,7 @@ The restriction is a prior held at a precision of `1e12`, not a hard zero. That
 is close enough to be exact in practice, and it is worth checking rather than
 assuming.
 
-
-``` r
+```{r estimate}
 set.seed(20050201)
 model <- add_posterior_coefficients(model)
 
@@ -146,9 +143,7 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
                  ncol(panel), model$model$n + model$model$n_obs)
 
 range(lambda[seq_along(slow), 4])          # slow block, loading on FEDFUNDS
-#> [1] -2.317601e-08  1.939926e-08
 range(lambda[-seq_along(slow), 4])         # fast block
-#> [1] -0.02264939  0.03127142
 ```
 
 The slow block is at zero to eight decimal places while the fast block is not,
@@ -163,13 +158,10 @@ factors within the period and they may respond to it only with a lag -- the
 recursive assumption of Bernanke, Boivin and Eliasz, which the slow-moving
 restriction is what makes credible.
 
-
-``` r
+```{r policy}
 policy <- irf(model, impulse = "FEDFUNDS", response = "FEDFUNDS", n_ahead = 20)
 plot(policy, main = "Federal funds rate")
 ```
-
-![plot of chunk policy](figures/favar-monetary-policy-policy-1.png)
 
 One standard deviation of the orthogonalised innovation is a little over thirty
 basis points on impact. Most of it is gone within two quarters, leaving a small
@@ -183,8 +175,7 @@ to be accumulated. That is `cumulative = TRUE`, and forgetting it is the easiest
 way to mistake a hump-shaped decline in the level of output for noise in its
 growth rate.
 
-
-``` r
+```{r responses, fig.height = 6}
 opar <- par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
 
 for (v in c("GDPC96", "INDPRO", "PCECC96", "CPIAUCSL")) {
@@ -192,11 +183,6 @@ for (v in c("GDPC96", "INDPRO", "PCECC96", "CPIAUCSL")) {
            cumulative = TRUE),
        main = v, ylab = "Std. deviations")
 }
-```
-
-![plot of chunk responses](figures/favar-monetary-policy-responses-1.png)
-
-``` r
 
 par(opar)
 ```
@@ -216,13 +202,10 @@ pattern is distinguishable from zero on this data.
 
 Unemployment is a level already and is not accumulated.
 
-
-``` r
+```{r unemployment}
 plot(irf(model, impulse = "FEDFUNDS", response = "UNRATE", n_ahead = 20),
      main = "Unemployment rate")
 ```
-
-![plot of chunk unemployment](figures/favar-monetary-policy-unemployment-1.png)
 
 Note which of these are read through the loadings. `GDPC96`, `PCECC96` and
 `UNRATE` are ordinary panel series that never enter the transition; their
