@@ -1094,7 +1094,9 @@ void FavarNormalWishartInput::validate() const
     require_shape(train.f_obs, tt, n_obs, "the observed factors (f_obs)");
 
     // The free loadings, in the row-major order the sampler draws them -- the
-    // FAVAR count, which is n_lambda() only when there are no observed factors.
+    // FAVAR count, never n_lambda(). The two agree at more than one dimension
+    // (see VarSpec::n_favar_lambda()), so this length passing is not on its own
+    // evidence that the file was written to a FAVAR's convention.
     validate_normal_block(lambda_prior, initial.lambda,
                           static_cast<arma::uword>(spec.n_favar_lambda()), "lambda");
 
