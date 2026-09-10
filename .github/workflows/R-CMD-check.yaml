@@ -39,7 +39,7 @@ jobs:
       R_KEEP_PKG_SOURCE: yes
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Needed by the "checking top-level files" step, which reads README.md and
       # NEWS.md; without it every run picks up a note.
