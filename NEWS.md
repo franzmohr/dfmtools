@@ -1,5 +1,15 @@
 # dfmtools (development version)
 
+* **A vignette covers `error = "sv"` and `tvp = TRUE`.** *Drifting loadings and
+  changing volatility* estimates all four dynamic factor model algorithms on one
+  panel of US real activity: what the six-element stochastic volatility prior and
+  the state equation on the coefficients ask for, how to read a posterior that
+  holds one value per period rather than one value, what the two specifications
+  do to each other when both are carried, and what they do to a forecast
+  interval. Both vignettes are now precompiled from `.Rmd.orig` sources, as in
+  `bvartools` and `bgvars`, since posterior simulation is too slow to run during
+  `R CMD build`.
+
 * **A dynamic factor model with a single observed series and a single factor is
   estimated rather than crashing.** It is the one specification whose loading
   matrix is entirely fixed -- the identifying restriction makes the leading

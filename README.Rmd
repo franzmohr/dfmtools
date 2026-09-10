@@ -52,7 +52,15 @@ sampler gains two blocks. The two placements do different work: volatility in
 early and quiet later stops contributing on the same terms throughout, while
 volatility in `v_t` is the common component's own and is what keeps the `M`
 idiosyncratic variances from jointly absorbing a shock that every series felt at
-once. The loadings and the transition stay constant either way.
+once.
+
+The coefficients may drift as well, with `create_dfmodel(tvp = TRUE)`. Every
+freely estimated loading and every transition coefficient then follows a random
+walk and is drawn as a whole path with the simulation smoother of Durbin and
+Koopman (2002); the block the identifying restriction fixes does not move. The
+two arguments are independent, so there are four algorithms rather than two, and
+carrying both is not redundant: a series whose loading fell looks a great deal
+like a series whose idiosyncratic variance rose.
 
 ## Installation
 
@@ -225,6 +233,17 @@ p_waic <- sum(apply(ll, 2, stats::var))
 round(-2 * (lppd - p_waic), 1)
 ```
 
+### Drifting loadings and changing volatility
+
+`error = "sv"` and `tvp = TRUE` are what a long sample usually needs, and reading
+their output takes some care: the error precisions and the coefficients come back
+as one value per period rather than one value. The vignette [Drifting loadings
+and changing volatility](vignettes/tvp-and-stochastic-volatility.Rmd) estimates
+all four models on the same panel of US real activity, from the Great Moderation
+in the factor's volatility to what it does to a forecast interval:
+
+    vignette("tvp-and-stochastic-volatility", package = "dfmtools")
+
 ### Several specifications at once
 
 Integer vectors for `p` or `n` produce one model per combination, and the rest of
@@ -285,6 +304,9 @@ monetary policy: A factor-augmented vector autoregressive (FAVAR) approach.
 
 Chan, J., Koop, G., Poirier, D. J., & Tobias, J. L. (2019). *Bayesian
 Econometric Methods* (2nd ed.). Cambridge: Cambridge University Press.
+
+Durbin, J., & Koopman, S. J. (2002). A simple and efficient simulation smoother
+for state space time series analysis. *Biometrika*, 89(3), 603-615.
 
 Lütkepohl, H. (2006). *New Introduction to Multiple Time Series Analysis* (2nd
 ed.). Berlin: Springer.

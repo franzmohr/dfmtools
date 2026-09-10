@@ -31,7 +31,7 @@ This vignette follows their design on the data that ships with the package. It
 is their *design*, not their numbers: they use 120 monthly series through
 2001:8, and `bem_dfmdata` is quarterly.
 
-```{r setup}
+```{r setup, message = FALSE}
 library(dfmtools)
 data("bem_dfmdata")
 ```

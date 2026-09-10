@@ -10,7 +10,7 @@
 # alters vignette output:
 #
 #   Rscript vignettes/precompile.R                      # all vignettes
-#   Rscript vignettes/precompile.R favar-monetary-policy # just one
+#   Rscript vignettes/precompile.R favar-monetary-policy   # just one
 #
 # The chunks call `library(dfmtools)`, so what gets baked into the output is
 # the *installed* package, not the sources in this working tree. Install first:
@@ -53,7 +53,7 @@ precompile <- function(name) {
 
 vignettes <- commandArgs(trailingOnly = TRUE)
 if (length(vignettes) == 0) {
-  vignettes <- c("favar-monetary-policy")
+  vignettes <- c("favar-monetary-policy", "tvp-and-stochastic-volatility")
 }
 
 for (vignette in vignettes) {

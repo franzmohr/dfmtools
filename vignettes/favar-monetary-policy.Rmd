@@ -25,8 +25,6 @@ is their *design*, not their numbers: they use 120 monthly series through
 
 ``` r
 library(dfmtools)
-#> Lade nötiges Paket: bvartools
-#> Lade nötiges Paket: coda
 data("bem_dfmdata")
 ```
 
@@ -146,9 +144,9 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
                  ncol(panel), model$model$n + model$model$n_obs)
 
 range(lambda[seq_along(slow), 4])          # slow block, loading on FEDFUNDS
-#> [1] -2.317601e-08  1.939926e-08
+#> [1] -2.327776e-08  1.926801e-08
 range(lambda[-seq_along(slow), 4])         # fast block
-#> [1] -0.02264939  0.03127142
+#> [1] -0.02120183  0.02589327
 ```
 
 The slow block is at zero to eight decimal places while the fast block is not,
