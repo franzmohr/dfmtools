@@ -1,5 +1,25 @@
 # dfmtools (development version)
 
+* **Vendored BayesTS core refreshed.** **Draws are unchanged**, for all four
+  dynamic factor models -- verified here rather than taken on trust: the four
+  samplers were fingerprinted from a pinned seed before and after the refresh,
+  and every posterior block of every one of them is bit-identical.
+
+    Nothing this package calls moved. What upstream added is a prior on `rho`,
+    the autocorrelation of a time varying cointegration space, which makes it a
+    drawn parameter in the three time-varying error correction models
+    `bvartools` carries. None of those is vendored here, and neither is the
+    truncated normal the new block draws from. Three shared files change and
+    all three are type surface: `bayests/priors.h` gains a `CointRhoPrior` and
+    a field on `TvpCointSpacePrior`, `bayests/results.h` a `rho` member on the
+    three `VecTvp*Draws`, and `core/inputs.cpp` the validation of the new
+    prior's support -- reached only from the error correction validators, which
+    no factor model calls.
+
+    Upstream also corrected the state a time varying cointegration space is
+    centred on in the first period, which moves the draws of those same three
+    error correction models. Again none of them is vendored here.
+
 * **`add_initial_values()` on class `dfmodel` starts the loadings at the
   principal components estimate, which keeps the sampler out of the mirror
   mode.** The loadings are the one block whose starting value decides which mode
