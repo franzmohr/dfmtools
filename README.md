@@ -104,6 +104,15 @@ specification instead — `mu`, `v_i`, `shape`, `rate`, `state_variance` and
 `add_initial_values` returns a log-volatility path per error term rather than a
 precision matrix.
 
+`add_initial_values` draws every block from its prior except the loadings, which
+start at the estimate the leading `n` principal components of `x` imply. That is
+`method = "pca"`, the default, and it is not only a matter of burn-in: the
+restriction that identifies the model fixes the leading block of `lambda` rather
+than anything about the factors, so a start whose free loadings have the wrong
+sign is a coherent model of its own — the mirror, in which the factor is the
+negative of the common component — and the sampler stays in it. `method =
+"prior"` draws them too, which is what earlier versions did.
+
 
 ``` r
 set.seed(6023)
@@ -133,11 +142,11 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
 round(head(lambda, 6), 3)
 #>            f1     f2
 #> GDPC96  1.000  0.000
-#> PCECC96 2.855  1.000
-#> PCDGx   2.139  1.083
-#> PCESVx  2.242 -0.228
-#> PCNDx   1.976 -0.230
-#> GPDIC96 3.536  0.375
+#> PCECC96 2.699  1.000
+#> PCDGx   2.133 -0.643
+#> PCESVx  2.189  0.786
+#> PCNDx   1.930  0.718
+#> GPDIC96 3.480  0.470
 ```
 
 The factor path is stored period by period, all `N` factors of a period
@@ -187,14 +196,14 @@ rownames(fc) <- paste0("h = ", 1:8)
 
 round(fc, 3)
 #>          10%    50%   90%
-#> h = 1 -1.107  0.030 1.201
-#> h = 2 -1.188 -0.024 1.178
-#> h = 3 -1.181 -0.016 1.211
-#> h = 4 -1.157  0.007 1.212
-#> h = 5 -1.240 -0.038 1.191
-#> h = 6 -1.202  0.012 1.199
-#> h = 7 -1.215 -0.020 1.206
-#> h = 8 -1.207 -0.024 1.216
+#> h = 1 -1.126 -0.008 1.170
+#> h = 2 -1.190 -0.002 1.186
+#> h = 3 -1.182 -0.021 1.204
+#> h = 4 -1.180  0.001 1.188
+#> h = 5 -1.233 -0.042 1.186
+#> h = 6 -1.199  0.018 1.188
+#> h = 7 -1.218 -0.022 1.196
+#> h = 8 -1.198 -0.020 1.212
 ```
 
 Those are in the units of the normalised data. Multiplying by the sample standard
@@ -227,7 +236,7 @@ lppd <- sum(apply(ll, 2, logmeanexp))
 p_waic <- sum(apply(ll, 2, stats::var))
 
 round(-2 * (lppd - p_waic), 1)
-#> [1] 105918.1
+#> [1] 105945.5
 ```
 
 ### Drifting loadings and changing volatility

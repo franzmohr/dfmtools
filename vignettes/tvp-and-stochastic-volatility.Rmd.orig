@@ -71,7 +71,6 @@ set.seed(1984)
 baseline <- create_dfmodel(x = x, p = 2, n = 1, iterations = 10000, burnin = 2000)
 baseline <- add_priors(baseline)
 baseline <- add_initial_values(baseline)
-baseline$initial$lambda[] <- 1
 baseline <- add_posterior_coefficients(baseline)
 
 round(colMeans(baseline$posterior$lambda$coeffs), 2)
@@ -80,8 +79,8 @@ round(colMeans(baseline$posterior$lambda$coeffs), 2)
 Every series loads positively on the factor except the unemployment rate, which
 is what a factor of real activity should look like. It is worth checking that
 much before reading anything else, because the sampler has a second mode in which
-it is not true -- the last section says what the line setting `initial$lambda` is
-doing there and why every model below repeats it.
+it is not true; the last section says what that mode is and what keeps the chain
+out of it.
 
 The transition is an AR(2) in the factor, and the residual of that AR is the
 common shock the model estimates a single variance for.
@@ -131,7 +130,6 @@ model_sv <- create_dfmodel(x = x, p = 2, n = 1, error = "sv",
                            iterations = 10000, burnin = 2000)
 model_sv <- add_priors(model_sv, u = sv, v = sv)
 model_sv <- add_initial_values(model_sv)
-model_sv$initial$lambda[] <- 1
 model_sv <- add_posterior_coefficients(model_sv)
 ```
 
@@ -216,8 +214,6 @@ model_tvp <- create_dfmodel(x = x, p = 2, n = 1, tvp = TRUE,
                             iterations = 10000, burnin = 2000)
 model_tvp <- add_priors(model_tvp, lambda = drift, a = drift)
 model_tvp <- add_initial_values(model_tvp)
-model_tvp$initial$lambda[] <- 1
-model_tvp$initial$lambda_init[] <- 1
 model_tvp <- add_posterior_coefficients(model_tvp)
 ```
 
@@ -287,8 +283,6 @@ model_both <- create_dfmodel(x = x, p = 2, n = 1, error = "sv", tvp = TRUE,
                              iterations = 30000, burnin = 10000)
 model_both <- add_priors(model_both, lambda = drift, a = drift, u = sv, v = sv)
 model_both <- add_initial_values(model_both)
-model_both$initial$lambda[] <- 1
-model_both$initial$lambda_init[] <- 1
 model_both <- add_posterior_coefficients(model_both)
 ```
 
@@ -413,33 +407,40 @@ runs 30000.
 
 ## The other mode
 
-Every model above was handed a starting value for the loadings rather than the
-one `add_initial_values()` produces, and this is why. That function draws from the
-prior, and the default prior on a loading is a precision of 0.01 -- a standard
-deviation of ten, so the starting values are scattered over a range no loading in
-a normalised panel would occupy, with signs as likely to be wrong as right.
+Nothing above passed `method` to `add_initial_values()`, and the default it took
+is the reason the loadings at the top of this vignette came out positive.
 
-From a badly signed start the sampler can settle on a mirror image of the model:
-the factor is the negative of the common component, every free loading turns
-negative to match it, and the one series whose loading is fixed at plus one is
+The loadings are the one block whose starting value decides which mode the
+sampler ends up in rather than how long it takes to get there. Only the product
+of the loadings and the factor is identified, and the restriction that pins it
+fixes the leading block of `lambda` rather than anything about the factor, so a
+start whose free loadings are negative where the data want them positive is a
+coherent model in its own right: the mirror, in which the factor is the negative
+of the common component and the series whose loading is fixed at plus one is
 treated as noise, its idiosyncratic variance absorbing nearly all of its
-variation. It is a local mode rather than an equivalent parameterisation -- the
-log-likelihood is far worse there, and burn-in does not escape it, since turning
-the factor around would have to pass through configurations no single Gibbs step
-will take. Which mode a run lands in depends on the seed, and it happens to the
-constant model as readily as to the extensions.
+variation. It fits far worse, and burn-in does not escape it, since turning the
+factor around would have to pass through configurations no single Gibbs step will
+take.
 
-Two lines guard against it. Starting every loading at one puts the sampler on the
-right side to begin with:
+`method = "pca"`, the default, starts the loadings at the estimate the leading
+principal components of the panel imply, rotated onto the identifying
+restriction. That estimate is what the data say and does not depend on the seed.
+The alternative draws them, as every other block is drawn:
 
 ```{r starting-values, eval = FALSE}
-model <- add_initial_values(model)
-model$initial$lambda[] <- 1        # and lambda_init[], if tvp = TRUE
+model <- add_initial_values(model, method = "prior")
 ```
 
-and the sign of the loadings is worth a look afterwards, as at the top of this
-vignette. A factor negatively correlated with a panel of activity series is the
-symptom.
+which on this panel is a draw with a standard deviation of ten -- the default
+prior precision on a loading is 0.01 -- so its signs are close to a coin toss.
+Estimating the four models above that way, over four seeds each, lands six of
+sixteen runs in the mirror; from the principal components start, none of them
+do.
+
+That removes the cause rather than the possibility: a start on the right side of
+the likelihood is not a guarantee on a sample too short to hold the chain there.
+The sign of the loadings stays worth a look, as at the top of this vignette, and
+a factor negatively correlated with a panel of activity series is the symptom.
 
 ## References
 

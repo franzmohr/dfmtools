@@ -5,14 +5,47 @@
 #'
 #' @param object a named list, usually, the output of a call to \code{\link{create_dfmodel}}.
 #' @param method a character specifying the method of how initial values are generated.
-#' Defaults to \code{"prior"}. See 'Details'.
+#' Defaults to \code{"pca"}. See 'Details'.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details
 #' For argument \code{method} the following specifications are possible:
 #' \describe{
-#'   \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
+#'   \item{\code{"pca"}}{The loadings start at the estimate the leading \eqn{N} principal
+#'   components of \code{x} imply, and every other block is drawn from its prior.}
+#'   \item{\code{"prior"}}{Every block is drawn from its prior, the loadings included. Not
+#'   possible for uninformative priors, and see below.}
 #' }
+#'
+#' The loadings are the one block whose starting value decides which mode the sampler converges
+#' to rather than only how long it takes to get there, which is why they do not begin at a draw.
+#' Only the product \eqn{\lambda f_t} is identified, and the restriction that pins it fixes the
+#' leading \eqn{N \times N} block of \eqn{\lambda} rather than anything about the factors, so a
+#' start whose free loadings are negative where the data want them positive describes a coherent
+#' model: the mirror image, in which the factor is the negative of the common component and the
+#' series whose loading is fixed at one is treated as noise, its idiosyncratic variance absorbing
+#' nearly all of its variation. The sampler converges to that mirror and stays there. It fits far
+#' worse, and burn-in does not escape it, since turning the factor around would have to pass
+#' through configurations no single Gibbs step will take. Under \code{method = "prior"} the draw
+#' comes from a prior whose default precision of 0.01 is a standard deviation of ten, so its signs
+#' are close to a coin toss and a sizeable share of seeds end up in the mirror.
+#'
+#' \code{method = "pca"} has no such freedom. The principal components estimate is what the data
+#' say, and it is unique up to the sign convention \code{\link[base]{svd}} happens to return,
+#' which the rotation onto the identifying restriction cancels. That rotation -- onto a leading
+#' \eqn{N \times N} block equal to the identity, which is the unit lower triangular matrix the
+#' restriction asks for with its free elements at zero -- is the one step \code{"pca"} can fail
+#' at, and it fails where the first \eqn{N} series hardly load on the leading components at all.
+#' Such a panel is worth reordering rather than starting from, so the function says so and falls
+#' back to the prior draw.
+#'
+#' What this removes is the cause rather than the possibility. A start on the right side of the
+#' likelihood is not a guarantee on a sample too short or too weakly correlated to hold the chain
+#' there, and on a four-series panel of sixty quarters the mirror is still reached occasionally.
+#' The sign of the estimated loadings is therefore worth a look whatever the starting values were:
+#' a factor of real activity whose loadings are negative where the panel is positively correlated
+#' is the symptom, and a longer sample, a broader series in the identifying position or simply
+#' another seed is the answer.
 #'
 #' Which elements are added depends on argument \code{error} of \code{\link{create_dfmodel}}.
 #' For \code{error = "gamma"} the two error precisions are drawn from their gamma priors and stored
@@ -54,83 +87,143 @@
 #' # Add initial values
 #' model <- add_initial_values(model)
 #'
+#' # Or with every block drawn from its prior, the loadings included
+#' model <- add_initial_values(model, method = "prior")
+#'
+#' @references
+#'
+#' Stock, J. H., & Watson, M. W. (2002). Forecasting using principal components from a large
+#' number of predictors. \emph{Journal of the American Statistical Association 97}(460),
+#' 1167--1179.
+#'
 #' @export
-add_initial_values.dfmodel <- function(object, method = "prior", ...){
+add_initial_values.dfmodel <- function(object, method = "pca", ...){
 
-  if (method == "prior") {
+  if (!method %in% c("pca", "prior")) {
+    stop("Argument 'method' can be 'pca' or 'prior' for dynamic factor models.")
+  }
 
-    tvp <- isTRUE(object$model$tvp)
+  tvp <- isTRUE(object$model$tvp)
 
-    # lambda
-    n_lambda <- nrow(object$priors$lambda$vinv)
+  # lambda, the block whose starting value decides which mode the sampler
+  # ends up in rather than only how long it takes to get there.
+  n_lambda <- nrow(object$priors$lambda$vinv)
+  lambda <- NULL
+  if (method == "pca") {
+    lambda <- .dfm_pca_initial(object$data$x, object$model$n, n_lambda)
+  }
+  if (is.null(lambda)) {
+    lambda <- .dfm_normal_initial(0, object$priors$lambda$vinv, n_lambda)
+  }
+
+  if (tvp) {
+    object$initial <- .dfm_rw_initial(object, "lambda", object$priors$lambda,
+                                      n_lambda, state = lambda)
+  } else {
+    object$initial$lambda <- matrix(lambda, nrow = n_lambda, ncol = 1)
+  }
+
+  error <- object$model$error
+  if (is.null(error)) {
+    stop("Element 'model$error' is missing. Was the object produced by create_dfmodel?")
+  }
+
+  if (error == "gamma") {
+
+    # U
+    sigma_shape <- object$priors$u$shape
+    sigma_rate <- 1 / object$priors$u$rate
+    object$initial$uinv <- diag(1, object$model$m)
+    for (i in 1:object$model$m) {
+      object$initial$uinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
+    }
+    rm(list = c("sigma_shape", "sigma_rate"))
+
+    # V
+    sigma_shape <- object$priors$v$shape
+    sigma_rate <- 1 / object$priors$v$rate
+    object$initial$vinv <- diag(1, object$model$n)
+    for (i in 1:object$model$n) {
+      object$initial$vinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
+    }
+    rm(list = c("sigma_shape", "sigma_rate"))
+
+  } else if (error == "sv") {
+
+    # Both log-volatilities, at their own widths: one per observed series for
+    # the measurement equation, one per factor for the transition.
+    tt <- nrow(object$data$x)
+
+    u_start <- .dfm_normal_initial(object$priors$u$mu, object$priors$u$v_inv,
+                                   object$model$m)
+    object$initial$u_h <- matrix(u_start, nrow = tt, ncol = object$model$m, byrow = TRUE)
+    object$initial$u_h_init <- matrix(u_start)
+
+    v_start <- .dfm_normal_initial(object$priors$v$mu, object$priors$v$v_inv,
+                                   object$model$n)
+    object$initial$v_h <- matrix(v_start, nrow = tt, ncol = object$model$n, byrow = TRUE)
+    object$initial$v_h_init <- matrix(v_start)
+
+  } else {
+    stop("Error specification '", error, "' not supported.")
+  }
+
+  if (object$model$p > 0) {
+    # A
     if (tvp) {
-      object$initial <- .dfm_rw_initial(object, "lambda", object$priors$lambda, n_lambda)
+      object$initial <- .dfm_rw_initial(object, "a", object$priors$a,
+                                        object$model$n^2 * object$model$p)
     } else {
-      object$initial$lambda <-
-        matrix(.dfm_normal_initial(0, object$priors$lambda$vinv, n_lambda),
-               nrow = n_lambda, ncol = 1)
-    }
-
-    error <- object$model$error
-    if (is.null(error)) {
-      stop("Element 'model$error' is missing. Was the object produced by create_dfmodel?")
-    }
-
-    if (error == "gamma") {
-
-      # U
-      sigma_shape <- object$priors$u$shape
-      sigma_rate <- 1 / object$priors$u$rate
-      object$initial$uinv <- diag(1, object$model$m)
-      for (i in 1:object$model$m) {
-        object$initial$uinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
-      }
-      rm(list = c("sigma_shape", "sigma_rate"))
-
-      # V
-      sigma_shape <- object$priors$v$shape
-      sigma_rate <- 1 / object$priors$v$rate
-      object$initial$vinv <- diag(1, object$model$n)
-      for (i in 1:object$model$n) {
-        object$initial$vinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
-      }
-      rm(list = c("sigma_shape", "sigma_rate"))
-
-    } else if (error == "sv") {
-
-      # Both log-volatilities, at their own widths: one per observed series for
-      # the measurement equation, one per factor for the transition.
-      tt <- nrow(object$data$x)
-
-      u_start <- .dfm_normal_initial(object$priors$u$mu, object$priors$u$v_inv,
-                                     object$model$m)
-      object$initial$u_h <- matrix(u_start, nrow = tt, ncol = object$model$m, byrow = TRUE)
-      object$initial$u_h_init <- matrix(u_start)
-
-      v_start <- .dfm_normal_initial(object$priors$v$mu, object$priors$v$v_inv,
-                                     object$model$n)
-      object$initial$v_h <- matrix(v_start, nrow = tt, ncol = object$model$n, byrow = TRUE)
-      object$initial$v_h_init <- matrix(v_start)
-
-    } else {
-      stop("Error specification '", error, "' not supported.")
-    }
-
-    if (object$model$p > 0) {
-      # A
-      if (tvp) {
-        object$initial <- .dfm_rw_initial(object, "a", object$priors$a,
-                                          object$model$n^2 * object$model$p)
-      } else {
-        n_a <- object$model$n^2 * object$model$p
-        object$initial$a <-
-          matrix(.dfm_normal_initial(object$priors$a$mu, object$priors$a$vinv, n_a),
-                 nrow = n_a, ncol = 1)
-      }
+      n_a <- object$model$n^2 * object$model$p
+      object$initial$a <-
+        matrix(.dfm_normal_initial(object$priors$a$mu, object$priors$a$vinv, n_a),
+               nrow = n_a, ncol = 1)
     }
   }
 
   return(object)
+}
+
+# The freely estimated loadings that the leading `n` principal components of the
+# panel imply, in the order the R side stores them -- column by column, each
+# column from the diagonal down -- or NULL where that estimate cannot be rotated
+# onto the identifying restriction.
+#
+# `svd(x)$v` holds the component loadings, and the model wants the leading n x n
+# block of them unit lower triangular. Post-multiplying by the inverse of that
+# block puts the identity there, which is the unit lower triangular matrix with
+# its free elements at zero, and rescales the rest to match. The rotation is also
+# what makes the result independent of the arbitrary sign svd() returns each
+# column with: flipping a column of v flips the same column of the block, and the
+# two cancel.
+#
+# A block that cannot be inverted is a panel whose first n series hold almost
+# none of the common variation. There is nothing to start from there, so the
+# caller is told and falls back to the prior.
+.dfm_pca_initial <- function(x, n, k) {
+
+  if (k == 0) {
+    return(numeric(0))
+  }
+
+  m <- ncol(x)
+  lambda <- svd(unclass(x), nu = 0, nv = n)$v
+
+  block <- lambda[seq_len(n), , drop = FALSE]
+  rotated <- try(lambda %*% solve(block), silent = TRUE)
+
+  if (inherits(rotated, "try-error") || !all(is.finite(rotated))) {
+    warning("The first ", n, " series of 'x' carry too little of the common ",
+            "variation for the loadings to be started from principal ",
+            "components, so they were drawn from the prior instead. Ordering a ",
+            "series with a large common component first is the fix.",
+            call. = FALSE)
+    return(NULL)
+  }
+
+  # Column j holds the elements below the diagonal, so a column of the leading
+  # block holds fewer of them than a column of the rest.
+  unlist(lapply(seq_len(n), function(j) rotated[seq_len(m - j) + j, j]))
 }
 
 # The starting values one random walk coefficient block needs: the state before
@@ -146,14 +239,18 @@ add_initial_values.dfmodel <- function(object, method = "prior", ...){
 # A flat path costs burn-in rather than correctness: the sampler redraws the
 # whole path in its first iteration, from data, and what is here only conditions
 # that first draw.
-.dfm_rw_initial <- function(object, name, prior, k) {
+.dfm_rw_initial <- function(object, name, prior, k, state = NULL) {
 
   tt <- nrow(object$data$x)
   initial <- object$initial
 
-  mu <- if (is.null(prior$mu)) 0 else prior$mu
-
-  state <- .dfm_normal_initial(mu, prior$vinv, k)
+  # `state` is supplied where the block has a starting value of its own -- the
+  # loadings under method = "pca" -- and drawn from the prior on the pre-sample
+  # state otherwise.
+  if (is.null(state)) {
+    mu <- if (is.null(prior$mu)) 0 else prior$mu
+    state <- .dfm_normal_initial(mu, prior$vinv, k)
+  }
 
   # The variance of the state innovations, from its own inverse gamma prior. The
   # sampler is handed the precision and flips it back on the way in, which is the

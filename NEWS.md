@@ -1,5 +1,36 @@
 # dfmtools (development version)
 
+* **`add_initial_values()` on class `dfmodel` starts the loadings at the
+  principal components estimate, which keeps the sampler out of the mirror
+  mode.** The loadings are the one block whose starting value decides which mode
+  the chain converges to rather than how long it takes to get there. Only the
+  product of the loadings and the factors is identified, and the restriction
+  that pins it fixes the leading `n x n` block of lambda rather than anything
+  about the factors, so a start whose free loadings are negative where the data
+  want them positive is a coherent model in its own right -- the mirror, in
+  which the factor is the negative of the common component and the series whose
+  loading is fixed at one is treated as noise, its idiosyncratic variance
+  absorbing nearly all of its variation. It fits far worse, and burn-in does not
+  escape it, since turning the factor around would have to pass through
+  configurations no single Gibbs step will take.
+
+  The starting values were drawn from a prior whose default precision of 0.01 is
+  a standard deviation of ten, so their signs were close to a coin toss and, on
+  a ten-series panel of US real activity, roughly half of all seeds ended in the
+  mirror -- on the constant model as readily as on the time-varying and
+  stochastic volatility ones. The new default, `method = "pca"`, starts them at
+  the loadings the leading `n` principal components of `x` imply, rotated so
+  that the identifying block is the identity. That estimate is what the data
+  say, it does not depend on the seed, and it is invariant to the sign
+  convention `svd()` returns. Every other block is still drawn from its prior.
+
+  `method = "prior"` keeps the old behaviour for whoever wants every block
+  drawn, and an unsupported `method` is now an error rather than a model that
+  silently comes back without starting values. The cause is what this removes
+  rather than the possibility: on a sample too short to hold the chain, the
+  mirror is still reachable, so the sign of the estimated loadings stays worth a
+  look.
+
 * **A vignette covers `error = "sv"` and `tvp = TRUE`.** *Drifting loadings and
   changing volatility* estimates all four dynamic factor model algorithms on one
   panel of US real activity: what the six-element stochastic volatility prior and

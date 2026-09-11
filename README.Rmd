@@ -116,6 +116,15 @@ specification instead — `mu`, `v_i`, `shape`, `rate`, `state_variance` and
 `add_initial_values` returns a log-volatility path per error term rather than a
 precision matrix.
 
+`add_initial_values` draws every block from its prior except the loadings, which
+start at the estimate the leading `n` principal components of `x` imply. That is
+`method = "pca"`, the default, and it is not only a matter of burn-in: the
+restriction that identifies the model fixes the leading block of `lambda` rather
+than anything about the factors, so a start whose free loadings have the wrong
+sign is a coherent model of its own — the mirror, in which the factor is the
+negative of the common component — and the sampler stays in it. `method =
+"prior"` draws them too, which is what earlier versions did.
+
 ```{r draw}
 set.seed(6023)
 

@@ -4,13 +4,13 @@
 \alias{add_initial_values.dfmodel}
 \title{Add Initial Values to a Dynamic Factor Model}
 \usage{
-\method{add_initial_values}{dfmodel}(object, method = "prior", ...)
+\method{add_initial_values}{dfmodel}(object, method = "pca", ...)
 }
 \arguments{
 \item{object}{a named list, usually, the output of a call to \code{\link{create_dfmodel}}.}
 
 \item{method}{a character specifying the method of how initial values are generated.
-Defaults to \code{"prior"}. See 'Details'.}
+Defaults to \code{"pca"}. See 'Details'.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -21,8 +21,41 @@ function \code{\link{create_dfmodel}} in combination with \code{\link{add_priors
 \details{
 For argument \code{method} the following specifications are possible:
 \describe{
-  \item{\code{"prior"}}{Initial values are drawn from the prior. Not possible for uninformative priors.}
+  \item{\code{"pca"}}{The loadings start at the estimate the leading \eqn{N} principal
+  components of \code{x} imply, and every other block is drawn from its prior.}
+  \item{\code{"prior"}}{Every block is drawn from its prior, the loadings included. Not
+  possible for uninformative priors, and see below.}
 }
+
+The loadings are the one block whose starting value decides which mode the sampler converges
+to rather than only how long it takes to get there, which is why they do not begin at a draw.
+Only the product \eqn{\lambda f_t} is identified, and the restriction that pins it fixes the
+leading \eqn{N \times N} block of \eqn{\lambda} rather than anything about the factors, so a
+start whose free loadings are negative where the data want them positive describes a coherent
+model: the mirror image, in which the factor is the negative of the common component and the
+series whose loading is fixed at one is treated as noise, its idiosyncratic variance absorbing
+nearly all of its variation. The sampler converges to that mirror and stays there. It fits far
+worse, and burn-in does not escape it, since turning the factor around would have to pass
+through configurations no single Gibbs step will take. Under \code{method = "prior"} the draw
+comes from a prior whose default precision of 0.01 is a standard deviation of ten, so its signs
+are close to a coin toss and a sizeable share of seeds end up in the mirror.
+
+\code{method = "pca"} has no such freedom. The principal components estimate is what the data
+say, and it is unique up to the sign convention \code{\link[base]{svd}} happens to return,
+which the rotation onto the identifying restriction cancels. That rotation -- onto a leading
+\eqn{N \times N} block equal to the identity, which is the unit lower triangular matrix the
+restriction asks for with its free elements at zero -- is the one step \code{"pca"} can fail
+at, and it fails where the first \eqn{N} series hardly load on the leading components at all.
+Such a panel is worth reordering rather than starting from, so the function says so and falls
+back to the prior draw.
+
+What this removes is the cause rather than the possibility. A start on the right side of the
+likelihood is not a guarantee on a sample too short or too weakly correlated to hold the chain
+there, and on a four-series panel of sixty quarters the mirror is still reached occasionally.
+The sign of the estimated loadings is therefore worth a look whatever the starting values were:
+a factor of real activity whose loadings are negative where the panel is positively correlated
+is the symptom, and a longer sample, a broader series in the identifying position or simply
+another seed is the answer.
 
 Which elements are added depends on argument \code{error} of \code{\link{create_dfmodel}}.
 For \code{error = "gamma"} the two error precisions are drawn from their gamma priors and stored
@@ -64,4 +97,12 @@ model <- add_priors(model,
 # Add initial values
 model <- add_initial_values(model)
 
+# Or with every block drawn from its prior, the loadings included
+model <- add_initial_values(model, method = "prior")
+
+}
+\references{
+Stock, J. H., & Watson, M. W. (2002). Forecasting using principal components from a large
+number of predictors. \emph{Journal of the American Statistical Association 97}(460),
+1167--1179.
 }
