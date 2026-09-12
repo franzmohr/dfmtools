@@ -1,6 +1,19 @@
 # GitHub reads this file for the "Cite this repository" button. It is the same
 # reference as inst/CITATION, which is what citation("dfmtools") reads inside R;
-# a change to either belongs in both.
+# a change to either belongs in both. The deposit metadata Zenodo reads when a
+# release is archived lives separately, in .zenodo.json.
+#
+# `version` and `date-released` track DESCRIPTION and are bumped with it. Once
+# the first release is archived, add the Zenodo concept DOI -- the one that
+# always resolves to the newest version -- as
+#
+#   identifiers:
+#     - type: doi
+#       value: "10.5281/zenodo.XXXXXXX"
+#       description: "Concept DOI: resolves to the latest release."
+#
+# and mirror it into inst/CITATION and the README badge. .github/CONTRIBUTING.md
+# has the whole release procedure.
 cff-version: 1.2.0
 message: "If you use dfmtools in publications, please cite it as below."
 title: "dfmtools: Bayesian Inference of Dynamic Factor Models"
@@ -19,6 +32,8 @@ authors:
 repository-code: "https://github.com/franzmohr/dfmtools"
 url: "https://github.com/franzmohr/dfmtools"
 license: GPL-2.0-or-later
+version: 0.2.0
+date-released: "2026-09-10"
 keywords:
   - r
   - bayesian-inference

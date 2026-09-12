@@ -1,5 +1,9 @@
 citHeader("To cite dfmtools in publications use:")
 
+# Same reference as CITATION.cff at the top level; a change belongs in both.
+# Once the first release is archived on Zenodo, add the concept DOI here as a
+# doi = "10.5281/zenodo.XXXXXXX" argument to bibentry() and to textVersion.
+
 year <- sub("-.*", "", meta$Date)
 note <- sprintf("R package version %s", meta$Version)
 

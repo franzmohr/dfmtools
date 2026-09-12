@@ -60,6 +60,52 @@ Xcode command line tools on macOS.
 * **NEWS.md.** A user-visible change gets an entry under the development
   version.
 
+## Releasing, and the DOI
+
+Every release is archived on [Zenodo](https://zenodo.org), which mints a DOI for
+it. Two kinds of DOI come out of that: a **version DOI** for the single release,
+and a **concept DOI** that always resolves to the newest one. The concept DOI is
+the one to cite and the one the badge points at.
+
+**One-time setup.** On Zenodo, log in with the GitHub account, open *GitHub* in
+the account menu and flip the switch next to `franzmohr/dfmtools`. This has to
+happen **before** the release is created -- Zenodo only receives releases
+published after the switch is on, and an earlier one has to be uploaded by hand.
+The repository must be public for the switch to appear.
+
+**Metadata.** `.zenodo.json` is what Zenodo reads for the deposit: title,
+description, author and ORCID, license, keywords. It deliberately carries no
+`version` field, so Zenodo takes the version from the release tag and there is
+one fewer file to keep in step. Zenodo archives the repository as GitHub
+delivers it, so `.Rbuildignore` has no bearing on what the archive contains --
+`^\.zenodo\.json$` is there only to keep the file out of the R tarball.
+
+**Cutting a release.**
+
+1. Bump `Version` and `Date` in `DESCRIPTION`, and `version` and
+   `date-released` in `CITATION.cff`, to the same values.
+2. Move the `NEWS.md` entries from *development version* to the release version.
+3. `devtools::check()` clean, and `README.md` regenerated from `README.Rmd` if
+   any of it changed.
+4. Tag and push: `git tag -a v0.2.0 -m "dfmtools 0.2.0" && git push origin v0.2.0`.
+5. Publish a GitHub release for the tag -- publishing it, not just pushing the
+   tag, is what notifies Zenodo.
+6. Check the new deposit on Zenodo before relying on it, in particular that the
+   license came through as GPL-2.0-or-later; the license vocabulary is the one
+   field of `.zenodo.json` that fails quietly.
+
+**After the first release only.** Zenodo now has a concept DOI. Put it in three
+places, all of which have a comment marking the spot: `CITATION.cff`
+(`identifiers:`), `inst/CITATION` (a `doi =` argument on the `bibentry()` and in
+`textVersion`), and the badge row at the top of `README.Rmd` --
+
+```
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+```
+
+-- after which `README.md` is regenerated. Later releases need none of this
+again: the concept DOI does not change.
+
 ## Reporting a bug
 
 Include a reproducible example — ideally built from `bem_dfmdata` or simulated
