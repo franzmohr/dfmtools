@@ -10,6 +10,7 @@
 ^\.Rhistory$
 ^CONTRIBUTING\.md$
 ^CITATION\.cff$
+^\.zenodo\.json$
 ^vignettes/.*\.orig$
 ^vignettes/precompile\.R$
 ## R CMD build cleans the top level of src/ only, so the vendored core's build
