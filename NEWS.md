@@ -1,5 +1,21 @@
 # dfmtools (development version)
 
+* **Vendored BayesTS core refreshed: cointegration priors must be symmetric.**
+  **Draws are unchanged**, for all four dynamic factor models and the FAVAR,
+  verified the same way as the refreshes below. Each of the five was fitted from
+  a pinned seed against the package built before and after it, through the
+  coefficients, the log likelihood and a six-step forecast. Every posterior block
+  of every one of them is bit-identical.
+
+    Nothing this package calls moved. Upstream's `core/inputs.cpp` now refuses a
+    prior precision of the cointegration space, a prior precision of beta before
+    the sample, or a transition `P_tau` that is further from symmetric than
+    rounding explains. The check is reached only from the error correction
+    validators, none of whose samplers are vendored here.
+
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
 * **The samplers thin: `create_dfmodel()` and `create_favarmodel()` take
   `thin`.** A model with `thin = t` runs its chain for `burnin + iterations * t`
   draws and keeps the last of every `t` after the burn-in. So `iterations` is
