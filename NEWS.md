@@ -1,4 +1,4 @@
-# dfmtools (development version)
+# dfmtools 0.1.0
 
 * **Vendored BayesTS core refreshed: upstream's BVS, SSVS and TVP log likelihood
   audit.** **Draws are unchanged**, for all four dynamic factor models and the
@@ -215,8 +215,6 @@
   model, and the count of free loadings it implied was merely a wrong number that
   turned negative far enough out, where a caller saw `diag()` refusing a negative
   dimension. A vector `n` is checked entry by entry.
-
-# dfmtools 0.2.0
 
 * **Generalised impulse responses and forecast error variance
   decompositions** for class `favarmodel`. `irf()` gained a `type` argument --
@@ -512,8 +510,6 @@ numbers a dense Cholesky inverse of a diagonal matrix does, one gained a second
 accepted argument shape with the old one bit-identical to before, and one moved
 a block of checks between functions without altering them. BayesTS's own golden
 fingerprint harness, 145 tests, passes.
-
-# dfmtools 0.1.0
 
 * Dynamic factor models now live here rather than in bvartools, and this package
 is where they are maintained. The functions that moved -- `create_dfmodel`,

@@ -87,7 +87,7 @@ delivers it, so `.Rbuildignore` has no bearing on what the archive contains --
 2. Move the `NEWS.md` entries from *development version* to the release version.
 3. `devtools::check()` clean, and `README.md` regenerated from `README.Rmd` if
    any of it changed.
-4. Tag and push: `git tag -a v0.2.0 -m "dfmtools 0.2.0" && git push origin v0.2.0`.
+4. Tag and push: `git tag -a v0.1.0 -m "dfmtools 0.1.0" && git push origin v0.1.0`.
 5. Publish a GitHub release for the tag -- publishing it, not just pushing the
    tag, is what notifies Zenodo.
 6. Check the new deposit on Zenodo before relying on it, in particular that the
