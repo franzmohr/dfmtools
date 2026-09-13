@@ -66,7 +66,7 @@ add_posterior_forecasts.favarmodel <- function(object, n_ahead = 10, ...) {
 
     object <- .FavarNormalWishartForecasts(object)
     object[["posterior"]][["forecast"]] <-
-      coda::as.mcmc(object[["posterior"]][["forecast"]])
+      .mcmc_draws(object[["model"]], object[["posterior"]][["forecast"]])
 
     object
   })

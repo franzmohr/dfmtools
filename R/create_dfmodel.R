@@ -17,6 +17,10 @@
 #' @param burnin an integer of MCMC draws used to initialize the sampler
 #' (defaults to 2000). These draws do not enter the computation of posterior
 #' moments, forecasts etc.
+#' @param thin an integer thinning interval of the sampler (defaults to 1). After
+#' the burn-in the sampler keeps the last of every \code{thin} draws, so it runs
+#' \code{burnin + iterations * thin} draws and still keeps \code{iterations}, and
+#' the draws that are not kept are never held in memory.
 #'
 #' @details The function produces the variable matrices of dynamic factor
 #' models (DFM) with measurement equation
@@ -125,7 +129,7 @@
 #' Fast and efficient likelihood inference. \emph{Journal of Econometrics 140}(2), 425--449.
 #'
 #' @export
-create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma", tvp = FALSE, iterations = 20000, burnin = 2000) {
+create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma", tvp = FALSE, iterations = 20000, burnin = 2000, thin = 1) {
   
   
   # Input checks ----
@@ -218,7 +222,9 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   }
   model$iterations <- iterations
   model$burnin <- burnin
-  
+  # Carried only when it thins: a model without it keeps every draw.
+  model$thin <- .check_sampler_thin(thin)
+
   
   
   result <- NULL

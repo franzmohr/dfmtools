@@ -84,6 +84,7 @@ bayests::DfmTvpGammaInput read_input(const Rcpp::List &object) {
   input.spec.p = optional_int(model, "p", 0);
   input.spec.iterations = Rcpp::as<int>(model["iterations"]);
   input.spec.burnin = Rcpp::as<int>(model["burnin"]);
+  input.spec.thin = optional_int(model, "thin", 1);
   input.spec.h = optional_int(model, "h", 0);
 
   const int m = input.spec.k;

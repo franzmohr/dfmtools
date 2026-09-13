@@ -44,7 +44,7 @@ add_posterior_coefficients.favarmodel <- function(object, posterior_function = N
     for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv")) {
       if (!is.null(object[["posterior"]][[i]][["coeffs"]])) {
         object[["posterior"]][[i]][["coeffs"]] <-
-          coda::as.mcmc(object[["posterior"]][[i]][["coeffs"]])
+          .mcmc_draws(object[["model"]], object[["posterior"]][[i]][["coeffs"]])
       }
     }
 

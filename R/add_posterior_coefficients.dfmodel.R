@@ -105,7 +105,7 @@ add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL
         for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv")) {
           for (j in c("coeffs", "sigma")) {
             if (!is.null(object[["posterior"]][[i]][[j]])) {
-              object[["posterior"]][[i]][[j]] <- coda::as.mcmc(object[["posterior"]][[i]][[j]])
+              object[["posterior"]][[i]][[j]] <- .mcmc_draws(object[["model"]], object[["posterior"]][[i]][[j]])
             }
           }
         }

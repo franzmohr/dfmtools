@@ -31,7 +31,9 @@ model <- add_posterior_forecasts(model, n_ahead = 4)
 ```
 
 `iterations = 500` keeps examples quick. The defaults are 20000 after 2000
-burn-in, and a real analysis needs that order.
+burn-in, and a real analysis needs that order. `thin = t` runs `t` times as long
+and keeps the last of every `t` draws, so a slowly mixing chain can run long
+while the posterior still holds `iterations` draws.
 
 ## The rules that prevent wrong results
 

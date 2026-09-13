@@ -11,7 +11,8 @@ create_favarmodel(
   n = 1,
   normalize_x = TRUE,
   iterations = 20000,
-  burnin = 2000
+  burnin = 2000,
+  thin = 1
 )
 }
 \arguments{
@@ -34,6 +35,11 @@ to 20000).}
 
 \item{burnin}{an integer of MCMC draws used to initialize the sampler
 (defaults to 2000).}
+
+\item{thin}{an integer thinning interval of the sampler (defaults to 1). After
+the burn-in the sampler keeps the last of every \code{thin} draws, so it runs
+\code{burnin + iterations * thin} draws and still keeps \code{iterations}, and
+the draws that are not kept are never held in memory.}
 }
 \value{
 An object of class \code{'favarmodel'}, which contains the following

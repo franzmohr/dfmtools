@@ -1,5 +1,20 @@
 # dfmtools (development version)
 
+* **The samplers thin: `create_dfmodel()` and `create_favarmodel()` take
+  `thin`.** A model with `thin = t` runs its chain for `burnin + iterations * t`
+  draws and keeps the last of every `t` after the burn-in. So `iterations` is
+  still the number of draws kept and the posterior is still sized by it, while
+  a slowly mixing chain can run long without every draw being held in memory. A
+  chain thinned this way is exactly every `t`-th draw of the unthinned chain
+  from the same seed, and a test asserts that for two dynamic factor models and
+  the FAVAR. The `mcpar` of the draws and of the forecast says which were kept:
+  iterations `t`, `2t`, ... after the burn-in. `model$thin` is carried only when
+  it is above 1, so a model created without it is unchanged.
+
+    **Draws are unchanged** for every model that does not thin: each binding
+    reads a `thin` of 1, and the draws come back as the same `mcmc` objects as
+    before.
+
 * **Vendored BayesTS core refreshed: the samplers can thin.** **Draws are
   unchanged**, for all four dynamic factor models and the FAVAR, verified the
   same way as the refresh below. Each of the five was fitted from a pinned seed

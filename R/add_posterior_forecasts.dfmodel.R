@@ -83,7 +83,7 @@ add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, ...){
     stop("Algorithm '", algorithm, "' not supported.")
   }
 
-  object[["posterior"]][["forecast"]] <- coda::as.mcmc(object[["posterior"]][["forecast"]])
+  object[["posterior"]][["forecast"]] <- .mcmc_draws(object[["model"]], object[["posterior"]][["forecast"]])
 
   class(object) <- class_of_object
 
