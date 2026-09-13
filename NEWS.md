@@ -1,5 +1,23 @@
 # dfmtools (development version)
 
+* **Vendored BayesTS core refreshed: upstream's BVS, SSVS and TVP log likelihood
+  audit.** **Draws are unchanged**, for all four dynamic factor models and the
+  FAVAR, verified the same way as the refreshes below. Each of the five was
+  fitted from a pinned seed against the package built before and after it,
+  through the coefficients, the log likelihood and a six-step forecast. Every
+  posterior block of every one of them is bit-identical.
+
+    Nothing this package calls moved. The audit's fixes are in the VAR and VEC
+    samplers, none of which are vendored here, and only two vendored files take
+    any of it. `core/models/model_support.h` gains `precision_stride()`,
+    `half_log_det_precision()` and `stacked_identity()`, and `fill_psi_path()`
+    now writes a time-varying Psi as a stack of k x k blocks rather than a block
+    diagonal. No factor model calls any of the four. `core/algorithms/stochvol_mixture.h`
+    changes only a comment, on how the mixture means are held.
+
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
 * **Vendored BayesTS core refreshed: cointegration priors must be symmetric.**
   **Draws are unchanged**, for all four dynamic factor models and the FAVAR,
   verified the same way as the refreshes below. Each of the five was fitted from
