@@ -42,6 +42,26 @@ inline void require_forecast_regressors(const VarSpec &spec, const arma::mat &x)
     }
 }
 
+/// Rejects forecast regressors that do not have exactly one row per horizon.
+///
+/// Row i is read for horizon i and update_forecast_lags() writes the simulated
+/// lags into it, so a matrix short of `h` rows is read and written past its end
+/// -- an Armadillo exception in a checked build, and memory corruption in a
+/// host that defines ARMA_NO_DEBUG. A longer one would run, on rows nothing
+/// says the file meant to be ignored. `bayests check` refuses the same files.
+///
+/// An empty `x` passes: require_forecast_regressors() decides whether a model
+/// with no regressors may forecast without them.
+inline void require_forecast_horizons(const arma::mat &x, const int h)
+{
+    if (x.n_elem > 0 && static_cast<arma::uword>(h) != x.n_rows)
+    {
+        throw std::invalid_argument("forecast regressors must have " + std::to_string(h) +
+                                    " rows, one per horizon, got " +
+                                    std::to_string(x.n_rows));
+    }
+}
+
 /// The response the samplers actually work with: the observations stacked
 /// period by period, vec(y'). Storing `y` period-per-row and stacking here
 /// keeps the caller's matrix in the orientation everyone else writes it in.
@@ -337,10 +357,11 @@ inline void draw_random_walk_state(arma::vec &sigma, arma::vec &init, const arma
 /// `post_shape` is the prior shape plus tt/2, which does not change over the
 /// chain and is formed once by the caller.
 ///
-/// Factored out because a fifth model wanted it. The four that predate it carry
-/// a copy each, and `stochvol_mixture.h` says at length what came of the last
-/// pair of copies in this library; they are left alone here only because
-/// rewriting a sampler's draw sequence and rewriting this are separate changes.
+/// Called by `VarNormalStochvol` and the two stochastic volatility DFMs.
+/// `VarTvpStochvol`, `VecNormalStochvol` and `VecTvpStochvol` still carry a copy
+/// each, and `stochvol_mixture.h` says at length what came of the last pair of
+/// copies in this library; they are left alone here only because rewriting a
+/// sampler's draw sequence and rewriting this are separate changes.
 inline void draw_stochvol_state(arma::vec &h_sigma, arma::vec &h_init, const arma::mat &h,
                                 const arma::vec &post_shape, const arma::vec &prior_rate,
                                 const NormalPrior &h_init_prior)

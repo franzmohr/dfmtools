@@ -1,5 +1,30 @@
 # dfmtools 0.1.0
 
+* **Vendored BayesTS core refreshed: upstream's value checks on the inputs.**
+  **Draws are unchanged**, for all four dynamic factor models and the FAVAR,
+  verified the same way as the refreshes below. Each of the five was fitted from
+  a pinned seed against the package built before and after it, through the
+  coefficients, the log likelihood and a six-step forecast. Every posterior block
+  of every one of them is bit-identical.
+
+    Upstream's validators used to check the shape of an input and nothing else.
+    `core/inputs.cpp` now also refuses values no prior can have, and some of
+    those checks are reached from the factor models: a gamma shape or rate that
+    is negative or not finite, a log-volatility offset or initial innovation
+    variance that is not positive, an initial precision of a time varying block's
+    innovations with anything off its diagonal, and a prior precision or Wishart
+    scale that is not symmetric. `add_priors()` and `add_initial_values()`
+    already refuse or never build all but one of these, so no model built from
+    their arguments alone is turned away. The exception is `v$scale` in
+    `add_priors()` on class `favarmodel`, which is checked for its dimensions
+    only: a scale that is not symmetric used to run, and is now refused when the
+    sampler starts, as is a prior precision that is not symmetric written into
+    `priors` by hand. `core/models/model_support.h` gains a check on the rows of
+    the forecast regressors, which no factor model has, and a comment.
+
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
 * **Vendored BayesTS core refreshed: upstream's BVS, SSVS and TVP log likelihood
   audit.** **Draws are unchanged**, for all four dynamic factor models and the
   FAVAR, verified the same way as the refreshes below. Each of the five was
