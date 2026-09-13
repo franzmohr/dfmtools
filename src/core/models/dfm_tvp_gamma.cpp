@@ -41,7 +41,6 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     const int n = input.spec.n_factors; // factors
     const int p = input.spec.p;         // order of the factor transition
     const int iterations = input.spec.iterations;
-    const int burnin = input.spec.burnin;
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
@@ -231,9 +230,9 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
         }
 
         // Store draws
-        if (draw >= burnin)
+        if (input.spec.keeps(draw))
         {
-            const int draw_pos = draw - burnin;
+            const int draw_pos = input.spec.kept_index(draw);
 
             // Lambda, one vectorised M x N block per period. Not one vectorise()
             // of the stack: that is (M tt) x N and column-major, so it would

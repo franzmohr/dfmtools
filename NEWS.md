@@ -1,5 +1,22 @@
 # dfmtools (development version)
 
+* **Vendored BayesTS core refreshed: the samplers can thin.** **Draws are
+  unchanged**, for all four dynamic factor models and the FAVAR, verified the
+  same way as the refresh below. Each of the five was fitted from a pinned seed
+  against the package built before and after it, through the coefficients, the
+  log likelihood and a four-step forecast. Every posterior block of every one of
+  them is bit-identical.
+
+    Upstream's `VarSpec` gained `thin`, with `keeps()` and `kept_index()`, and
+    every sampler now keeps its draws through those two calls instead of testing
+    `draw >= burnin`. At `thin = 1` they are exactly that test. No binding here
+    sets `thin` -- each fills `iterations` and `burnin` only -- so every model
+    still keeps every draw after the burn-in. Exposing a thinning interval is a
+    change for another time.
+
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
 * **Vendored BayesTS core refreshed again.** **Draws are unchanged**, for all
   four dynamic factor models and the FAVAR -- verified here rather than taken on
   trust. Each of the five was fitted from a pinned seed against the package built

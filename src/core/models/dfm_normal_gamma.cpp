@@ -37,7 +37,6 @@ DfmNormalGammaDraws DfmNormalGammaSampler::draw_coefficients(const DfmNormalGamm
     const int n = input.spec.n_factors; // factors
     const int p = input.spec.p;         // order of the factor transition
     const int iterations = input.spec.iterations;
-    const int burnin = input.spec.burnin;
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
@@ -165,9 +164,9 @@ DfmNormalGammaDraws DfmNormalGammaSampler::draw_coefficients(const DfmNormalGamm
         }
 
         // Store draws
-        if (draw >= burnin)
+        if (input.spec.keeps(draw))
         {
-            const int draw_pos = draw - burnin;
+            const int draw_pos = input.spec.kept_index(draw);
 
             out.lambda.col(draw_pos) = arma::vectorise(lambda);
             out.factors.col(draw_pos) = arma::vectorise(factors);

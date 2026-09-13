@@ -63,7 +63,6 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
     const int ns = input.spec.n_state();      // the state the transition runs over
     const int p = input.spec.p;               // order of the state transition
     const int iterations = input.spec.iterations;
-    const int burnin = input.spec.burnin;
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
@@ -214,9 +213,9 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
         }
 
         // Store draws
-        if (draw >= burnin)
+        if (input.spec.keeps(draw))
         {
-            const int draw_pos = draw - burnin;
+            const int draw_pos = input.spec.kept_index(draw);
 
             out.lambda.col(draw_pos) = arma::vectorise(lambda);
             out.factors.col(draw_pos) = arma::vectorise(factors);
