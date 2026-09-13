@@ -300,6 +300,22 @@ way in.
 The practical consequence for a user is that `set.seed()` reaches the sampler:
 Armadillo's RNG is R's own.
 
+## With an AI coding assistant
+
+`inst/agents/` holds documentation written for coding assistants: how the
+identification depends on the column order of `x`, how loadings, factors and
+forecasts are laid out in the draws, and complete examples that the test suite
+runs. The installed package carries it at
+`system.file("agents", package = "dfmtools")`, matching its version. In Claude
+Code it installs as a plugin:
+
+```
+/plugin marketplace add franzmohr/dfmtools
+/plugin install dfmtools@dfmtools
+```
+
+Other assistants can be pointed at `inst/agents/AGENTS.md`.
+
 ## Getting help
 
 * Bugs and feature requests: [issues](https://github.com/franzmohr/dfmtools/issues)

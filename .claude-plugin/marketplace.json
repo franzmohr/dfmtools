@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dfmtools",
+  "description": "Documentation for coding agents writing R code with dfmtools.",
+  "owner": {
+    "name": "Franz X. Mohr"
+  },
+  "plugins": [
+    {
+      "name": "dfmtools",
+      "description": "Write correct dfmtools code: Bayesian dynamic factor models and factor augmented VARs in R, from create_dfmodel to loadings, factors, forecasts and FAVAR impulse responses.",
+      "source": "./inst/agents",
+      "category": "development",
+      "homepage": "https://github.com/franzmohr/dfmtools/tree/main/inst/agents"
+    }
+  ]
+}
