@@ -11,8 +11,9 @@
 #' @param u a named list of prior specifications for the idiosyncratic error
 #' precisions, with elements \code{shape} and \code{rate}.
 #' @param v a named list of prior specifications for the precision of the state
-#' innovations, with elements \code{df} and \code{scale}. Unlike every other
-#' error block in this package this one is a full matrix; see 'Details'.
+#' innovations, with elements \code{df} and \code{scale}, which must be a
+#' symmetric matrix. Unlike every other error block in this package this one is a
+#' full matrix; see 'Details'.
 #' @param slow the panel series that do not respond to the observed block within
 #' the period, as a character or integer vector, or a named list with elements
 #' \code{series} and \code{vinv}. Defaults to \code{NULL}, no restriction. See
@@ -169,7 +170,14 @@ add_priors.favarmodel <- function(object,
   if (!identical(dim(as.matrix(scale)), as.integer(c(n_state, n_state)))) {
     stop("Argument 'v$scale' must be a ", n_state, " x ", n_state, " matrix.")
   }
-  object[["priors"]][["v"]] <- list(df = df, scale = as.matrix(scale))
+  # The same test and tolerance as the sampler's validator, so a scale is refused
+  # here, where the argument has a name, rather than when the chain starts.
+  scale <- as.matrix(scale)
+  if (!is.numeric(scale) || !all(is.finite(scale)) ||
+      !(max(abs(scale - t(scale))) <= 1e-8 * max(abs(scale)))) {
+    stop("Argument 'v$scale' must be a symmetric matrix.")
+  }
+  object[["priors"]][["v"]] <- list(df = df, scale = scale)
 
   return(object)
 }

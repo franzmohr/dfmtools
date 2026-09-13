@@ -28,8 +28,9 @@ coefficients, with element \code{vinv} as above.}
 precisions, with elements \code{shape} and \code{rate}.}
 
 \item{v}{a named list of prior specifications for the precision of the state
-innovations, with elements \code{df} and \code{scale}. Unlike every other
-error block in this package this one is a full matrix; see 'Details'.}
+innovations, with elements \code{df} and \code{scale}, which must be a
+symmetric matrix. Unlike every other error block in this package this one is a
+full matrix; see 'Details'.}
 
 \item{slow}{the panel series that do not respond to the observed block within
 the period, as a character or integer vector, or a named list with elements

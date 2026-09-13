@@ -14,13 +14,18 @@
     variance that is not positive, an initial precision of a time varying block's
     innovations with anything off its diagonal, and a prior precision or Wishart
     scale that is not symmetric. `add_priors()` and `add_initial_values()`
-    already refuse or never build all but one of these, so no model built from
-    their arguments alone is turned away. The exception is `v$scale` in
-    `add_priors()` on class `favarmodel`, which is checked for its dimensions
-    only: a scale that is not symmetric used to run, and is now refused when the
-    sampler starts, as is a prior precision that is not symmetric written into
-    `priors` by hand. `core/models/model_support.h` gains a check on the rows of
+    already refuse or never build every one of these, so no model built from
+    their arguments is turned away. A prior precision that is not symmetric
+    written into `priors` by hand used to run, and is now refused when the
+    sampler starts. `core/models/model_support.h` gains a check on the rows of
     the forecast regressors, which no factor model has, and a comment.
+
+* **`add_priors()` on class `favarmodel` refuses a `v$scale` that is not
+  symmetric.** It checked the dimensions only, so a Wishart scale that was not
+  symmetric, or had a missing element, ran a chain. The vendored core now refuses
+  it when the sampler starts; `add_priors()` refuses it first, naming the
+  argument, with the same relative tolerance of `1e-8`. Draws are unchanged for
+  every scale it accepts.
 
     The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
     unchanged.

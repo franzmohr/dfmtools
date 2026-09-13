@@ -40,6 +40,21 @@ test_that("a Wishart prior too weak to be proper is refused", {
                "must be a 2 x 2 matrix")
 })
 
+test_that("a Wishart scale that is not symmetric is refused before the sampler", {
+  sim <- make_favar_sample()
+  model <- create_favarmodel(x = sim$x, y = sim$yts, p = 2, n = 1,
+                             iterations = 10, burnin = 5)
+  expect_error(add_priors(model, v = list(df = NULL, scale = matrix(c(1, 0.5, 0, 1), 2))),
+               "'v\\$scale' must be a symmetric matrix")
+  expect_error(add_priors(model, v = list(df = NULL, scale = matrix(c(1, NA, NA, 1), 2))),
+               "'v\\$scale' must be a symmetric matrix")
+
+  # Rounding is not asymmetry: the tolerance is the sampler's, relative to the
+  # largest element.
+  scale <- matrix(c(2, 0.3, 0.3 + 1e-12, 2), 2)
+  expect_identical(add_priors(model, v = list(df = NULL, scale = scale))$priors$v$scale, scale)
+})
+
 test_that("the initial loadings are the rectangle the binding expects", {
   sim <- make_favar_sample()
   model <- add_initial_values(add_priors(
