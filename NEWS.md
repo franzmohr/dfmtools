@@ -1,5 +1,28 @@
 # dfmtools (development version)
 
+* **Vendored BayesTS core refreshed again.** **Draws are unchanged**, for all
+  four dynamic factor models and the FAVAR -- verified here rather than taken on
+  trust. Each of the five was fitted from a pinned seed against the package built
+  before and after the refresh, through the coefficients, the log likelihood and
+  a four-step forecast, and every posterior block of every one of them is
+  bit-identical.
+
+    Nothing this package calls moved. Upstream made two changes, and both belong
+    to the VAR and VEC samplers `bvartools` carries:
+    - The out-of-sample regressors are now the compact layout, one period per
+      row. `ForecastData::z` became `ForecastData::x`, and `bayests/spec.h`
+      gained `VarSpec::n_x()`, which `n_non_structural()` is now written in
+      terms of, to the same value. The two helpers in `core/models/model_support.h`
+      that read those regressors changed with it. No factor sampler calls
+      either one, and no binding here fills `ForecastData`.
+    - A time varying cointegration space can be centred on a given space.
+      `TvpCointSpacePrior` gained a `p_tau` transition, and `core/inputs.cpp`
+      its validation. That is reached only from the error correction
+      validators, which no factor model calls.
+
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
 * **Documentation for coding assistants, in `inst/agents/`.** It has an
   `AGENTS.md`, and a skill covering the things a factor model gets wrong without
   an error:
