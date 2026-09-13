@@ -33,7 +33,23 @@ model <- add_posterior_forecasts(model, n_ahead = 4)
 `iterations = 500` keeps examples quick. The defaults are 20000 after 2000
 burn-in, and a real analysis needs that order. `thin = t` runs `t` times as long
 and keeps the last of every `t` draws, so a slowly mixing chain can run long
-while the posterior still holds `iterations` draws.
+while the posterior still holds `iterations` draws. The draws that are not kept
+are never stored, and `coda::mcpar()` counts the draws the chain actually ran:
+
+```r
+long <- create_dfmodel(x = x, p = 1, n = 2, iterations = 50, burnin = 50, thin = 5)
+long <- add_priors(long,
+                   lambda = list(vinv = 0.01), u = list(shape = 5, rate = 4),
+                   a = list(vinv = 0.01), v = list(shape = 5, rate = 4))
+long <- add_initial_values(long)
+long <- add_posterior_coefficients(long)
+
+stopifnot(nrow(long$posterior$lambda$coeffs) == 50,
+          all(coda::mcpar(long$posterior$lambda$coeffs) == c(5, 250, 5)))
+```
+
+Reach for it when a posterior summary moves with the seed: the chain is too short
+for how slowly it mixes.
 
 ## The rules that prevent wrong results
 

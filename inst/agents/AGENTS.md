@@ -31,7 +31,9 @@ context at all times.
    `add_priors(model, slow = ...)` imposes the slow-moving restriction.
 9. **No `irf()`, `fevd()` or `selection_criteria()` for a DFM**, only for a
    FAVAR.
-10. **Keep `set.seed()`**: it reaches the C++ samplers.
+10. **Keep `set.seed()`**: it reaches the C++ samplers. If two seeds give
+    different summaries, the chain is too short: create the model with `thin`
+    to run it longer without storing more draws.
 
 The installed package carries these files at
 `system.file("agents", package = "dfmtools")`. VAR and VEC models are in
