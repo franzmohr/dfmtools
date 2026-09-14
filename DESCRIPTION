@@ -7,7 +7,7 @@ Description: Assists in the set-up of algorithms for Bayesian inference of dynam
 License: GPL (>= 2)
 Depends:
     R (>= 3.5),
-    bvartools (>= 1.0.0)
+    bvartools (>= 0.3.0.9000)
 Imports: coda, methods, Rcpp (>= 0.12.14), stats
 LinkingTo: Rcpp, RcppArmadillo
 Suggests:
