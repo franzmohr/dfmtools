@@ -97,6 +97,20 @@ test_that("add_priors reports a constant specification given to a tvp model", {
   expect_error(add_priors(object, lambda = tvp_prior(shape = -1), a = tvp_prior()),
                "lambda\\$shape")
 
+  # The state before the sample is integrated out of the first period, which
+  # inverts its prior precision, so a flat prior on it is refused here -- and
+  # still allowed for a constant model, where vinv = 0 is an improper prior on the
+  # coefficients themselves.
+  expect_error(add_priors(object, lambda = tvp_prior(vinv = 0), a = tvp_prior()),
+               "'lambda\\$vinv' must be larger than 0")
+  expect_error(add_priors(object, lambda = tvp_prior(), a = tvp_prior(vinv = 0)),
+               "'a\\$vinv' must be larger than 0")
+
+  # One series on one factor has no free loading, so its lambda$vinv is never used.
+  single <- create_dfmodel(x = sim$x[, 1, drop = FALSE], p = 1, n = 1, tvp = TRUE,
+                           iterations = 20, burnin = 10)
+  expect_silent(add_priors(single, lambda = tvp_prior(vinv = 0), a = tvp_prior()))
+
   # A constant-coefficient model is not asked for one.
   constant <- create_dfmodel(x = sim$x, p = 1, n = 1, iterations = 20, burnin = 10)
   expect_silent(add_priors(constant))

@@ -1,5 +1,43 @@
 # dfmtools 0.1.0
 
+* **Vendored BayesTS core refreshed: time varying coefficients leave their
+  starting values.** **Draws change for the two time varying dynamic factor
+  models**, `tvp = TRUE` with either error specification, and for nothing else.
+  Each of the five samplers was fitted from a pinned seed against the package
+  built before and after the refresh, through the coefficients, the log
+  likelihood and a six-step forecast. Every posterior block of the two constant
+  dynamic factor models and of the FAVAR is bit-identical; every block of the two
+  time varying ones moved, and all of it is finite.
+
+    The time varying samplers drew each coefficient path with the simulation
+    smoother centred on the previous draw of the state before the sample, and
+    with the random walk's own innovation variance as the prior covariance of the
+    first period. They drew that state only after the variance. Each step was a
+    valid conditional, but together they tied the path's first period to the
+    state before it with that variance, and a coefficient meant to drift slowly
+    has a small one: the chain could return its starting path as the posterior.
+    Upstream now integrates that state out of the first period, drawing the path
+    under N(mu_0, V_0 + Sigma), and draws the state given the path before the
+    variance conditions on it. Chains started far apart now agree. The change is
+    in `core/models/dfm_tvp_gamma.cpp`, `core/models/dfm_tvp_stochvol.cpp` and
+    `draw_random_walk_state()` in `core/models/model_support.h`.
+
+    Integrating the state out inverts its prior precision, so `core/inputs.cpp`
+    now requires that precision to be positive definite for every time varying
+    block. `bayests/priors.h` changes only a comment, on the cointegration space
+    prior of the error correction models.
+
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
+* **`add_priors()` on class `dfmodel` refuses `lambda$vinv` or `a$vinv` of 0 for
+  a model with time varying coefficients.** There it is the prior precision of
+  the state before the sample, which the refreshed sampler inverts, so a flat
+  prior has no variance to give and would be refused when the sampler starts.
+  `add_priors()` refuses it first, naming the argument. The check applies only to
+  a block with elements, so the loadings of a single series on a single factor,
+  which have none, still accept 0. A constant model accepts `vinv = 0` as before.
+
 * **Vendored BayesTS core refreshed: upstream's value checks on the inputs.**
   **Draws are unchanged**, for all four dynamic factor models and the FAVAR,
   verified the same way as the refreshes below. Each of the five was fitted from
@@ -20,15 +58,15 @@
     sampler starts. `core/models/model_support.h` gains a check on the rows of
     the forecast regressors, which no factor model has, and a comment.
 
+    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
+    unchanged.
+
 * **`add_priors()` on class `favarmodel` refuses a `v$scale` that is not
   symmetric.** It checked the dimensions only, so a Wishart scale that was not
   symmetric, or had a missing element, ran a chain. The vendored core now refuses
   it when the sampler starts; `add_priors()` refuses it first, naming the
   argument, with the same relative tolerance of `1e-8`. Draws are unchanged for
   every scale it accepts.
-
-    The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
-    unchanged.
 
 * **Vendored BayesTS core refreshed: upstream's BVS, SSVS and TVP log likelihood
   audit.** **Draws are unchanged**, for all four dynamic factor models and the

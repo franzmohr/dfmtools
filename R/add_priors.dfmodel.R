@@ -27,7 +27,9 @@
 #'
 #' For a model created with \code{tvp = TRUE} both coefficient blocks follow random walks, and both
 #' arguments must contain two further elements. \code{vinv} then describes the state of the period
-#' before the sample rather than a coefficient that holds throughout, and the pair below describes
+#' before the sample rather than a coefficient that holds throughout, and must be larger than 0:
+#' the sampler integrates that state out of the first period, which takes the inverse of its
+#' precision, so a flat prior on it has no variance to give. The pair below describes
 #' how far the state may drift from one period to the next. There are no defaults for them, so a
 #' call that forgets is told which elements are missing:
 #' \describe{
@@ -184,7 +186,20 @@ add_priors.dfmodel <- function(object,
   # through the same builder so that neither can end up with a field the other
   # has not got. The names are those bvartools uses for the coefficient prior of
   # its time varying VAR and VEC models.
+  #
+  # The sampler integrates that state out of the prior of the first period, which
+  # takes the inverse of its precision, so a flat prior on it has no variance to
+  # give and `vinv` has to be positive -- checked only for a block that has
+  # elements, since the loadings of a single series on a single factor have none.
   if (isTRUE(object$model$tvp)) {
+    if (n_lambda > 0 && !(lambda$vinv > 0)) {
+      stop("Argument 'lambda$vinv' must be larger than 0 for a model with time varying ",
+           "coefficients.")
+    }
+    if (n_a > 0 && !(a$vinv > 0)) {
+      stop("Argument 'a$vinv' must be larger than 0 for a model with time varying ",
+           "coefficients.")
+    }
     object$priors$lambda <- c(object$priors$lambda,
                               .dfm_rw_prior(lambda, n_lambda, "lambda"))
     if (n_a > 0) {

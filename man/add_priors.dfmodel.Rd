@@ -50,7 +50,9 @@ precision of the coefficients of the transition equation. Default is 0.01.
 
 For a model created with \code{tvp = TRUE} both coefficient blocks follow random walks, and both
 arguments must contain two further elements. \code{vinv} then describes the state of the period
-before the sample rather than a coefficient that holds throughout, and the pair below describes
+before the sample rather than a coefficient that holds throughout, and must be larger than 0:
+the sampler integrates that state out of the first period, which takes the inverse of its
+precision, so a flat prior on it has no variance to give. The pair below describes
 how far the state may drift from one period to the next. There are no defaults for them, so a
 call that forgets is told which elements are missing:
 \describe{

@@ -20,6 +20,7 @@ namespace
 using core::draw_diagonal_precision;
 using core::draw_factor_path;
 using core::draw_normal_precision;
+using core::initial_state_variance;
 using core::draw_random_walk_state;
 using core::fill_lagged_factors;
 using core::fill_stacked_loadings;
@@ -66,11 +67,13 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     arma::mat lambda_stack = stacked_identified_loadings(k, n, tt);
     arma::mat lambda_path;
     arma::vec lambda_sigma, lambda_init, lambda_sigma_post_shape;
+    arma::mat lambda_init_prior_v;
     if (use_lambda)
     {
         lambda_path = input.initial.lambda;
         lambda_sigma = 1.0 / input.initial.lambda_sigma_inv.diag();
         lambda_init = input.initial.lambda_init;
+        lambda_init_prior_v = initial_state_variance(input.lambda_prior.initial_state);
         lambda_sigma_post_shape = input.lambda_prior.sigma.shape + tt * 0.5;
         out.lambda_sigma = arma::mat(n_lambda, iterations);
         fill_stacked_loadings(lambda_stack, lambda_path, k, n);
@@ -80,11 +83,13 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     // drawn against, and the lagged factors that design is built from.
     arma::mat a_path, a_stack, a_B, x_a, z_a;
     arma::vec a_sigma, a_init, a_sigma_post_shape;
+    arma::mat a_init_prior_v;
     if (use_a)
     {
         a_path = input.initial.a;
         a_sigma = 1.0 / input.initial.a_sigma_inv.diag();
         a_init = input.initial.a_init;
+        a_init_prior_v = initial_state_variance(input.a_prior.initial_state);
         a_sigma_post_shape = input.a_prior.sigma.shape + tt * 0.5;
         a_B = arma::eye<arma::mat>(n_a, n_a);
 
@@ -172,15 +177,21 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
                 const arma::mat sigma_i =
                     arma::diagmat(lambda_sigma.subvec(pos, pos + width - 1));
 
-                lambda_path.rows(pos, pos + width - 1) =
+                // The loadings before the sample are integrated out of the prior
+                // of the first period, whose covariance for this row is the
+                // corresponding block of theirs; see initial_state_variance().
+                const arma::uword last = static_cast<arma::uword>(pos + width - 1);
+                lambda_path.rows(pos, last) =
                     kalman_durbin_koopman_2002(y_i, z_i, u_sigma_i, sigma_i,
                                                arma::eye<arma::mat>(width, width),
-                                               lambda_init.subvec(pos, pos + width - 1), sigma_i)
+                                               input.lambda_prior.initial_state.mu.subvec(pos, last),
+                                               lambda_init_prior_v.submat(pos, pos, last, last) +
+                                                   sigma_i)
                         .cols(0, tt - 1);
                 pos += width;
             }
 
-            // Draw the state variance and the loadings before the sample
+            // Draw the loadings before the sample and the state variance
             draw_random_walk_state(lambda_sigma, lambda_init, lambda_path,
                                    lambda_sigma_post_shape, input.lambda_prior.sigma.rate,
                                    input.lambda_prior.initial_state);
@@ -218,9 +229,11 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
             // Against the precision block 4 has just drawn, not the one the
             // factor path was drawn under at the top of the iteration -- the
             // same conditioning DfmNormalGamma's transition block uses.
+            // With the state before the sample integrated out, as for the loadings.
             a_path = kalman_durbin_koopman_2002(factors, z_a, arma::diagmat(1.0 / v_sigma_inv),
-                                                arma::diagmat(a_sigma), a_B, a_init,
-                                                arma::diagmat(a_sigma))
+                                                arma::diagmat(a_sigma), a_B,
+                                                input.a_prior.initial_state.mu,
+                                                a_init_prior_v + arma::diagmat(a_sigma))
                          .cols(0, tt - 1);
 
             draw_random_walk_state(a_sigma, a_init, a_path, a_sigma_post_shape,
