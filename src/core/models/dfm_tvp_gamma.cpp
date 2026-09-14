@@ -5,6 +5,7 @@
 
 #include "core/algorithms/kalman_durbin_koopman_2002.h"
 #include "core/models/dfm_support.h"
+#include "core/models/forecast_states.h"
 #include "core/models/model_support.h"
 
 #include <algorithm>
@@ -17,6 +18,10 @@ namespace bayests
 namespace
 {
 
+using core::require_state_variances;
+using core::simulates_states;
+using core::step_free_loadings;
+using core::step_random_walk;
 using core::draw_diagonal_precision;
 using core::draw_factor_path;
 using core::draw_normal_precision;
@@ -353,18 +358,41 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
     const arma::uword draws = coefficients.iterations();
     arma::mat fcst(h * k, draws);
 
+    // Whether each draw's loadings and transition are carried over the horizon
+    // or held at the end of the sample: see core/models/forecast_states.h. The
+    // two precisions are constant here.
+    const bool simulate = simulates_states(input.spec);
+    const int n_lambda = input.spec.n_lambda();
+    if (simulate)
+    {
+        if (n_lambda > 0)
+        {
+            require_state_variances(coefficients.lambda_sigma, static_cast<arma::uword>(n_lambda),
+                                    draws, "the loadings");
+        }
+        if (use_a)
+        {
+            require_state_variances(coefficients.a_sigma,
+                                    static_cast<arma::uword>(input.spec.n_factor_a()), draws,
+                                    "the factor transition");
+        }
+    }
+
     // The path carries the p factors the transition needs before the first
     // horizon, so column p + i is horizon i and the lag lookup is one expression
     // at every horizon rather than a split between what is history and what is
     // already forecast.
     arma::mat path(n, p + h);
 
+    // What a simulated forecast carries from one horizon to the next.
+    arma::vec a_state, a_sigma, lambda_sigma;
+
     for (arma::uword draw = 0; draw < draws; draw++)
     {
         reporter.check_interrupt();
         reporter.progress(static_cast<long long>(draw) + 1, static_cast<long long>(draws));
 
-        const arma::mat lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
+        arma::mat lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
         const arma::vec u_sd = 1.0 / arma::sqrt(coefficients.u_sigma_inv.col(draw));
         const arma::vec v_sd = 1.0 / arma::sqrt(coefficients.v_sigma_inv.col(draw));
 
@@ -374,11 +402,40 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
             path.head_cols(p) = drawn.tail_cols(p);
         }
 
-        const arma::mat a_mat =
+        arma::mat a_mat =
             use_a ? arma::reshape(coefficients.a.col(draw), n, n * p) : arma::mat();
+
+        if (simulate)
+        {
+            if (n_lambda > 0)
+            {
+                lambda_sigma = coefficients.lambda_sigma.col(draw);
+            }
+            if (use_a)
+            {
+                a_state = coefficients.a.col(draw);
+                a_sigma = coefficients.a_sigma.col(draw);
+            }
+        }
 
         for (int i = 0; i < h; i++)
         {
+            if (simulate)
+            {
+                // Each walk takes its step before the observation it generates:
+                // the transition, which produces the factor, then the loadings,
+                // which read the series off it.
+                if (use_a)
+                {
+                    step_random_walk(a_state, a_sigma, arma::vec());
+                    a_mat = arma::reshape(a_state, n, n * p);
+                }
+                if (n_lambda > 0)
+                {
+                    step_free_loadings(lambda, lambda_sigma);
+                }
+            }
+
             arma::vec f = v_sd % arma::randn<arma::vec>(n);
             for (int j = 1; j <= p; j++)
             {

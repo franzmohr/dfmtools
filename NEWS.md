@@ -1,5 +1,25 @@
 # dfmtools 0.1.0
 
+* **Vendored BayesTS core refreshed: forecasts carry the drift forward.**
+  `add_posterior_forecasts()` forecast the three dynamic factor models whose
+  states drift -- `error = "sv"`, `tvp = TRUE`, and both -- from each draw's
+  loadings, transition and volatilities in the last sample period, held for every
+  forecast period. That is the forecast of a model whose drift stops where the
+  sample does: its intervals left out the drift, and a held volatility
+  understated the expected variance of every period after the first. Each draw's
+  random walks now take one step per forecast period, by the innovation variances
+  the sampler drew for them; only the free loadings move, and the identifying
+  block stays fixed. The new argument `forecast_states = "hold"` gives the old
+  forecasts and is stored in `model$forecast_states`. Under stochastic volatility
+  `add_posterior_coefficients()` now also keeps `sigma` in `u_sigma_inv` and
+  `v_sigma_inv`, the variances of the two groups of log-volatility innovations; a
+  model fitted with an earlier version lacks them and forecasts only with
+  `forecast_states = "hold"` until it is fitted again. **Forecasts change** for
+  those three models. Their coefficient draws and log likelihoods, and everything
+  about `DfmNormalGamma` and the FAVAR, are unchanged, which upstream verified by
+  fingerprinting every sampler before and after. The vendored set grows by one
+  file, `core/models/forecast_states.h`, now listed in `inst/COPYRIGHTS`.
+
 * **Vendored BayesTS core refreshed: time varying coefficients leave their
   starting values.** **Draws change for the two time varying dynamic factor
   models**, `tvp = TRUE` with either error specification, and for nothing else.

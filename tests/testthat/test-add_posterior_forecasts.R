@@ -81,3 +81,42 @@ test_that("add_posterior_forecasts rejects invalid input", {
   expect_error(add_posterior_forecasts(without_factors, n_ahead = 4),
                "does not contain posterior draws of the factors")
 })
+
+test_that("drifting states are simulated forward unless the forecast holds them", {
+
+  preps <- list(sv = prepared_dfm_sv(tt = 40, m = 4, n = 1, p = 1),
+                tvp = prepared_dfm_tvp(tt = 40, m = 4, n = 1, p = 1),
+                tvp_sv = prepared_dfm_tvp_sv(tt = 40, m = 4, n = 1, p = 1))
+
+  for (name in names(preps)) {
+    set.seed(41)
+    drawn <- add_posterior_coefficients(preps[[name]]$object)
+
+    if (name != "tvp") {
+      # The steps the two volatilities are simulated forward by, one per series
+      # or factor and draw.
+      expect_s3_class(drawn$posterior$u_sigma_inv$sigma, "mcmc")
+      expect_equal(dim(drawn$posterior$u_sigma_inv$sigma), c(20L, 4L))
+      expect_equal(dim(drawn$posterior$v_sigma_inv$sigma), c(20L, 1L))
+    }
+
+    set.seed(42)
+    simulated <- add_posterior_forecasts(drawn, n_ahead = 4)
+    set.seed(42)
+    held <- add_posterior_forecasts(drawn, n_ahead = 4, forecast_states = "hold")
+
+    expect_true(all(is.finite(simulated$posterior$forecast)))
+    expect_identical(held$model$forecast_states, "hold")
+    # From the same seed, the drift is the one thing separating the two.
+    expect_false(isTRUE(all.equal(unclass(simulated$posterior$forecast),
+                                  unclass(held$posterior$forecast))), label = name)
+  }
+
+  # A posterior drawn before the volatility steps were stored forecasts only
+  # when held.
+  set.seed(43)
+  old <- add_posterior_coefficients(preps$sv$object)
+  old$posterior$v_sigma_inv$sigma <- NULL
+  expect_error(add_posterior_forecasts(old, n_ahead = 4), "innovation variances")
+  expect_no_error(add_posterior_forecasts(old, n_ahead = 4, forecast_states = "hold"))
+})

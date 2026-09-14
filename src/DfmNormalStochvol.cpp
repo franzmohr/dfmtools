@@ -70,6 +70,7 @@ bayests::DfmNormalStochvolInput read_input(const Rcpp::List &object) {
   input.spec.burnin = Rcpp::as<int>(model["burnin"]);
   input.spec.thin = optional_int(model, "thin", 1);
   input.spec.h = optional_int(model, "h", 0);
+  input.spec.forecast_states = read_forecast_states(model);
 
   const int m = input.spec.k;
   const int n = input.spec.n_factors;
@@ -137,7 +138,9 @@ bayests::DfmNormalStochvolInput read_input(const Rcpp::List &object) {
 
 /// Both the forecast and the log likelihood read every draw as it stands. The
 /// factor path is among them: it is part of this posterior rather than derivable
-/// from it, so neither works without it.
+/// from it, so neither works without it. So are the variances of the two groups
+/// of log-volatility innovations, which a forecast that simulates the volatility
+/// forward steps it by and which the log likelihood ignores.
 bayests::DfmNormalStochvolDraws read_draws(const Rcpp::List &object) {
 
   bayests::DfmNormalStochvolDraws draws;
@@ -157,10 +160,14 @@ bayests::DfmNormalStochvolDraws read_draws(const Rcpp::List &object) {
     read_draws_if_present(Rcpp::List(posterior["a"]), "coeffs", draws.a);
   }
   if (has(posterior, "u_sigma_inv")) {
-    read_draws_if_present(Rcpp::List(posterior["u_sigma_inv"]), "coeffs", draws.u_sigma_inv);
+    const Rcpp::List block = posterior["u_sigma_inv"];
+    read_draws_if_present(block, "coeffs", draws.u_sigma_inv);
+    read_draws_if_present(block, "sigma", draws.u_h_sigma);
   }
   if (has(posterior, "v_sigma_inv")) {
-    read_draws_if_present(Rcpp::List(posterior["v_sigma_inv"]), "coeffs", draws.v_sigma_inv);
+    const Rcpp::List block = posterior["v_sigma_inv"];
+    read_draws_if_present(block, "coeffs", draws.v_sigma_inv);
+    read_draws_if_present(block, "sigma", draws.v_h_sigma);
   }
 
   return draws;
@@ -169,7 +176,8 @@ bayests::DfmNormalStochvolDraws read_draws(const Rcpp::List &object) {
 /// The same five elements DfmNormalGamma returns, and the two error blocks under
 /// the same names -- but a whole path per draw rather than one number per series,
 /// so `u_sigma_inv` is m * tt columns wide here and m there. Precisions, as
-/// everywhere in this family.
+/// everywhere in this family. Each error block also carries `sigma`, the
+/// variance of its log-volatility innovations, m and n per draw.
 Rcpp::List write_draws(const bayests::DfmNormalStochvolDraws &draws) {
 
   Rcpp::List posteriors =
@@ -179,9 +187,11 @@ Rcpp::List write_draws(const bayests::DfmNormalStochvolDraws &draws) {
                          Rcpp::Named("coeffs") = draws_to_r(draws.factors)),
                        Rcpp::Named("a") = R_NilValue,
                        Rcpp::Named("u_sigma_inv") = Rcpp::List::create(
-                         Rcpp::Named("coeffs") = draws_to_r(draws.u_sigma_inv)),
+                         Rcpp::Named("coeffs") = draws_to_r(draws.u_sigma_inv),
+                         Rcpp::Named("sigma") = draws_to_r(draws.u_h_sigma)),
                        Rcpp::Named("v_sigma_inv") = Rcpp::List::create(
-                         Rcpp::Named("coeffs") = draws_to_r(draws.v_sigma_inv)));
+                         Rcpp::Named("coeffs") = draws_to_r(draws.v_sigma_inv),
+                         Rcpp::Named("sigma") = draws_to_r(draws.v_h_sigma)));
 
   if (draws.has_a()) {
     posteriors["a"] = Rcpp::List::create(Rcpp::Named("coeffs") = draws_to_r(draws.a));
@@ -220,11 +230,9 @@ Rcpp::List DfmNormalStochvolForecasts(Rcpp::List object) {
 
   dfmtools::RcppReporter reporter;
 
-  // Both volatilities are held at their last in-sample value over the horizon,
-  // which is what every stochastic volatility model in this family does and what
-  // the posterior supports: the variance of the log-volatility innovations is a
-  // state of the chain rather than something the draws carry, so there is nothing
-  // to extrapolate the random walk with.
+  // Both volatilities start from their last in-sample value and, unless
+  // model$forecast_states is "hold", take one step of their random walks per
+  // horizon, by the `sigma` element of each error block.
   const bayests::ForecastDraws forecast =
     bayests::DfmNormalStochvolSampler().forecast(input, draws, reporter);
 

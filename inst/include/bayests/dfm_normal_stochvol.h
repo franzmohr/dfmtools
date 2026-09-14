@@ -76,15 +76,13 @@ public:
     /// innovation drawn at each step, and the observed series read off the
     /// loadings. `spec.h` is the horizon.
     ///
-    /// Both volatilities are held at their terminal value over the horizon rather
-    /// than simulated forward. That is the convention every stochastic volatility
-    /// model here follows -- VarNormalStochvol reads its precision at period
-    /// tt - 1 and uses it at every horizon -- and it is what the posterior
-    /// supports: the variance of the log-volatility innovations is a state of the
-    /// chain, not something the draws carry, so there is nothing to extrapolate
-    /// the random walk with. The predictive intervals are therefore conditional on
-    /// the volatility that prevailed at the end of the sample, which understates
-    /// them by however much the volatility might still move.
+    /// Both volatilities start from their terminal value. Under
+    /// ForecastStates::simulate, the default, each log-volatility then takes one
+    /// step of its random walk per horizon, by `draws.u_h_sigma` and
+    /// `draws.v_h_sigma`, so the intervals carry the volatility's own drift.
+    /// Under ForecastStates::hold both stay at the terminal value, and the
+    /// intervals are conditional on the volatility that prevailed at the end of
+    /// the sample.
     ///
     /// Requires `draws.factors`, both precisions, and `draws.a` when the
     /// transition has an order. `u_sigma_inv` and `v_sigma_inv` may hold either

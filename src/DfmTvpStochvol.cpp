@@ -93,6 +93,7 @@ bayests::DfmTvpStochvolInput read_input(const Rcpp::List &object) {
   input.spec.burnin = Rcpp::as<int>(model["burnin"]);
   input.spec.thin = optional_int(model, "thin", 1);
   input.spec.h = optional_int(model, "h", 0);
+  input.spec.forecast_states = read_forecast_states(model);
 
   const int m = input.spec.k;
   const int n = input.spec.n_factors;
@@ -197,8 +198,10 @@ int sample_periods(const bayests::DfmTvpStochvolInput &input) {
 /// the rest.
 ///
 /// `terminal` cuts the two *coefficient* paths to their last in-sample period,
-/// which is what a forecast holds them at. The log likelihood passes false and
-/// gets the whole path, every period under its own loadings.
+/// which is where a forecast starts them from, and reads the variances of all
+/// four random walks' innovations, which a forecast that simulates the states
+/// forward steps them by. The log likelihood passes false and gets the whole
+/// path, every period under its own loadings.
 bayests::DfmTvpStochvolDraws read_draws(const Rcpp::List &object,
                                      const bayests::DfmTvpStochvolInput &input,
                                      const bool terminal) {
@@ -245,6 +248,25 @@ bayests::DfmTvpStochvolDraws read_draws(const Rcpp::List &object,
     draws.a = draws.a.tail_rows(a_width);
   }
 
+  // `lambda$sigma` went out in R's ordering of the free loadings, so it comes
+  // back through the same permutation the starting values do.
+  const arma::uvec order = lambda_row_major_order(input.spec.k, input.spec.n_factors);
+  if (has(posterior, "lambda")) {
+    arma::mat lambda_sigma;
+    read_draws_if_present(Rcpp::List(posterior["lambda"]), "sigma", lambda_sigma);
+    draws.lambda_sigma = lambda_sigma.n_rows == order.n_elem ? arma::mat(lambda_sigma.rows(order))
+                                                             : lambda_sigma;
+  }
+  if (has(posterior, "a")) {
+    read_draws_if_present(Rcpp::List(posterior["a"]), "sigma", draws.a_sigma);
+  }
+  if (has(posterior, "u_sigma_inv")) {
+    read_draws_if_present(Rcpp::List(posterior["u_sigma_inv"]), "sigma", draws.u_h_sigma);
+  }
+  if (has(posterior, "v_sigma_inv")) {
+    read_draws_if_present(Rcpp::List(posterior["v_sigma_inv"]), "sigma", draws.v_h_sigma);
+  }
+
   return draws;
 }
 
@@ -272,9 +294,11 @@ Rcpp::List write_draws(const bayests::DfmTvpStochvolDraws &draws, const arma::uv
                          Rcpp::Named("coeffs") = draws_to_r(draws.factors)),
                        Rcpp::Named("a") = R_NilValue,
                        Rcpp::Named("u_sigma_inv") = Rcpp::List::create(
-                         Rcpp::Named("coeffs") = draws_to_r(draws.u_sigma_inv)),
+                         Rcpp::Named("coeffs") = draws_to_r(draws.u_sigma_inv),
+                         Rcpp::Named("sigma") = draws_to_r(draws.u_h_sigma)),
                        Rcpp::Named("v_sigma_inv") = Rcpp::List::create(
-                         Rcpp::Named("coeffs") = draws_to_r(draws.v_sigma_inv)));
+                         Rcpp::Named("coeffs") = draws_to_r(draws.v_sigma_inv),
+                         Rcpp::Named("sigma") = draws_to_r(draws.v_h_sigma)));
 
   if (draws.has_a()) {
     posteriors["a"] = Rcpp::List::create(Rcpp::Named("coeffs") = draws_to_r(draws.a),
@@ -316,11 +340,10 @@ Rcpp::List DfmTvpStochvolForecasts(Rcpp::List object) {
 
   dfmtools::RcppReporter reporter;
 
-  // The loadings and the transition are held at their last in-sample period over
-  // the horizon, which is what every time-varying model in this family does and
-  // what the posterior supports: the variance of the state innovations is a state
-  // of the chain rather than something the draws carry, so there is nothing to
-  // extrapolate the random walk with.
+  // The loadings, the transition and both volatilities start from their last
+  // in-sample period and, unless model$forecast_states is "hold", take one step
+  // of their random walks per horizon -- the free loadings only, the identifying
+  // block staying fixed.
   const bayests::ForecastDraws forecast =
     bayests::DfmTvpStochvolSampler().forecast(input, draws, reporter);
 

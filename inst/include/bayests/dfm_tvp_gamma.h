@@ -80,10 +80,14 @@ public:
     /// Throws std::invalid_argument if `input` is inconsistent.
     DfmTvpGammaDraws draw_coefficients(const DfmTvpGammaInput &input, Reporter &reporter) const;
 
-    /// Simulates one forecast path of the observed series per posterior draw,
-    /// holding the loadings and the transition at their last in-sample values:
-    /// `draws.lambda` and `draws.a` are expected to carry that period alone, one
-    /// column per draw.
+    /// Simulates one forecast path of the observed series per posterior draw
+    /// from the last in-sample loadings and transition: `draws.lambda` and
+    /// `draws.a` are expected to carry that period alone, one column per draw.
+    ///
+    /// Under ForecastStates::simulate, the default, both take one step of their
+    /// random walks per horizon, by `draws.a_sigma` and by `draws.lambda_sigma`
+    /// -- the free loadings only, the identifying block staying fixed. Under
+    /// ForecastStates::hold they stay where the sample ends.
     ///
     /// As in DfmNormalGamma, this needs no out-of-sample regressor matrix. A DFM
     /// has no regressors: the path is the transition run forward from the last p

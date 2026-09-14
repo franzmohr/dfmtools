@@ -6,6 +6,7 @@
 #include <RcppArmadillo.h>
 
 #include "bayests/priors.h"
+#include "bayests/spec.h"
 
 #include <string>
 
@@ -64,6 +65,17 @@ inline void read_draws_if_present(const Rcpp::List &list, const char *name, arma
 inline arma::mat draws_to_r(const arma::mat &draws)
 {
   return arma::trans(draws);
+}
+
+/// Whether a forecast carries the random walks of a time-varying model over the
+/// horizon or holds them at the last sample period: `model$forecast_states`,
+/// written by add_posterior_forecasts() when it was given one, and `simulate`
+/// -- the core's own default -- when it is absent.
+inline bayests::ForecastStates read_forecast_states(const Rcpp::List &model)
+{
+  return has(model, "forecast_states")
+           ? bayests::forecast_states_from_string(Rcpp::as<std::string>(model["forecast_states"]))
+           : bayests::ForecastStates::simulate;
 }
 
 /// The (shape, rate) pair every gamma prior is stored as.

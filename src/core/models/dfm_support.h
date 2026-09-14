@@ -81,6 +81,20 @@ inline void fill_lambda(arma::mat &lambda, const arma::vec &free)
     }
 }
 
+/// One step of the free loadings' random walk over a forecast horizon.
+///
+/// `sigma` is one innovation variance per free loading, in the row-major order
+/// fill_lambda() consumes, so the innovation is scattered through it into a
+/// matrix that is zero everywhere else: the identifying block is not drawn in
+/// any period of the sample, and a forecast that let it move would change the
+/// rotation and the scale the factors were estimated under.
+inline void step_free_loadings(arma::mat &lambda, const arma::vec &sigma)
+{
+    arma::mat innovation(lambda.n_rows, lambda.n_cols, arma::fill::zeros);
+    fill_lambda(innovation, arma::vec(arma::sqrt(sigma) % arma::randn<arma::vec>(sigma.n_elem)));
+    lambda += innovation;
+}
+
 /// The lagged factors the transition regresses on: (N p) x tt, block j holding
 /// f_{t-j}, with the columns before the sample left at zero.
 ///

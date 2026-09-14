@@ -72,8 +72,13 @@ public:
                                           Reporter &reporter) const;
 
     /// Simulates one forecast path of the observed series per posterior draw,
-    /// holding the loadings, the transition and both volatilities at their last
-    /// in-sample values.
+    /// starting the loadings, the transition and both volatilities from their
+    /// last in-sample values.
+    ///
+    /// Under ForecastStates::simulate, the default, all four take one step of
+    /// their random walks per horizon, by `draws.a_sigma`, `draws.lambda_sigma`
+    /// (the free loadings only), `draws.u_h_sigma` and `draws.v_h_sigma`. Under
+    /// ForecastStates::hold they stay where the sample ends.
     ///
     /// `draws.lambda` and `draws.a` are expected to carry that period alone, one
     /// column per draw; the two precisions may carry either the whole path or the

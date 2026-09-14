@@ -6,6 +6,16 @@
 #' @param object an object of class 'dfmodel', usually, a result of a call to
 #' \code{\link{add_posterior_coefficients.dfmodel}}.
 #' @param n_ahead an integer of the forecast horizon.
+#' @param forecast_states character, what a model whose loadings, transition or
+#' volatilities drift does with them over the forecast horizon. \code{"simulate"}
+#' carries each draw's random walks forward, one step per period -- the free loadings
+#' only, the identifying block staying fixed -- so that the forecasts are draws from
+#' the posterior predictive distribution of the estimated model. \code{"hold"} keeps
+#' them at their values in the last sample period, which gives forecasts conditional
+#' on no further drift and narrower intervals, and is what earlier versions of the
+#' package did. If \code{NULL} (default), the value in \code{object$model$forecast_states}
+#' is used, and \code{"simulate"} when there is none. A model with constant loadings,
+#' transition and volatilities is unaffected.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details Unlike a VAR or a VEC, a dynamic factor model needs no out-of-sample
@@ -20,6 +30,12 @@
 #' The factor path is therefore required and is what \code{\link{add_posterior_coefficients.dfmodel}}
 #' stores in element \code{factors}; the forecast cannot be obtained from the
 #' parameters alone.
+#'
+#' Simulating the states forward steps each random walk by the variance of its
+#' innovations: \code{sigma} of \code{lambda} and \code{a} where the coefficients drift,
+#' and of \code{u_sigma_inv} and \code{v_sigma_inv} under stochastic volatility. A
+#' stochastic volatility model fitted with an earlier version of the package lacks the
+#' latter two and stops with an error unless \code{forecast_states = "hold"}.
 #'
 #' @return An object of class 'dfmodel', with element \code{forecast} added to its
 #' \code{posterior}. It holds one row per draw and \eqn{h \times M} columns, the
@@ -48,7 +64,11 @@
 #' model <- add_posterior_forecasts(model, n_ahead = 4)
 #'
 #' @export
-add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, ...){
+add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, forecast_states = NULL, ...){
+
+  if (!is.null(forecast_states)) {
+    object[["model"]][["forecast_states"]] <- match.arg(forecast_states, c("simulate", "hold"))
+  }
 
   if (is.null(object[["posterior"]])) {
     stop("Argument 'object' does not contain posterior draws. Use add_posterior_coefficients first.")

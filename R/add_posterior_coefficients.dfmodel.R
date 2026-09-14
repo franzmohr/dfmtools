@@ -99,9 +99,10 @@ add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL
           stop("Algorithm '", algorithm, "' not supported.")
         }
 
-        # `sigma` is only there where the coefficients drift: it is the variance
-        # of the random walk innovations, one number per coefficient, and it is
-        # a chain like any other.
+        # `sigma` is only there where something drifts: it is the variance of
+        # the random walk innovations -- one number per coefficient where the
+        # coefficients drift, one per series or factor under stochastic
+        # volatility -- and it is a chain like any other.
         for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv")) {
           for (j in c("coeffs", "sigma")) {
             if (!is.null(object[["posterior"]][[i]][[j]])) {

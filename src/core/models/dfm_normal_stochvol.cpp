@@ -5,6 +5,7 @@
 
 #include "core/algorithms/stochvol_ocsn_2007.h"
 #include "core/models/dfm_support.h"
+#include "core/models/forecast_states.h"
 #include "core/models/model_support.h"
 
 #include <algorithm>
@@ -17,6 +18,9 @@ namespace bayests
 namespace
 {
 
+using core::require_state_variances;
+using core::simulates_states;
+using core::step_random_walk;
 using core::accumulate_transition_moments;
 using core::draw_factor_path;
 using core::draw_normal_precision;
@@ -31,8 +35,8 @@ using core::transition_residuals;
 
 /// The terminal period of a precision path, whatever the caller brought.
 ///
-/// The forecast holds the volatility at its last in-sample value, so all it ever
-/// needs is the last block -- and a host that reads only that block out of a file
+/// The forecast starts the volatility from its last in-sample value, so all it
+/// ever needs is the last block -- and a host that reads only that block out of a file
 /// hands over a matrix `width` rows tall rather than `width * tt`. Counting back
 /// from the end covers both without asking which one it was given.
 arma::vec terminal_block(const arma::mat &path, const arma::uword draw, const arma::uword width,
@@ -72,6 +76,8 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
     out.factors = arma::mat(n * tt, iterations);
     out.u_sigma_inv = arma::mat(k * tt, iterations);
     out.v_sigma_inv = arma::mat(n * tt, iterations);
+    out.u_h_sigma = arma::mat(k, iterations);
+    out.v_h_sigma = arma::mat(n, iterations);
 
     // Loadings. The leading N x N block is the identification and is never
     // drawn: ones on the diagonal, zeros above, free below.
@@ -250,6 +256,8 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
             // is the transpose of the tt x k the volatility block works in.
             out.u_sigma_inv.col(draw_pos) = arma::vectorise(arma::trans(u_precision));
             out.v_sigma_inv.col(draw_pos) = arma::vectorise(arma::trans(v_precision));
+            out.u_h_sigma.col(draw_pos) = u_h_sigma;
+            out.v_h_sigma.col(draw_pos) = v_h_sigma;
 
             if (use_a)
             {
@@ -318,11 +326,27 @@ ForecastDraws DfmNormalStochvolSampler::forecast(const DfmNormalStochvolInput &i
     const arma::uword draws = coefficients.iterations();
     arma::mat fcst(h * k, draws);
 
+    // Whether each draw's two log-volatilities are carried over the horizon or
+    // held at the end of the sample: see core/models/forecast_states.h. The
+    // loadings and the transition are constant here, so the volatilities are
+    // all that moves.
+    const bool simulate = simulates_states(input.spec);
+    if (simulate)
+    {
+        require_state_variances(coefficients.u_h_sigma, static_cast<arma::uword>(k), draws,
+                                "the idiosyncratic log-volatilities");
+        require_state_variances(coefficients.v_h_sigma, static_cast<arma::uword>(n), draws,
+                                "the factor log-volatilities");
+    }
+
     // The path carries the p factors the transition needs before the first
     // horizon, so column p + i is horizon i and the lag lookup is one expression
     // at every horizon rather than a split between what is history and what is
     // already forecast.
     arma::mat path(n, p + h);
+
+    // What a simulated forecast carries from one horizon to the next.
+    arma::vec u_h, v_h, u_h_sigma, v_h_sigma;
 
     for (arma::uword draw = 0; draw < draws; draw++)
     {
@@ -331,14 +355,22 @@ ForecastDraws DfmNormalStochvolSampler::forecast(const DfmNormalStochvolInput &i
 
         const arma::mat lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
 
-        // Both volatilities held at the last in-sample period. See the header
-        // for why that is the convention rather than a simulation forward.
-        const arma::vec u_sd = 1.0 / arma::sqrt(terminal_block(
-                                        coefficients.u_sigma_inv, draw,
-                                        static_cast<arma::uword>(k), "u_sigma_inv"));
-        const arma::vec v_sd = 1.0 / arma::sqrt(terminal_block(
-                                        coefficients.v_sigma_inv, draw,
-                                        static_cast<arma::uword>(n), "v_sigma_inv"));
+        // Both volatilities at the last in-sample period: what a held forecast
+        // keeps for every horizon and a simulated one starts from.
+        const arma::vec u_precision = terminal_block(coefficients.u_sigma_inv, draw,
+                                                      static_cast<arma::uword>(k), "u_sigma_inv");
+        const arma::vec v_precision = terminal_block(coefficients.v_sigma_inv, draw,
+                                                      static_cast<arma::uword>(n), "v_sigma_inv");
+        arma::vec u_sd = 1.0 / arma::sqrt(u_precision);
+        arma::vec v_sd = 1.0 / arma::sqrt(v_precision);
+
+        if (simulate)
+        {
+            u_h = -arma::log(u_precision);
+            v_h = -arma::log(v_precision);
+            u_h_sigma = coefficients.u_h_sigma.col(draw);
+            v_h_sigma = coefficients.v_h_sigma.col(draw);
+        }
 
         if (p > 0)
         {
@@ -351,6 +383,16 @@ ForecastDraws DfmNormalStochvolSampler::forecast(const DfmNormalStochvolInput &i
 
         for (int i = 0; i < h; i++)
         {
+            if (simulate)
+            {
+                // Each walk takes its step before the observation it generates:
+                // the factor innovation's volatility, then the series'.
+                step_random_walk(v_h, v_h_sigma, arma::vec());
+                step_random_walk(u_h, u_h_sigma, arma::vec());
+                v_sd = arma::exp(v_h / 2);
+                u_sd = arma::exp(u_h / 2);
+            }
+
             arma::vec f = v_sd % arma::randn<arma::vec>(n);
             for (int j = 1; j <= p; j++)
             {

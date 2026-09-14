@@ -338,14 +338,17 @@ the two omissions in this panel -- adding it buys more than drifting loadings do
 
 ## Forecasting, and what it costs
 
-Neither specification is extrapolated over the forecast horizon. The loadings,
-the transition and both volatilities are held at their last in-sample period,
-which is what the posterior supports: the variance of the state innovations is
-part of the chain rather than something the draws carry forward, so there is
-nothing to run the random walks on with.
+Both specifications carry their drift over the forecast horizon. Each draw starts
+the loadings, the transition and both volatilities from their last in-sample
+values and takes one step of every random walk per quarter, by the innovation
+variances the chain drew for them -- the free loadings only, the identifying
+block staying where it is -- so the intervals include the drift the model allows
+after the sample ends. `add_posterior_forecasts(..., forecast_states = "hold")`
+keeps them at the end of the sample instead, which is the forecast conditional on
+no further drift.
 
-Held rather than extrapolated is still very different from constant, because the
-value being held is the one that ended the sample.
+Starting from the end of the sample is still very different from constant,
+because the value the paths start from is the one that ended the sample.
 
 ```{r forecasts}
 horizon <- 8
@@ -378,9 +381,11 @@ round(cbind(constant = f_constant[, 3] - f_constant[, 1],
 The forecast is of the normalised series, which is why the scale and the centre
 that `create_dfmodel()` left on `data$x` are put back before anything is read as
 a growth rate. The 90% interval from the stochastic volatility model is between a
-quarter and two fifths narrower at every horizon, because the volatility it holds forward is the
-2015 volatility rather than an average of everything since 1959 -- and had the
-sample ended in 2009 the comparison would run the other way.
+quarter and two fifths narrower at every horizon, because the volatility it starts
+from is the 2015 volatility rather than an average of everything since 1959 --
+and had the sample ended in 2009 the comparison would run the other way. The
+volatility's own drift widens that interval from one quarter to the next, which
+is why the gap is closing by the end of the horizon rather than holding still.
 
 The cost of all this is time and mixing. On the sample above the constant model
 takes a second or two, either extension on its own takes something over ten

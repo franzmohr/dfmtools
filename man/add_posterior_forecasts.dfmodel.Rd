@@ -4,13 +4,24 @@
 \alias{add_posterior_forecasts.dfmodel}
 \title{Forecasting Dynamic Factor Models}
 \usage{
-\method{add_posterior_forecasts}{dfmodel}(object, n_ahead = 10, ...)
+\method{add_posterior_forecasts}{dfmodel}(object, n_ahead = 10, forecast_states = NULL, ...)
 }
 \arguments{
 \item{object}{an object of class 'dfmodel', usually, a result of a call to
 \code{\link{add_posterior_coefficients.dfmodel}}.}
 
 \item{n_ahead}{an integer of the forecast horizon.}
+
+\item{forecast_states}{character, what a model whose loadings, transition or
+volatilities drift does with them over the forecast horizon. \code{"simulate"}
+carries each draw's random walks forward, one step per period -- the free loadings
+only, the identifying block staying fixed -- so that the forecasts are draws from
+the posterior predictive distribution of the estimated model. \code{"hold"} keeps
+them at their values in the last sample period, which gives forecasts conditional
+on no further drift and narrower intervals, and is what earlier versions of the
+package did. If \code{NULL} (default), the value in \code{object$model$forecast_states}
+is used, and \code{"simulate"} when there is none. A model with constant loadings,
+transition and volatilities is unaffected.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -36,6 +47,12 @@ conditional mean.
 The factor path is therefore required and is what \code{\link{add_posterior_coefficients.dfmodel}}
 stores in element \code{factors}; the forecast cannot be obtained from the
 parameters alone.
+
+Simulating the states forward steps each random walk by the variance of its
+innovations: \code{sigma} of \code{lambda} and \code{a} where the coefficients drift,
+and of \code{u_sigma_inv} and \code{v_sigma_inv} under stochastic volatility. A
+stochastic volatility model fitted with an earlier version of the package lacks the
+latter two and stops with an error unless \code{forecast_states = "hold"}.
 }
 \examples{
 
