@@ -333,7 +333,7 @@
   already, which is also why those `n` should themselves be slow-moving. The
   restriction is a prior rather than a hard zero; `slow = list(series = ...,
   vinv = ...)` sets the precision it is held at, `1e12` by default, which leaves
-  a loading at zero to eight decimal places.
+  a loading at zero to seven decimal places.
 
   This was previously possible only by writing into `priors$lambda$vinv` at
   hand-computed offsets, which the argument now does.

@@ -73,7 +73,7 @@ having zeroed their observed columns already -- which is also why those
 
 The restriction is a prior, not a hard zero: element \code{vinv} of the list
 form sets the precision it is held at, \code{1e12} by default, which leaves a
-loading at zero to eight decimal places. Nothing stops a series from being
+loading at zero to seven decimal places. Nothing stops a series from being
 slow against one observed variable and not another, but \code{slow} does not
 express that; write into \code{priors$lambda$vinv} directly for it.
 }
