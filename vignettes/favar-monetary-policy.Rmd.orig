@@ -128,6 +128,8 @@ rests on.
 
 ```{r priors}
 model <- add_priors(model, slow = slow)
+
+set.seed(20050201)
 model <- add_initial_values(model)
 ```
 
@@ -136,7 +138,6 @@ is close enough to be exact in practice, and it is worth checking rather than
 assuming.
 
 ```{r estimate}
-set.seed(20050201)
 model <- add_posterior_coefficients(model)
 
 lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
@@ -146,7 +147,7 @@ range(lambda[seq_along(slow), 4])          # slow block, loading on FEDFUNDS
 range(lambda[-seq_along(slow), 4])         # fast block
 ```
 
-The slow block is at zero to eight decimal places while the fast block is not,
+The slow block is at zero to seven decimal places while the fast block is not,
 which is the restriction doing what it was asked to.
 
 ## The shock
