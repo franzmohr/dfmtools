@@ -295,7 +295,7 @@ are wide enough to matter: what the model says is that industrial production's
 exposure fell over the sample, not that it fell by a particular amount. Services
 employment moved the other way. Manufacturing employment ends the sample close to
 where it began and is nowhere near constant in between: its exposure rises into
-the early 1970s, falls through to the mid-1990s and comes back, which is a shape
+the early 1970s, falls through to the early 1990s and comes back, which is a shape
 no summary of the two endpoints would report.
 
 How much drift the data supports is a chain of its own, one number per free
@@ -304,7 +304,7 @@ loading, in `sigma`.
 
 ``` r
 round(sqrt(colMeans(model_tvp$posterior$lambda$sigma)), 3)
-#> [1] 0.023 0.041 0.023 0.027 0.041 0.029 0.022 0.024 0.033
+#> [1] 0.023 0.038 0.025 0.024 0.041 0.029 0.021 0.021 0.036
 ```
 
 A quarter's drift is a couple of hundredths of a loading, which is small period
@@ -356,15 +356,15 @@ total_drift <- function(model) {
 round(cbind(tvp = total_drift(model_tvp), tvp_sv = total_drift(model_both)), 2)
 #>             tvp tvp_sv
 #> PAYEMS     0.00   0.00
-#> GDPC96    -0.39  -0.27
-#> INDPRO    -0.69  -0.20
-#> IPFINAL   -0.26  -0.11
-#> CMRMTSPLx -0.24  -0.05
-#> MANEMP    -0.15   0.06
-#> SRVPRD     0.22   0.24
-#> PCECC96   -0.08  -0.02
-#> GPDIC96   -0.25  -0.06
-#> UNRATE    -0.09  -0.15
+#> GDPC96    -0.38  -0.25
+#> INDPRO    -0.67  -0.20
+#> IPFINAL   -0.24  -0.13
+#> CMRMTSPLx -0.23  -0.07
+#> MANEMP    -0.12   0.04
+#> SRVPRD     0.23   0.26
+#> PCECC96   -0.10  -0.01
+#> GPDIC96   -0.24  -0.06
+#> UNRATE    -0.10  -0.15
 ```
 
 The loadings still fall, and they fall by less. Part of what the
@@ -444,20 +444,20 @@ abline(h = 0, col = "grey80")
 round(cbind(constant = f_constant[, 3] - f_constant[, 1],
             sv = f_sv[, 3] - f_sv[, 1]), 3)
 #>         constant    sv
-#> 2015 Q4    0.024 0.016
-#> 2016 Q1    0.026 0.017
+#> 2015 Q4    0.023 0.017
+#> 2016 Q1    0.027 0.017
 #> 2016 Q2    0.028 0.017
 #> 2016 Q3    0.028 0.017
 #> 2016 Q4    0.029 0.017
-#> 2017 Q1    0.029 0.017
+#> 2017 Q1    0.028 0.017
 #> 2017 Q2    0.028 0.017
-#> 2017 Q3    0.029 0.017
+#> 2017 Q3    0.028 0.017
 ```
 
 The forecast is of the normalised series, which is why the scale and the centre
 that `create_dfmodel()` left on `data$x` are put back before anything is read as
 a growth rate. The 90% interval from the stochastic volatility model is between a
-third and two fifths narrower at every horizon, because the volatility it holds forward is the
+quarter and two fifths narrower at every horizon, because the volatility it holds forward is the
 2015 volatility rather than an average of everything since 1959 -- and had the
 sample ended in 2009 the comparison would run the other way.
 
@@ -481,8 +481,8 @@ rbind(constant = ess(baseline), sv = ess(model_sv),
 #>            5%  50%
 #> constant 1538 2173
 #> sv        288  481
-#> tvp       200 1167
-#> both      406 1965
+#> tvp       347 2548
+#> both      586 2794
 ```
 
 Stochastic volatility costs the most per draw here: the 10000 iterations that

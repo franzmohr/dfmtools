@@ -254,7 +254,7 @@ are wide enough to matter: what the model says is that industrial production's
 exposure fell over the sample, not that it fell by a particular amount. Services
 employment moved the other way. Manufacturing employment ends the sample close to
 where it began and is nowhere near constant in between: its exposure rises into
-the early 1970s, falls through to the mid-1990s and comes back, which is a shape
+the early 1970s, falls through to the early 1990s and comes back, which is a shape
 no summary of the two endpoints would report.
 
 How much drift the data supports is a chain of its own, one number per free
@@ -378,7 +378,7 @@ round(cbind(constant = f_constant[, 3] - f_constant[, 1],
 The forecast is of the normalised series, which is why the scale and the centre
 that `create_dfmodel()` left on `data$x` are put back before anything is read as
 a growth rate. The 90% interval from the stochastic volatility model is between a
-third and two fifths narrower at every horizon, because the volatility it holds forward is the
+quarter and two fifths narrower at every horizon, because the volatility it holds forward is the
 2015 volatility rather than an average of everything since 1959 -- and had the
 sample ended in 2009 the comparison would run the other way.
 
