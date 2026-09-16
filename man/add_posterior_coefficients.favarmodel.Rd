@@ -19,3 +19,14 @@ The model object with the result attached under \code{posterior}.
 \description{
 Runs the Gibbs sampler and attaches the posterior draws.
 }
+\details{
+The internal sampler draws with the seed in
+\code{object$model$seed}, which \code{\link{add_initial_values.favarmodel}}
+sets and \code{\link{add_seed.favarmodel}} replaces. R's random number
+generator is set to that seed, with R's default kinds, for the simulation and
+put back as it was afterwards. A call of \code{set.seed()} between
+\code{add_initial_values()} and this function therefore does not change the
+draws. A model without a seed draws from R's generator as it stands. A
+\code{posterior_function} is called as it is and decides itself what to do
+with the seed.
+}

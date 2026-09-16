@@ -67,27 +67,38 @@ test_that("the error blocks are precisions and stay positive", {
   expect_true(all(object$posterior$v_sigma_inv$coeffs > 0))
 })
 
-test_that("the sampler draws from R's RNG, so set.seed reproduces the draws", {
+test_that("the sampler draws from R's RNG, so a seed reproduces the draws", {
 
   # This is the test that guards the Armadillo wiring: the vendored core reaches
   # Armadillo through bayests/arma.h, which src/Makevars points at
   # RcppArmadillo, and that is what puts Armadillo's RNG on R's. Losing it
-  # compiles, links and runs -- and silently stops honouring set.seed().
+  # compiles, links and runs -- and silently stops honouring the model's seed
+  # and set.seed() alike.
   prep <- prepared_dfm(iterations = 20, burnin = 10, tt = 40, m = 4, n = 2, p = 1)
 
-  set.seed(11)
-  first <- add_posterior_coefficients(prep$object)$posterior
-
-  set.seed(11)
-  second <- add_posterior_coefficients(prep$object)$posterior
-
+  first <- add_posterior_coefficients(add_seed(prep$object, 11))$posterior
+  second <- add_posterior_coefficients(add_seed(prep$object, 11))$posterior
   expect_equal(first, second)
 
-  set.seed(12)
-  third <- add_posterior_coefficients(prep$object)$posterior
-
+  third <- add_posterior_coefficients(add_seed(prep$object, 12))$posterior
   expect_false(isTRUE(all.equal(as.numeric(first$factors$coeffs),
                                as.numeric(third$factors$coeffs))))
+
+  # Without a seed of its own the model draws from R's generator as it stands,
+  # which is the wiring with nothing set on top of it.
+  unseeded <- prep$object
+  unseeded$model$seed <- NULL
+
+  set.seed(11)
+  fourth <- add_posterior_coefficients(unseeded)$posterior
+  set.seed(11)
+  fifth <- add_posterior_coefficients(unseeded)$posterior
+  expect_equal(fourth, fifth)
+
+  set.seed(12)
+  sixth <- add_posterior_coefficients(unseeded)$posterior
+  expect_false(isTRUE(all.equal(as.numeric(fourth$factors$coeffs),
+                               as.numeric(sixth$factors$coeffs))))
 })
 
 test_that("a failed simulation returns the model with error = TRUE", {

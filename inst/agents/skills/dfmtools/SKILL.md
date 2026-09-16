@@ -12,7 +12,11 @@ dfmtools estimates dynamic factor models (DFM)
 and factor augmented VARs (FAVAR), where observed variables `y_t` join the
 factors in the state. It depends on `bvartools`: `library(dfmtools)` attaches
 it, and the steps are bvartools generics with `dfmodel` and `favarmodel` methods.
-The samplers are the C++ core of BayesTS, and `set.seed()` reaches them.
+The samplers are the C++ core of BayesTS. `add_initial_values()` stores the seed
+they draw with in `model$model$seed`, taken from R's generator, so `set.seed()`
+before it makes a script reproducible. `add_seed(model, s)` sets the seed
+directly, and a `set.seed()` after `add_initial_values()` does not change the
+draws.
 
 ```r
 library(dfmtools)

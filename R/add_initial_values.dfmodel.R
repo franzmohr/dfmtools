@@ -67,6 +67,12 @@
 #' burn-in rather than correctness -- the sampler redraws the whole path from the data in its first
 #' iteration, and what is here only conditions that first draw.
 #'
+#' @section Seed:
+#' The function also stores the seed of the posterior simulation as element
+#' \code{seed} of \code{object$model}, unless the model has one already. It is
+#' drawn from R's random number generator, so \code{set.seed()} before this call
+#' makes it reproducible. \code{\link{add_seed.dfmodel}} replaces it.
+#'
 #' @examples
 #'
 #' # Load data
@@ -179,6 +185,13 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
         matrix(.dfm_normal_initial(object$priors$a$mu, object$priors$a$vinv, n_a),
                nrow = n_a, ncol = 1)
     }
+  }
+
+  # The seed of the posterior simulation, unless the model has one already. It is
+  # drawn from R's generator, so set.seed() before this call makes it
+  # reproducible, and add_seed() replaces it afterwards.
+  if (is.null(object[["model"]][["seed"]])) {
+    object[["model"]][["seed"]] <- .draw_model_seed()
   }
 
   return(object)

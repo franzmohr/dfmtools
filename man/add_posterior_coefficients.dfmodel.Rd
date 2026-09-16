@@ -50,6 +50,15 @@ Only the product \eqn{\lambda f_t} is identified, so the leading \eqn{N \times N
 block of the loading matrix is fixed unit lower triangular and is not drawn. Element
 \code{lambda} nevertheless holds the whole \eqn{M \times N} matrix, those fixed ones
 and zeros included, so that a draw is reshaped rather than unpacked.
+
+The internal samplers draw with the seed in \code{object$model$seed}, which
+\code{\link{add_initial_values.dfmodel}} sets and \code{\link{add_seed.dfmodel}}
+replaces. R's random number generator is set to that seed, with R's default
+kinds, for the simulation and put back as it was afterwards. A call of
+\code{set.seed()} between \code{add_initial_values()} and this function
+therefore does not change the draws. A model without a seed draws from R's
+generator as it stands. A \code{posterior_function} is called as it is and
+decides itself what to do with the seed.
 }
 \examples{
 

@@ -34,6 +34,14 @@ start, but the mean is where a chain spends least time getting away from a
 badly conditioned first sweep, and \eqn{Q} is the one block here whose
 conditioning the factor path depends on.
 }
+\section{Seed}{
+
+The function also stores the seed of the posterior simulation as element
+\code{seed} of \code{object$model}, unless the model has one already. It is
+drawn from R's random number generator, so \code{set.seed()} before this call
+makes it reproducible. \code{\link{add_seed.favarmodel}} replaces it.
+}
+
 \examples{
 
 data("bem_dfmdata")

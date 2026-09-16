@@ -10,6 +10,7 @@
 #' @importFrom bvartools add_posterior_coefficients
 #' @importFrom bvartools add_posterior_forecasts
 #' @importFrom bvartools add_posterior_loglik
+#' @importFrom bvartools add_seed
 #' @importFrom bvartools irf
 #' @importFrom bvartools fevd
 ## usethis namespace: end

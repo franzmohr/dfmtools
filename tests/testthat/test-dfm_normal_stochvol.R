@@ -160,26 +160,35 @@ test_that("add_posterior_coefficients returns a volatility path per draw", {
   }
 })
 
-test_that("the sampler draws from R's RNG, so set.seed reproduces the draws", {
+test_that("the sampler draws from R's RNG, so a seed reproduces the draws", {
 
   # The same guard the gamma model's tests carry, for the second binding: losing
   # the RcppArmadillo wiring compiles, links, runs and silently stops honouring
-  # set.seed().
+  # the model's seed and set.seed() alike.
   prep <- prepared_dfm_sv(iterations = 20, burnin = 10, tt = 40, m = 4, n = 2, p = 1)
 
-  set.seed(11)
-  first <- add_posterior_coefficients(prep$object)$posterior
-
-  set.seed(11)
-  second <- add_posterior_coefficients(prep$object)$posterior
-
+  first <- add_posterior_coefficients(add_seed(prep$object, 11))$posterior
+  second <- add_posterior_coefficients(add_seed(prep$object, 11))$posterior
   expect_equal(first, second)
 
-  set.seed(12)
-  third <- add_posterior_coefficients(prep$object)$posterior
-
+  third <- add_posterior_coefficients(add_seed(prep$object, 12))$posterior
   expect_false(isTRUE(all.equal(as.numeric(first$u_sigma_inv$coeffs),
                                 as.numeric(third$u_sigma_inv$coeffs))))
+
+  # Without a seed of its own the model draws from R's generator as it stands.
+  unseeded <- prep$object
+  unseeded$model$seed <- NULL
+
+  set.seed(11)
+  fourth <- add_posterior_coefficients(unseeded)$posterior
+  set.seed(11)
+  fifth <- add_posterior_coefficients(unseeded)$posterior
+  expect_equal(fourth, fifth)
+
+  set.seed(12)
+  sixth <- add_posterior_coefficients(unseeded)$posterior
+  expect_false(isTRUE(all.equal(as.numeric(fourth$u_sigma_inv$coeffs),
+                                as.numeric(sixth$u_sigma_inv$coeffs))))
 })
 
 test_that("the estimated volatility follows a break in the data", {
