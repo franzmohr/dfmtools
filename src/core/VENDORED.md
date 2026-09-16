@@ -7,6 +7,11 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
+The copy is **BayesTS 0.2.0**: tag `v0.2.0`, commit `c27d516`, archived at
+<https://doi.org/10.5281/zenodo.22765348>. Upstream commits after the tag that
+change nothing under `include/` or `src/core/` do not move it off that version;
+a refresh that copies anything newer has to update this paragraph.
+
 The same arrangement bvartools uses, and for the same reason: there is one
 implementation of each sampler, upstream, and the R packages are translation
 layers over it. `src/DfmNormalGamma.cpp`, `src/DfmNormalStochvol.cpp`,
