@@ -1,5 +1,26 @@
 # dfmtools 0.1.0
 
+* **Every model carries the seed of its posterior simulation, as in
+  bvartools.** `add_initial_values()` on class `dfmodel` or `favarmodel` stores
+  a seed, drawn from R's random number generator, as `object$model$seed` unless
+  the model has one, and `add_seed()`, the bvartools generic, gains methods for
+  both classes that replace it. The internal samplers of
+  `add_posterior_coefficients()` draw with that seed: R's generator is set to
+  it, with R's default kinds, for the simulation and put back as it was
+  afterwards. **This changes the draws of existing code**, not their
+  distribution: a `set.seed()` between `add_initial_values()` and
+  `add_posterior_coefficients()` no longer has an effect, and earlier results
+  do not reproduce draw for draw. `set.seed()` before `add_initial_values()`
+  still makes a script reproducible, and a model now draws the same whichever
+  worker of a cluster simulates it. A model without a seed draws from R's
+  generator as before, and so do the forecasts of `add_posterior_forecasts()`.
+
+    bvartools' `add_seed()` method for a `modellist` numbers only the VAR and
+    VEC models in it, so the models of a list returned by `create_dfmodel()` or
+    `create_favarmodel()` are given their seeds one at a time;
+    `add_initial_values()` on such a list already gives each its own. The
+    `add_seed()` generic needs a bvartools that has it.
+
 * **Vendored BayesTS core refreshed: forecasts carry the drift forward.**
   `add_posterior_forecasts()` forecast the three dynamic factor models whose
   states drift -- `error = "sv"`, `tvp = TRUE`, and both -- from each draw's

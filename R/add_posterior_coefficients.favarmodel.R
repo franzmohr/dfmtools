@@ -6,6 +6,16 @@
 #' @param posterior_function a function that estimates the model. Used to override the built-in sampler.
 #' @param ... not used.
 #'
+#' @details The internal sampler draws with the seed in
+#' \code{object$model$seed}, which \code{\link{add_initial_values.favarmodel}}
+#' sets and \code{\link{add_seed.favarmodel}} replaces. R's random number
+#' generator is set to that seed, with R's default kinds, for the simulation and
+#' put back as it was afterwards. A call of \code{set.seed()} between
+#' \code{add_initial_values()} and this function therefore does not change the
+#' draws. A model without a seed draws from R's generator as it stands. A
+#' \code{posterior_function} is called as it is and decides itself what to do
+#' with the seed.
+#'
 #' @return The model object with the result attached under \code{posterior}.
 #'
 #' @export
@@ -37,7 +47,8 @@ add_posterior_coefficients.favarmodel <- function(object, posterior_function = N
       stop("Algorithm '", algorithm, "' not supported.")
     }
 
-    object <- .FavarNormalWishartCoefficients(object)
+    object <- .with_model_seed(object[["model"]][["seed"]],
+                               .FavarNormalWishartCoefficients(object))
 
     # Every block is a chain like any other, so every one becomes an mcmc
     # object -- the convention the dynamic factor models here already set.

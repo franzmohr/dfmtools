@@ -20,6 +20,12 @@
 #' badly conditioned first sweep, and \eqn{Q} is the one block here whose
 #' conditioning the factor path depends on.
 #'
+#' @section Seed:
+#' The function also stores the seed of the posterior simulation as element
+#' \code{seed} of \code{object$model}, unless the model has one already. It is
+#' drawn from R's random number generator, so \code{set.seed()} before this call
+#' makes it reproducible. \code{\link{add_seed.favarmodel}} replaces it.
+#'
 #' @return The model object with an additional element \code{initial}.
 #'
 #' @examples
@@ -72,6 +78,13 @@ add_initial_values.favarmodel <- function(object, method = "prior", ...) {
   # The precision of the state innovations, at the mean of its Wishart prior.
   object[["initial"]][["vinv"]] <-
     object[["priors"]][["v"]][["df"]] * object[["priors"]][["v"]][["scale"]]
+
+  # The seed of the posterior simulation, unless the model has one already. It is
+  # drawn from R's generator, so set.seed() before this call makes it
+  # reproducible, and add_seed() replaces it afterwards.
+  if (is.null(object[["model"]][["seed"]])) {
+    object[["model"]][["seed"]] <- .draw_model_seed()
+  }
 
   return(object)
 }

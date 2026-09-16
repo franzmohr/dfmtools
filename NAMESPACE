@@ -10,6 +10,8 @@ S3method(add_posterior_loglik,dfmodel)
 S3method(add_posterior_loglik,favarmodel)
 S3method(add_priors,dfmodel)
 S3method(add_priors,favarmodel)
+S3method(add_seed,dfmodel)
+S3method(add_seed,favarmodel)
 S3method(fevd,favarmodel)
 S3method(irf,favarmodel)
 export(create_dfmodel)
@@ -22,6 +24,7 @@ importFrom(bvartools,
   add_posterior_forecasts,
   add_posterior_loglik,
   add_priors,
+  add_seed,
   fevd,
   irf
 )

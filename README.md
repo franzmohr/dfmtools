@@ -117,8 +117,6 @@ negative of the common component — and the sampler stays in it. `method =
 
 
 ``` r
-set.seed(6023)
-
 model <- add_posterior_coefficients(model)
 
 vapply(model$posterior, function(x) paste(dim(x$coeffs), collapse = " x "), "")
@@ -297,8 +295,10 @@ VEC models. `src/core/VENDORED.md` records which files are copied, how that set
 is computed from the `#include` graph, and the one modification applied on the
 way in.
 
-The practical consequence for a user is that `set.seed()` reaches the sampler:
-Armadillo's RNG is R's own.
+The practical consequence for a user is that the sampler draws from R's own
+generator, which Armadillo's RNG is wired to. `add_initial_values()` stores the
+seed it draws with in `model$model$seed`, taken from that generator, so the
+`set.seed()` at the top reproduces the draws; `add_seed()` replaces the seed.
 
 ## With an AI coding assistant
 
