@@ -1,5 +1,20 @@
 # dfmtools 0.1.0
 
+* **Lists of models can be simulated on several cores.** A `modellist` that
+  `create_dfmodel()` or `create_favarmodel()` returns for more than one lag
+  order or number of factors is simulated by the list methods of bvartools,
+  and their argument `cores` works for it: `add_posterior_coefficients()`,
+  `add_posterior_forecasts()` and `add_posterior_loglik()` share the models out
+  over that many worker processes, which load dfmtools for the methods they
+  need. Coefficient draws are seeded per model and equal those of a process
+  running with one thread, as the workers do; for a factor augmented VAR that
+  can differ in the last digits from a session running several. Forecasts
+  draw from worker streams that `set.seed()` reproduces. Needs the bvartools
+  whose workers load the packages of the models' methods; with earlier
+  development versions a list of these models stopped with "no applicable
+  method". `tests/testthat/test-parallel.R` runs both kinds of list on two
+  workers.
+
 * **Every model carries the seed of its posterior simulation, as in
   bvartools.** `add_initial_values()` on class `dfmodel` or `favarmodel` stores
   a seed, drawn from R's random number generator, as `object$model$seed` unless
@@ -15,11 +30,11 @@
   worker of a cluster simulates it. A model without a seed draws from R's
   generator as before, and so do the forecasts of `add_posterior_forecasts()`.
 
-    bvartools' `add_seed()` method for a `modellist` numbers only the VAR and
-    VEC models in it, so the models of a list returned by `create_dfmodel()` or
-    `create_favarmodel()` are given their seeds one at a time;
-    `add_initial_values()` on such a list already gives each its own. The
-    `add_seed()` generic needs a bvartools that has it.
+    `add_seed()` on a list returned by `create_dfmodel()` or
+    `create_favarmodel()` gives its models the seeds `seed`, `seed + 1`, ...,
+    and `add_initial_values()` on such a list already gives each its own. The
+    `add_seed()` generic needs a bvartools that has it, and seeding the models
+    of a list one whose list method counts the models of other packages.
 
 * **Vendored BayesTS core refreshed: forecasts carry the drift forward.**
   `add_posterior_forecasts()` forecast the three dynamic factor models whose

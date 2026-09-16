@@ -123,6 +123,18 @@ test_that("a posterior_function is called as it is, seed included", {
   expect_identical(seen, 9L)
 })
 
+test_that("add_seed() gives the models of a list consecutive seeds", {
+  dfm <- add_seed(add_priors(create_dfmodel(x = sim_dfm()$x, p = 1:2, n = 1:2,
+                                            iterations = 20, burnin = 10)), 100)
+  expect_identical(vapply(dfm, function(m) m$model$seed, integer(1)), 100:103)
+
+  sample <- make_favar_sample(tt = 60, n_x = 5)
+  favar <- add_seed(add_priors(create_favarmodel(x = sample$x, y = sample$yts,
+                                                 p = 1:2, n = 1,
+                                                 iterations = 20, burnin = 10)), 7)
+  expect_identical(vapply(favar, function(m) m$model$seed, integer(1)), 7:8)
+})
+
 test_that("add_initial_values() gives every model of a list a seed of its own", {
   models <- create_dfmodel(x = sim_dfm()$x, p = 1:2, n = 1:2,
                            iterations = 20, burnin = 10)

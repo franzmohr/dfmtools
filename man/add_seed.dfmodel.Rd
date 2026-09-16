@@ -42,12 +42,13 @@ change them. \code{add_posterior_forecasts()} is not seeded this way and
 draws from R's generator as it stands.
 
 The generic is that of \pkg{bvartools}, together with its methods for lists
-of models; see \code{\link[bvartools]{add_seed}}. Its method for a
-'modellist' numbers only the VAR and VEC models in the list, so the models of
-a 'modellist' returned by \code{\link{create_dfmodel}} or
-\code{\link{create_favarmodel}} are given their seeds one at a time, as in the
-example. \code{add_initial_values()} on such a list already gives each of
-them a seed of its own.
+of models; see \code{\link[bvartools]{add_seed}}. A 'modellist' returned by
+\code{\link{create_dfmodel}} or \code{\link{create_favarmodel}} gets the
+seeds \code{seed}, \code{seed + 1}, \ldots, one per model, as in the example.
+\code{add_initial_values()} on such a list already gives each of its models a
+seed of its own. Seeding the models of a list needs a \pkg{bvartools} whose
+list method counts the models of other packages; earlier development versions
+left them without a seed.
 }
 \examples{
 data("bem_dfmdata")
@@ -61,12 +62,10 @@ model <- add_initial_values(model)
 model <- add_seed(model, 20260916)
 model$model$seed
 
-# The models of a list, one seed each
+# The models of a list get the seeds 100 and 101
 models <- create_dfmodel(x = bem_dfmdata, p = 1:2, n = 1,
                          iterations = 20, burnin = 10)
 models <- add_priors(models)
-for (i in seq_along(models)) {
-  models[[i]] <- add_seed(models[[i]], 100 + i)
-}
+models <- add_seed(models, 100)
 
 }

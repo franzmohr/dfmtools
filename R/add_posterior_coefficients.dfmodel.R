@@ -35,6 +35,17 @@
 #' generator as it stands. A \code{posterior_function} is called as it is and
 #' decides itself what to do with the seed.
 #'
+#' A list of models, which \code{\link{create_dfmodel}} returns for more than
+#' one lag order or number of factors, is simulated by the list method of
+#' \pkg{bvartools}. Its argument \code{cores} shares the models out over that
+#' many worker processes, which load this package for the methods they need;
+#' see \code{\link[bvartools]{add_posterior_coefficients.modellist}}. Each model
+#' draws with its own seed, so the draws do not depend on the number of workers.
+#' The workers run with one thread, so the draws equal those of a session doing
+#' the same, and may differ in the last digits from those of a session running
+#' several. \code{add_posterior_forecasts()} and \code{add_posterior_loglik()}
+#' take \code{cores} for a list as well.
+#'
 #' @return An object of class 'dfmodel', with element \code{posterior} added. It
 #' contains the elements \code{lambda}, \code{factors}, \code{a}, \code{u_sigma_inv}
 #' and \code{v_sigma_inv}, each a list with element \code{coeffs} holding an object of

@@ -29,4 +29,15 @@ put back as it was afterwards. A call of \code{set.seed()} between
 draws. A model without a seed draws from R's generator as it stands. A
 \code{posterior_function} is called as it is and decides itself what to do
 with the seed.
+
+A list of models, which \code{\link{create_favarmodel}} returns for more
+than one lag order or number of factors, is simulated by the list method of
+\pkg{bvartools}. Its argument \code{cores} shares the models out over that
+many worker processes, which load this package for the methods they need;
+see \code{\link[bvartools]{add_posterior_coefficients.modellist}}. Each model
+draws with its own seed, so the draws do not depend on the number of workers,
+but the workers run with one thread, and the draws of a factor augmented VAR
+equal those of a session doing the same rather than of one running several.
+\code{add_posterior_forecasts()} and \code{add_posterior_loglik()} take
+\code{cores} for a list as well.
 }

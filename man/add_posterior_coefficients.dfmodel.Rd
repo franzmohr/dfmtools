@@ -59,6 +59,17 @@ kinds, for the simulation and put back as it was afterwards. A call of
 therefore does not change the draws. A model without a seed draws from R's
 generator as it stands. A \code{posterior_function} is called as it is and
 decides itself what to do with the seed.
+
+A list of models, which \code{\link{create_dfmodel}} returns for more than
+one lag order or number of factors, is simulated by the list method of
+\pkg{bvartools}. Its argument \code{cores} shares the models out over that
+many worker processes, which load this package for the methods they need;
+see \code{\link[bvartools]{add_posterior_coefficients.modellist}}. Each model
+draws with its own seed, so the draws do not depend on the number of workers.
+The workers run with one thread, so the draws equal those of a session doing
+the same, and may differ in the last digits from those of a session running
+several. \code{add_posterior_forecasts()} and \code{add_posterior_loglik()}
+take \code{cores} for a list as well.
 }
 \examples{
 

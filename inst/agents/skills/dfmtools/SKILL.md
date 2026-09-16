@@ -109,7 +109,11 @@ FAVAR has impulse responses and variance decompositions. Model comparison on a
 DFM works from `add_posterior_loglik()` directly.
 
 **9. Vectors make lists.** `p = 1:2` or `n = 1:3` give a `'modellist'` that
-every step maps over.
+every step maps over. `add_posterior_coefficients(models, cores = 4)`, and the
+same argument of `add_posterior_forecasts()` and `add_posterior_loglik()`,
+simulate the models of such a list on four worker processes. Each model draws
+with its own seed, so the coefficient draws do not depend on the number of
+workers; `add_seed(models, s)` numbers the list from `s`.
 
 ## FAVAR specifics
 
