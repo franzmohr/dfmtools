@@ -5,6 +5,7 @@
 # dfmtools
 
 [![R-CMD-check](https://github.com/franzmohr/dfmtools/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franzmohr/dfmtools/actions/workflows/R-CMD-check.yaml)
+[![Codecov test coverage](https://codecov.io/gh/franzmohr/dfmtools/graph/badge.svg)](https://app.codecov.io/gh/franzmohr/dfmtools)
 <!-- The Zenodo DOI badge belongs directly below, once the first release is
 archived; .github/CONTRIBUTING.md has the release procedure. -->
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
