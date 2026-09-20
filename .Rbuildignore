@@ -19,3 +19,4 @@
 ^src/.*\.so$
 ^src/.*\.dll$
 ^src/.*\.dylib$
+^CLAUDE\.md$
