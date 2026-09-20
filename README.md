@@ -63,6 +63,17 @@ remotes::install_github("franzmohr/dfmtools")
 A C++17 compiler and GNU make are required to build from source — Rtools on
 Windows, the Xcode command line tools on macOS.
 
+## Development
+
+`main` carries the currently released version and moves only when a release is
+made. Development happens on `dev`: a change starts on its own branch off `dev`
+and is merged back into `dev`, and `dev` reaches `main` as part of cutting a
+release. The development version therefore installs from that branch:
+
+```r
+remotes::install_github("franzmohr/dfmtools@dev")
+```
+
 ## Usage
 
 A model is specified, given priors and starting values, and then drawn from.
