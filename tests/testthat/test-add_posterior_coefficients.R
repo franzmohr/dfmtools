@@ -136,3 +136,46 @@ test_that("a user-supplied posterior_function is used instead of the internal on
 
   expect_true(object$posterior$marker)
 })
+
+test_that("the sampler reports its progress only when asked", {
+
+  # The reporter behind this had been in the package since the C++ core
+  # arrived, with nothing to turn it on: every binding built it silent.
+  object <- prepared_dfm(iterations = 40, burnin = 20)$object
+
+  quiet <- capture.output(silent <- add_posterior_coefficients(object))
+  loud <- capture.output(reported <- add_posterior_coefficients(object, verbose = TRUE))
+
+  expect_length(quiet, 0L)
+  expect_true(any(grepl("Progress", loud)))
+  expect_true(any(grepl("100%", loud)))
+
+  # Reporting is not sampling: the same model gives the same draws either way.
+  expect_identical(as.matrix(silent$posterior$lambda$coeffs),
+                   as.matrix(reported$posterior$lambda$coeffs))
+
+  # A model says whether it was watched, and a quiet one carries no field.
+  expect_true(reported$model$verbose)
+  expect_null(silent$model$verbose)
+
+  expect_error(add_posterior_coefficients(object, verbose = "yes"),
+               "must be TRUE or FALSE")
+  expect_error(add_posterior_coefficients(object, verbose = c(TRUE, TRUE)),
+               "must be TRUE or FALSE")
+})
+
+test_that("a factor augmented VAR reports its progress the same way", {
+
+  sim <- make_favar_sample(tt = 60, n_x = 5)
+  model <- add_initial_values(add_priors(
+    create_favarmodel(x = sim$x, y = sim$yts, p = 1, n = 1, normalize_x = FALSE,
+                      iterations = 40, burnin = 20)))
+
+  # Assigned inside capture.output(), or the returned model is printed and
+  # counted as output.
+  expect_length(capture.output(quiet <- add_posterior_coefficients(model)), 0L)
+  expect_true(any(grepl("Progress",
+                        capture.output(loud <- add_posterior_coefficients(model, verbose = TRUE)))))
+  expect_identical(as.matrix(quiet$posterior$lambda$coeffs),
+                   as.matrix(loud$posterior$lambda$coeffs))
+})

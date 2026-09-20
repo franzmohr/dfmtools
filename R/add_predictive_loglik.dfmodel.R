@@ -42,7 +42,16 @@
 #'
 #' Fewer realised periods than the horizon is not an error. The periods that are
 #' there are the ones that can be scored, and the rest of the forecast is left
-#' alone.
+#' alone -- including none of them, where a model was estimated to the end of a
+#' series and forecasts past what was ever observed, in which case the object
+#' comes back untouched.
+#'
+#' A missing value ends what can be scored rather than being skipped over. Each
+#' row of \code{test_sample} is matched to its own period, so a gap does not
+#' shift the rows after it, and the scored stretch is the unbroken run from the
+#' first forecast period: the density of period \eqn{T + i} conditions on what
+#' was realised before it, and a period that was not observed leaves the filter
+#' nothing to condition the next one on.
 #'
 #' A factor augmented VAR is not scored: there is no
 #' \code{add_predictive_loglik} method for class \code{'favarmodel'} and no
@@ -163,21 +172,34 @@ add_predictive_loglik.dfmodel <- function(object, test_sample = NULL, ...) {
   tsp_train <- stats::tsp(object[["data"]][["x"]])
   tsp_test <- stats::tsp(test_sample)
 
-  test_sample <- stats::na.omit(as.matrix(test_sample))
+  # unclass() so that what follows is the matrix na.omit and not the time
+  # series one. na.omit.ts() refuses an interior NA outright and a wholly
+  # missing sample with "all times contain an NA" rather than calling it no
+  # periods to score -- and where it drops leading NAs it advances the tsp of
+  # what it returns, while `tsp_test` above still holds the original start. The
+  # periods below were then labelled one step early, silently, and every
+  # realised value was scored against the wrong horizon.
+  test_sample <- unclass(as.matrix(test_sample))
   if (NCOL(test_sample) != m) {
     stop("Argument 'test_sample' has ", NCOL(test_sample), " columns, but the model has ", m,
          " observed series.")
   }
 
+  # Each row keeps the period it came from, so dropping one cannot move
+  # another.
   if (!is.null(tsp_train) && !is.null(tsp_test)) {
     starts_at <- tsp_train[2] + 1 / tsp_train[3]
-    periods <- seq(from = tsp_test[1], by = 1 / tsp_test[3], length.out = nrow(test_sample))
-    keep <- periods >= starts_at - 1e-8
-    if (!any(keep)) {
-      return(NULL)
-    }
-    test_sample <- test_sample[keep, , drop = FALSE]
+    periods <- seq(from = tsp_test[1], by = 1 / tsp_test[3],
+                   length.out = nrow(test_sample))
+    test_sample <- test_sample[periods >= starts_at - 1e-8, , drop = FALSE]
   }
+
+  # The score is a filter run forward a period at a time, so what it can use is
+  # an unbroken run from the first forecast period. A row with a missing value
+  # ends that run rather than being skipped: skipping would hand the filter the
+  # next period's observation as though it were this one's.
+  test_sample <- test_sample[cumprod(stats::complete.cases(test_sample)) > 0, ,
+                             drop = FALSE]
 
   if (nrow(test_sample) == 0) {
     return(NULL)

@@ -62,3 +62,20 @@
   }
   return(invisible(value))
 }
+
+# Whether the sampler reports its progress. NULL for silence, which is how a
+# model that was not watched says so and keeps `model` free of a field that
+# means nothing.
+#
+# The reporter behind this has been in the package since the C++ core arrived
+# -- percentages, throttled to one line per percent -- with nothing to turn it
+# on. A chain of 20000 draws over 196 series takes minutes and said nothing.
+.check_verbose <- function(verbose) {
+  if (!is.logical(verbose) || length(verbose) != 1 || is.na(verbose)) {
+    stop("Argument 'verbose' must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!verbose) {
+    return(NULL)
+  }
+  return(TRUE)
+}

@@ -4,7 +4,12 @@
 \alias{add_posterior_coefficients.dfmodel}
 \title{Posterior Simulation of Model Coefficients}
 \usage{
-\method{add_posterior_coefficients}{dfmodel}(object, posterior_function = NULL, ...)
+\method{add_posterior_coefficients}{dfmodel}(
+  object,
+  posterior_function = NULL,
+  verbose = FALSE,
+  ...
+)
 }
 \arguments{
 \item{object}{an object of class 'dfmodel', usually, a result of a call to
@@ -13,6 +18,12 @@ and \code{\link{add_initial_values.dfmodel}}.}
 
 \item{posterior_function}{the function to be applied to the model in argument \code{object}.
 If \code{NULL} (default), internal functions are used.}
+
+\item{verbose}{logical indicating whether the sampler should report its
+progress. Defaults to \code{FALSE}. A chain of the default length on a
+panel of any size takes minutes and said nothing at all until this was
+added; \code{TRUE} prints a percentage, at most once per percent, to the
+console. Ignored by a \code{posterior_function}, which is called as it is.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -69,7 +80,13 @@ draws with its own seed, so the draws do not depend on the number of workers.
 The workers run with one thread, so the draws equal those of a session doing
 the same, and may differ in the last digits from those of a session running
 several. \code{add_posterior_forecasts()} and \code{add_posterior_loglik()}
-take \code{cores} for a list as well.
+take \code{cores} for a list as well -- but the guarantee above is about
+\emph{these} draws and does not extend to them. Only this function is
+seeded. \code{add_posterior_forecasts()} draws from R's generator as it
+stands, so its draws depend on the state that generator is in, and on a
+cluster that is the state of whichever worker took the model: the same list
+forecast on one worker and on four does not give the same paths.
+\code{set.seed()} immediately before the call is what fixes them.
 
 
 A simulation that fails does not stop: the model comes back as it went in

@@ -4,12 +4,21 @@
 \alias{add_posterior_coefficients.favarmodel}
 \title{Estimate a Factor Augmented VAR}
 \usage{
-\method{add_posterior_coefficients}{favarmodel}(object, posterior_function = NULL, ...)
+\method{add_posterior_coefficients}{favarmodel}(
+  object,
+  posterior_function = NULL,
+  verbose = FALSE,
+  ...
+)
 }
 \arguments{
 \item{object}{an object of class \code{'favarmodel'}.}
 
 \item{posterior_function}{a function that estimates the model. Used to override the built-in sampler.}
+
+\item{verbose}{logical indicating whether the sampler should report its
+progress. Defaults to \code{FALSE}; see
+\code{\link{add_posterior_coefficients.dfmodel}}.}
 
 \item{...}{not used.}
 }
@@ -39,7 +48,13 @@ draws with its own seed, so the draws do not depend on the number of workers,
 but the workers run with one thread, and the draws of a factor augmented VAR
 equal those of a session doing the same rather than of one running several.
 \code{add_posterior_forecasts()} and \code{add_posterior_loglik()} take
-\code{cores} for a list as well.
+\code{cores} for a list as well -- but the guarantee above is about
+\emph{these} draws and does not extend to them. Only this function is
+seeded. \code{add_posterior_forecasts()} draws from R's generator as it
+stands, so its draws depend on the state that generator is in, and on a
+cluster that is the state of whichever worker took the model: the same list
+forecast on one worker and on four does not give the same paths.
+\code{set.seed()} immediately before the call is what fixes them.
 
 
 A simulation that fails does not stop: the model comes back as it went in

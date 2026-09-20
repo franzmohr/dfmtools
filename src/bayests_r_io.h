@@ -71,6 +71,15 @@ inline arma::mat draws_to_r(const arma::mat &draws)
 /// horizon or holds them at the last sample period: `model$forecast_states`,
 /// written by add_posterior_forecasts() when it was given one, and `simulate`
 /// -- the core's own default -- when it is absent.
+/// Whether the sampler reports its progress: `model$verbose`, written by
+/// add_posterior_coefficients() when it was asked to. Read from the model list
+/// rather than taken as an argument, the way `forecast_states` is, so that no
+/// binding signature has to change for it.
+inline bool read_verbose(const Rcpp::List &model)
+{
+  return has(model, "verbose") && Rcpp::as<bool>(model["verbose"]);
+}
+
 inline bayests::ForecastStates read_forecast_states(const Rcpp::List &model)
 {
   return has(model, "forecast_states")

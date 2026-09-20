@@ -58,7 +58,16 @@ change the rotation and the scale the factors were estimated under.
 
 Fewer realised periods than the horizon is not an error. The periods that are
 there are the ones that can be scored, and the rest of the forecast is left
-alone.
+alone -- including none of them, where a model was estimated to the end of a
+series and forecasts past what was ever observed, in which case the object
+comes back untouched.
+
+A missing value ends what can be scored rather than being skipped over. Each
+row of \code{test_sample} is matched to its own period, so a gap does not
+shift the rows after it, and the scored stretch is the unbroken run from the
+first forecast period: the density of period \eqn{T + i} conditions on what
+was realised before it, and a period that was not observed leaves the filter
+nothing to condition the next one on.
 
 A factor augmented VAR is not scored: there is no
 \code{add_predictive_loglik} method for class \code{'favarmodel'} and no
