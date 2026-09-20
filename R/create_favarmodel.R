@@ -99,6 +99,12 @@ create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
   if (!"ts" %in% class(y)) {
     stop("Argument 'y' must be an object of class 'ts'.")
   }
+
+  # Both blocks as named matrices before anything counts their columns. A
+  # univariate observed block is the one a caller is most likely to pass as a
+  # plain vector, and it used to travel as far as the sampler.
+  x <- .as_named_ts_matrix(x, "x")
+  y <- .as_named_ts_matrix(y, "y")
   .check_model_integer(p, "p", 0)
   .check_model_integer(n, "n", 1)
   .check_whole_number(iterations, "iterations", 1)

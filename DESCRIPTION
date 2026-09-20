@@ -1,12 +1,12 @@
 Package: dfmtools
 Title: Bayesian Inference of Dynamic Factor Models
 Version: 0.1.0
-Date: 2026-09-13
+Date: 2026-09-20
 Authors@R: person(c("Franz", "X."), "Mohr", email = "franz.x.mohr@outlook.com", role = c("aut","cre"), comment = c(ORCID = "0009-0003-8890-7781"))
 Description: Assists in the set-up of algorithms for Bayesian inference of dynamic factor models and factor augmented vector autoregressive models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
 License: GPL (>= 2)
 Depends:
-    R (>= 3.5),
+    R (>= 4.0),
     bvartools (>= 0.3.0.9000)
 Imports: coda, methods, Rcpp (>= 0.12.14), stats
 LinkingTo: Rcpp, RcppArmadillo

@@ -33,7 +33,7 @@ repository-code: "https://github.com/franzmohr/dfmtools"
 url: "https://github.com/franzmohr/dfmtools"
 license: GPL-2.0-or-later
 version: 0.1.0
-date-released: "2026-09-13"
+date-released: "2026-09-20"
 keywords:
   - r
   - bayesian-inference

@@ -179,3 +179,38 @@ test_that("add_initial_values says when the priors are missing", {
   object <- create_dfmodel(x = sim$x, p = 1, n = 1, iterations = 10, burnin = 5)
   expect_error(add_initial_values(object), "Did you call add_priors")
 })
+
+test_that("a univariate block passed as a vector reaches the sampler as a matrix", {
+
+  # create_favarmodel() left `x` and `y` as they arrived, so a plain ts vector
+  # for the observed block got as far as the binding, came back as Rcpp's
+  # "Not a matrix." and was turned into error = TRUE -- after which the only
+  # thing the caller saw was that there were no draws.
+  set.seed(5)
+  tt <- 60
+  panel <- stats::ts(matrix(stats::rnorm(tt * 5), tt, 5), start = c(1990, 1), frequency = 4)
+  observed <- stats::ts(stats::rnorm(tt), start = c(1990, 1), frequency = 4)
+
+  model <- create_favarmodel(x = panel, y = observed, p = 1, n = 1,
+                             normalize_x = FALSE, iterations = 20, burnin = 10)
+
+  expect_true(is.matrix(model$data$y))
+  expect_identical(colnames(model$data$y), "y")
+  expect_equal(stats::tsp(model$data$y), stats::tsp(observed))
+  expect_identical(model$model$n_obs, 1L)
+
+  drawn <- add_posterior_coefficients(add_initial_values(add_priors(model)))
+  expect_false(isTRUE(drawn$error))
+  expect_s3_class(drawn$posterior$lambda$coeffs, "mcmc")
+
+  # A panel whose columns R never named keeps the names it is given here, and
+  # they are what irf() reports.
+  bare <- panel
+  dimnames(bare) <- NULL
+  named <- create_favarmodel(x = bare, y = observed, p = 1, n = 1,
+                             normalize_x = FALSE, iterations = 20, burnin = 10)
+  expect_identical(colnames(named$data$x), paste0("x", 1:5))
+
+  # A ts matrix built without names already carries R's own, and is left alone.
+  expect_identical(colnames(model$data$x), colnames(panel))
+})

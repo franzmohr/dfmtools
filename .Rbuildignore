@@ -8,7 +8,6 @@
 ^\.github$
 ^LICENSE\.md$
 ^\.Rhistory$
-^CONTRIBUTING\.md$
 ^CITATION\.cff$
 ^\.zenodo\.json$
 ^vignettes/.*\.orig$
