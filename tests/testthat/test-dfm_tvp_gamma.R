@@ -218,9 +218,9 @@ test_that("forecasts and the log likelihood take their own slice of the path", {
 
   # The forecast holds the coefficients at their last in-sample period, so the
   # binding cuts the path to it; the shape is the constant model's.
-  expect_equal(dim(object$posterior$forecast), c(20, 5 * sim$m))
-  expect_true(all(is.finite(object$posterior$forecast)))
-  expect_s3_class(object$posterior$forecast, "mcmc")
+  expect_equal(dim(object$posterior$forecast$forecasts), c(20, 5 * sim$m))
+  expect_true(all(is.finite(object$posterior$forecast$forecasts)))
+  expect_s3_class(object$posterior$forecast$forecasts, "mcmc")
 
   # The log likelihood scores every period under its own loadings and takes the
   # whole path.

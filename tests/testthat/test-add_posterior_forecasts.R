@@ -7,9 +7,9 @@ test_that("add_posterior_forecasts returns h x M columns per draw", {
                                     n_ahead = 3)
 
   expect_s3_class(object, "dfmodel")
-  expect_s3_class(object$posterior$forecast, "mcmc")
-  expect_equal(dim(object$posterior$forecast), c(20L, 3L * 4L))
-  expect_true(all(is.finite(object$posterior$forecast)))
+  expect_s3_class(object$posterior$forecast$forecasts, "mcmc")
+  expect_equal(dim(object$posterior$forecast$forecasts), c(20L, 3L * 4L))
+  expect_true(all(is.finite(object$posterior$forecast$forecasts)))
 
   # The horizon is the whole of what the sampler needs: a dynamic factor model
   # has no out-of-sample regressors to supply.
@@ -35,7 +35,7 @@ test_that("the forecast columns are the variables within a horizon", {
   set.seed(25)
   object <- add_posterior_forecasts(add_posterior_coefficients(object), n_ahead = 4)
 
-  scale <- matrix(colMeans(abs(object$posterior$forecast)), nrow = 3, ncol = 4)
+  scale <- matrix(colMeans(abs(object$posterior$forecast$forecasts)), nrow = 3, ncol = 4)
 
   # Row 3 of that M x h reshape is the inflated variable, and it is the largest
   # of the three at every horizon. Note that variable 1 is not a useful
@@ -53,10 +53,10 @@ test_that("forecasts are reproducible under set.seed", {
   drawn <- add_posterior_coefficients(prep$object)
 
   set.seed(23)
-  first <- add_posterior_forecasts(drawn, n_ahead = 4)$posterior$forecast
+  first <- add_posterior_forecasts(drawn, n_ahead = 4)$posterior$forecast$forecasts
 
   set.seed(23)
-  second <- add_posterior_forecasts(drawn, n_ahead = 4)$posterior$forecast
+  second <- add_posterior_forecasts(drawn, n_ahead = 4)$posterior$forecast$forecasts
 
   expect_equal(first, second)
 })
@@ -105,11 +105,11 @@ test_that("drifting states are simulated forward unless the forecast holds them"
     set.seed(42)
     held <- add_posterior_forecasts(drawn, n_ahead = 4, forecast_states = "hold")
 
-    expect_true(all(is.finite(simulated$posterior$forecast)))
+    expect_true(all(is.finite(simulated$posterior$forecast$forecasts)))
     expect_identical(held$model$forecast_states, "hold")
     # From the same seed, the drift is the one thing separating the two.
-    expect_false(isTRUE(all.equal(unclass(simulated$posterior$forecast),
-                                  unclass(held$posterior$forecast))), label = name)
+    expect_false(isTRUE(all.equal(unclass(simulated$posterior$forecast$forecasts),
+                                  unclass(held$posterior$forecast$forecasts))), label = name)
   }
 
   # A posterior drawn before the volatility steps were stored forecasts only

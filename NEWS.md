@@ -1,5 +1,35 @@
 # dfmtools 0.1.0
 
+* **A forecast can be scored against what its horizon realised.**
+  `add_predictive_loglik()` takes a fitted model with a forecast and a test
+  sample, and adds `posterior$forecast$loglik`: one row per draw and one column
+  per scored period, each column the log density of that period's realised
+  observation given the ones before it. The log of the mean of a column's draws
+  is the one step ahead predictive density, and those sum over the periods to
+  the log predictive likelihood of the realised stretch. What the model was
+  scored against is kept in `data$test$x`, so the same call can be made again
+  without the sample.
+
+  A factor model is scored by **filtering**, which is not how bvartools scores a
+  VAR. A VAR reaches its realised history through its regressors, so its score
+  is its own pointwise log-likelihood on another sample. A factor model's
+  history reaches the density through the latent factors, and its in-sample
+  log-likelihood conditions on the factors the sampler drew -- of which there
+  are none outside the sample. So at every scored period the realised
+  observation updates the distribution of the factors before the next is
+  predicted, and the column is that period's prediction error decomposition.
+  Where the loadings, the transition or the volatilities drift they take a step
+  per scored period, in the order `add_posterior_forecasts()` steps them; only
+  the free elements of the loading matrix walk, the identifying block being what
+  fixes the rotation and the scale.
+
+* **`posterior$forecast` is a group rather than a matrix of draws.** The
+  simulated paths are now at `posterior$forecast$forecasts`, with the score
+  beside them at `posterior$forecast$loglik`. **This breaks code that reads
+  `posterior$forecast` as a matrix.** It is the layout bvartools uses and the
+  one the model file writes as `/posterior/forecast`, and the members are named
+  after what they hold because all of them are draws.
+
 * **Lists of models can be simulated on several cores.** A `modellist` that
   `create_dfmodel()` or `create_favarmodel()` returns for more than one lag
   order or number of factors is simulated by the list methods of bvartools,

@@ -44,6 +44,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// DfmNormalGammaScore
+Rcpp::List DfmNormalGammaScore(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalGammaScore(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalGammaScore(object));
+    return rcpp_result_gen;
+END_RCPP
+}
 // DfmNormalStochvolCoefficients
 Rcpp::List DfmNormalStochvolCoefficients(Rcpp::List object);
 RcppExport SEXP _dfmtools_DfmNormalStochvolCoefficients(SEXP objectSEXP) {
@@ -74,6 +85,17 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
     rcpp_result_gen = Rcpp::wrap(DfmNormalStochvolLogLik(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmNormalStochvolScore
+Rcpp::List DfmNormalStochvolScore(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmNormalStochvolScore(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmNormalStochvolScore(object));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -110,6 +132,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// DfmTvpGammaScore
+Rcpp::List DfmTvpGammaScore(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpGammaScore(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpGammaScore(object));
+    return rcpp_result_gen;
+END_RCPP
+}
 // DfmTvpStochvolCoefficients
 Rcpp::List DfmTvpStochvolCoefficients(Rcpp::List object);
 RcppExport SEXP _dfmtools_DfmTvpStochvolCoefficients(SEXP objectSEXP) {
@@ -140,6 +173,17 @@ BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
     rcpp_result_gen = Rcpp::wrap(DfmTvpStochvolLogLik(object));
+    return rcpp_result_gen;
+END_RCPP
+}
+// DfmTvpStochvolScore
+Rcpp::List DfmTvpStochvolScore(Rcpp::List object);
+RcppExport SEXP _dfmtools_DfmTvpStochvolScore(SEXP objectSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type object(objectSEXP);
+    rcpp_result_gen = Rcpp::wrap(DfmTvpStochvolScore(object));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -181,15 +225,19 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
     {"_dfmtools_DfmNormalGammaForecasts", (DL_FUNC) &_dfmtools_DfmNormalGammaForecasts, 1},
     {"_dfmtools_DfmNormalGammaLogLik", (DL_FUNC) &_dfmtools_DfmNormalGammaLogLik, 1},
+    {"_dfmtools_DfmNormalGammaScore", (DL_FUNC) &_dfmtools_DfmNormalGammaScore, 1},
     {"_dfmtools_DfmNormalStochvolCoefficients", (DL_FUNC) &_dfmtools_DfmNormalStochvolCoefficients, 1},
     {"_dfmtools_DfmNormalStochvolForecasts", (DL_FUNC) &_dfmtools_DfmNormalStochvolForecasts, 1},
     {"_dfmtools_DfmNormalStochvolLogLik", (DL_FUNC) &_dfmtools_DfmNormalStochvolLogLik, 1},
+    {"_dfmtools_DfmNormalStochvolScore", (DL_FUNC) &_dfmtools_DfmNormalStochvolScore, 1},
     {"_dfmtools_DfmTvpGammaCoefficients", (DL_FUNC) &_dfmtools_DfmTvpGammaCoefficients, 1},
     {"_dfmtools_DfmTvpGammaForecasts", (DL_FUNC) &_dfmtools_DfmTvpGammaForecasts, 1},
     {"_dfmtools_DfmTvpGammaLogLik", (DL_FUNC) &_dfmtools_DfmTvpGammaLogLik, 1},
+    {"_dfmtools_DfmTvpGammaScore", (DL_FUNC) &_dfmtools_DfmTvpGammaScore, 1},
     {"_dfmtools_DfmTvpStochvolCoefficients", (DL_FUNC) &_dfmtools_DfmTvpStochvolCoefficients, 1},
     {"_dfmtools_DfmTvpStochvolForecasts", (DL_FUNC) &_dfmtools_DfmTvpStochvolForecasts, 1},
     {"_dfmtools_DfmTvpStochvolLogLik", (DL_FUNC) &_dfmtools_DfmTvpStochvolLogLik, 1},
+    {"_dfmtools_DfmTvpStochvolScore", (DL_FUNC) &_dfmtools_DfmTvpStochvolScore, 1},
     {"_dfmtools_FavarNormalWishartCoefficients", (DL_FUNC) &_dfmtools_FavarNormalWishartCoefficients, 1},
     {"_dfmtools_FavarNormalWishartForecasts", (DL_FUNC) &_dfmtools_FavarNormalWishartForecasts, 1},
     {"_dfmtools_FavarNormalWishartLogLik", (DL_FUNC) &_dfmtools_FavarNormalWishartLogLik, 1},

@@ -55,7 +55,7 @@ Forecasts need only the horizon:
 
 ```r
 model <- add_posterior_forecasts(model, n_ahead = 4)
-fc <- model$posterior$forecast
+fc <- model$posterior$forecast$forecasts
 stopifnot(all(dim(fc) == c(500, 4 * m)))
 
 series_1 <- fc[, seq(1, 4 * m, by = m)]    # series 1 at horizons 1 to 4
@@ -116,7 +116,7 @@ n_state <- 2 + n_obs
 stopifnot(all(dim(favar$posterior$lambda$coeffs) == c(500, k * n_state)))
 
 favar <- add_posterior_forecasts(favar, n_ahead = 4)
-stopifnot(all(dim(favar$posterior$forecast) == c(500, 4 * (k + n_obs))))
+stopifnot(all(dim(favar$posterior$forecast$forecasts) == c(500, 4 * (k + n_obs))))
 ```
 
 An impulse is an element of the state, and a response any observable. Under

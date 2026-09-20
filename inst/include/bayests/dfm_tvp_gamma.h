@@ -112,6 +112,23 @@ public:
     /// Requires `draws.factors`.
     arma::mat log_likelihood(const DfmTvpGammaInput &input,
                              const DfmTvpGammaDraws &draws) const;
+
+    /// The log predictive density of what the horizon realised, draws x scored
+    /// periods -- one row per posterior draw, one column per period of
+    /// `input.test.y`.
+    ///
+    /// A factor model is scored by filtering rather than by evaluating a
+    /// likelihood on another sample: its history reaches the density through
+    /// the latent factors, so at every scored period the realised observation
+    /// updates their distribution before the next is predicted. See
+    /// core/models/factor_score.h for the recursion.
+    ///
+    /// The states take their steps per scored period in the order the forecast
+    /// takes them, and only the free elements of Lambda walk -- the identifying
+    /// block is fixed and stays where it is. Under `hold` nothing steps and the
+    /// last in-sample period serves every scored one.
+    arma::mat predictive_log_density(const DfmTvpGammaInput &input,
+                                     const DfmTvpGammaDraws &draws) const;
 };
 
 } // namespace bayests

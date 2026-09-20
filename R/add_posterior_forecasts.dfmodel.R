@@ -103,7 +103,8 @@ add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, forecast_state
     stop("Algorithm '", algorithm, "' not supported.")
   }
 
-  object[["posterior"]][["forecast"]] <- .mcmc_draws(object[["model"]], object[["posterior"]][["forecast"]])
+  object[["posterior"]][["forecast"]][["forecasts"]] <-
+    .mcmc_draws(object[["model"]], object[["posterior"]][["forecast"]][["forecasts"]])
 
   class(object) <- class_of_object
 

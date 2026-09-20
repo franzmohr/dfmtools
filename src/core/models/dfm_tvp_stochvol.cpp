@@ -7,6 +7,7 @@
 #include "core/algorithms/stochvol_ocsn_2007.h"
 #include "core/models/dfm_support.h"
 #include "core/models/forecast_states.h"
+#include "core/models/factor_score.h"
 #include "core/models/model_support.h"
 
 #include <algorithm>
@@ -613,6 +614,138 @@ arma::mat DfmTvpStochvolSampler::log_likelihood(const DfmTvpStochvolInput &input
     }
 
     return loglik;
+}
+
+arma::mat DfmTvpStochvolSampler::predictive_log_density(
+    const DfmTvpStochvolInput &input, const DfmTvpStochvolDraws &coefficients) const
+{
+    const int k = input.spec.k;
+    const int n = input.spec.n_factors;
+    const int p = input.spec.p;
+    const bool use_a = input.use_a();
+    const bool simulate = simulates_states(input.spec);
+    const int n_lambda = input.spec.n_lambda();
+    const arma::uword draws = coefficients.iterations();
+
+    if (!coefficients.has_factors())
+    {
+        throw std::invalid_argument("posterior draws of the factors are missing; a factor model "
+                                    "is scored by filtering on from them");
+    }
+    if (coefficients.lambda.n_elem == 0)
+    {
+        throw std::invalid_argument("posterior draws of lambda are missing");
+    }
+    if (coefficients.lambda.n_rows != static_cast<arma::uword>(k) * n)
+    {
+        throw std::invalid_argument(
+            "scoring a time-varying model starts from the last in-sample period, so lambda is "
+            "expected at " + std::to_string(k * n) + " rows, got " +
+            std::to_string(coefficients.lambda.n_rows));
+    }
+    if (use_a && !coefficients.has_a())
+    {
+        throw std::invalid_argument("the factors have a transition of order " +
+                                    std::to_string(p) + " but posterior draws of a are missing");
+    }
+    if (simulate)
+    {
+        if (n_lambda > 0)
+        {
+            require_state_variances(coefficients.lambda_sigma,
+                                    static_cast<arma::uword>(n_lambda), draws, "the loadings");
+        }
+        if (use_a)
+        {
+            require_state_variances(coefficients.a_sigma, coefficients.a.n_rows, draws,
+                                    "the transition");
+        }
+        require_state_variances(coefficients.u_h_sigma, static_cast<arma::uword>(k), draws,
+                                "the log-volatilities of the series");
+        require_state_variances(coefficients.v_h_sigma, static_cast<arma::uword>(n), draws,
+                                "the log-volatilities of the factor innovations");
+    }
+
+    const int tt = static_cast<int>(input.train.periods(k));
+
+    // Carried from one scored period to the next, and stepped in the order the
+    // forecast steps them so that a file scored and a file forecast move through
+    // the same states.
+    arma::mat lambda;
+    arma::mat a_mat;
+    arma::vec a_state, a_sigma, lambda_sigma, u_h, v_h, u_h_sigma, v_h_sigma;
+
+    const auto step = [&](const arma::uword draw, const int i, core::FactorPeriod &out) {
+        if (i == 0)
+        {
+            lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
+            if (use_a)
+            {
+                a_mat = arma::reshape(coefficients.a.col(draw), n, n * p);
+            }
+            else
+            {
+                a_mat = arma::zeros<arma::mat>(n, n * (p > 0 ? p : 0));
+            }
+            if (p > 0)
+            {
+                const arma::mat drawn = arma::reshape(coefficients.factors.col(draw), n, tt);
+                out.start = drawn.tail_cols(p);
+            }
+            const arma::vec u_precision = terminal_block(coefficients.u_sigma_inv, draw,
+                                                         static_cast<arma::uword>(k), "u_sigma_inv");
+            const arma::vec v_precision = terminal_block(coefficients.v_sigma_inv, draw,
+                                                         static_cast<arma::uword>(n), "v_sigma_inv");
+            out.u_var = 1.0 / u_precision;
+            out.v_var = 1.0 / v_precision;
+
+            if (simulate)
+            {
+                if (n_lambda > 0)
+                {
+                    lambda_sigma = coefficients.lambda_sigma.col(draw);
+                }
+                if (use_a)
+                {
+                    a_state = coefficients.a.col(draw);
+                    a_sigma = coefficients.a_sigma.col(draw);
+                }
+                u_h = -arma::log(terminal_block(coefficients.u_sigma_inv, draw,
+                                                static_cast<arma::uword>(k), "u_sigma_inv"));
+                v_h = -arma::log(terminal_block(coefficients.v_sigma_inv, draw,
+                                                static_cast<arma::uword>(n), "v_sigma_inv"));
+                u_h_sigma = coefficients.u_h_sigma.col(draw);
+                v_h_sigma = coefficients.v_h_sigma.col(draw);
+            }
+        }
+
+        if (simulate)
+        {
+            // The transition and the factor innovation's volatility, which
+            // produce the factor, then the loadings and the series' volatility,
+            // which read the series off it. Only Lambda's free elements walk:
+            // the identifying block is fixed and step_free_loadings() leaves it
+            // where it is.
+            if (use_a)
+            {
+                step_random_walk(a_state, a_sigma, arma::vec());
+                a_mat = arma::reshape(a_state, n, n * p);
+            }
+            step_random_walk(v_h, v_h_sigma, arma::vec());
+            if (n_lambda > 0)
+            {
+                step_free_loadings(lambda, lambda_sigma);
+            }
+            step_random_walk(u_h, u_h_sigma, arma::vec());
+            out.v_var = arma::exp(v_h);
+            out.u_var = arma::exp(u_h);
+        }
+
+        out.lambda = lambda;
+        out.transition = p > 0 ? a_mat : arma::mat();
+    };
+
+    return core::score_factor_forecast(input.spec, input.test.y, draws, step);
 }
 
 } // namespace bayests

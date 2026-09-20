@@ -210,8 +210,8 @@ Rcpp::List FavarNormalWishartForecasts(Rcpp::List object) {
     bayests::FavarNormalWishartSampler().forecast(input, draws, reporter);
 
   Rcpp::List posterior = object["posterior"];
-  posterior.push_back(draws_to_r(forecast.values), "forecast");
-  object["posterior"] = posterior;
+  object["posterior"] = with_forecast_member(posterior, "forecasts",
+                                            draws_to_r(forecast.values));
 
   return object;
 }

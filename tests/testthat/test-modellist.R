@@ -58,9 +58,9 @@ test_that("forecasts and the log-likelihood dispatch over a modellist", {
   expect_s3_class(object, "modellist")
 
   for (i in seq_along(object)) {
-    expect_equal(dim(object[[i]]$posterior$forecast), c(20L, 3L * 4L), info = i)
+    expect_equal(dim(object[[i]]$posterior$forecast$forecasts), c(20L, 3L * 4L), info = i)
     expect_equal(dim(object[[i]]$posterior$loglik), c(20L, 40L), info = i)
-    expect_true(all(is.finite(object[[i]]$posterior$forecast)), info = i)
+    expect_true(all(is.finite(object[[i]]$posterior$forecast$forecasts)), info = i)
     expect_true(all(is.finite(object[[i]]$posterior$loglik)), info = i)
   }
 

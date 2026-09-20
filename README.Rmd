@@ -206,7 +206,7 @@ posterior predictive distribution rather than a conditional mean.
 ```{r forecast}
 model <- add_posterior_forecasts(model, n_ahead = 8)
 
-dim(model$posterior$forecast)
+dim(model$posterior$forecast$forecasts)
 ```
 
 The horizons are stacked within a row in the variable order of the sample, so
@@ -215,7 +215,7 @@ reshaping a draw to $M \times h$ puts the variables in the rows:
 ```{r forecast-gdp}
 gdp <- which(colnames(model$data$x) == "GDPC96")
 
-fc <- t(apply(model$posterior$forecast[, seq(gdp, 8 * model$model$m,
+fc <- t(apply(model$posterior$forecast$forecasts[, seq(gdp, 8 * model$model$m,
                                             by = model$model$m)],
               2, quantile, probs = c(0.1, 0.5, 0.9)))
 rownames(fc) <- paste0("h = ", 1:8)

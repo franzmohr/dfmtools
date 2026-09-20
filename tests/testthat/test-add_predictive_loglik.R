@@ -1,0 +1,131 @@
+# Scoring a forecast against what its horizon realised.
+#
+# A factor model is scored by filtering: each column of
+# posterior$forecast$loglik is the density of that period's realised
+# observation given the ones before it, the latent factors having been updated
+# by each in turn. What the tests here pin is the shape it comes back in, that
+# the realised values reach it, and that the model carries what it was scored
+# against so the same call can be made again without them.
+
+# A fitted model with a forecast, and the periods held back from it.
+scored_setup <- function(n_ahead = 3, tvp = FALSE, iterations = 20, burnin = 10) {
+  sim <- sim_dfm(tt = 44)
+  train <- stats::window(sim$x, end = c(1989, 4))
+  test <- stats::window(sim$x, start = c(1990, 1))
+
+  object <- create_dfmodel(x = train, p = sim$p, n = sim$n, tvp = tvp,
+                           iterations = iterations, burnin = burnin)
+  object <- if (tvp) {
+    add_priors(object,
+               lambda = tvp_prior(vinv = 0.02, shape = 4, rate = 0.05),
+               a = tvp_prior(vinv = 0.03, shape = 5, rate = 0.06))
+  } else {
+    add_priors(object)
+  }
+  object <- add_initial_values(object)
+  set.seed(24)
+  object <- add_posterior_coefficients(object)
+  object <- add_posterior_forecasts(object, n_ahead = n_ahead)
+
+  list(object = object, test = test, sim = sim)
+}
+
+test_that("a forecast is scored against the periods its horizon realised", {
+  fit <- scored_setup()
+  scored <- add_predictive_loglik(fit$object, test_sample = fit$test)
+  loglik <- scored[["posterior"]][["forecast"]][["loglik"]]
+
+  expect_s3_class(loglik, "mcmc")
+  # One row per draw and one column per scored period, as every other block of
+  # the posterior is laid out.
+  expect_identical(dim(loglik), c(20L, 3L))
+  expect_true(all(is.finite(loglik)))
+
+  # The paths are still there beside it: the two are members of one group.
+  expect_true(all(c("forecasts", "loglik") %in%
+                    names(scored[["posterior"]][["forecast"]])))
+})
+
+test_that("a scored model carries what it was scored against", {
+  fit <- scored_setup()
+  scored <- add_predictive_loglik(fit$object, test_sample = fit$test)
+  realised <- scored[["data"]][["test"]][["x"]]
+
+  expect_identical(dim(realised), c(3L, as.integer(fit$sim$m)))
+  expect_equal(as.numeric(realised),
+               as.numeric(stats::window(fit$test, end = c(1990, 3))))
+
+  # And is scored again from them, to the same numbers, without the sample.
+  again <- add_predictive_loglik(scored)
+  expect_s3_class(again[["posterior"]][["forecast"]][["loglik"]], "mcmc")
+  expect_equal(as.numeric(again[["posterior"]][["forecast"]][["loglik"]]),
+               as.numeric(scored[["posterior"]][["forecast"]][["loglik"]]))
+})
+
+test_that("the realised values reach the density", {
+  fit <- scored_setup()
+  first <- add_predictive_loglik(fit$object, test_sample = fit$test)
+
+  moved <- fit$test
+  moved[1, ] <- moved[1, ] + 5
+  second <- add_predictive_loglik(fit$object, test_sample = moved)
+
+  a <- unclass(first[["posterior"]][["forecast"]][["loglik"]])
+  b <- unclass(second[["posterior"]][["forecast"]][["loglik"]])
+
+  expect_false(isTRUE(all.equal(a[, 1], b[, 1])))
+  # And the column after it, which conditions on the period that moved: that is
+  # what filtering means and what a score without the update would miss.
+  expect_false(isTRUE(all.equal(a[, 2], b[, 2])))
+})
+
+test_that("fewer realised periods than the horizon are scored on their own", {
+  fit <- scored_setup(n_ahead = 4)
+  scored <- add_predictive_loglik(fit$object,
+                                  test_sample = stats::window(fit$test, end = c(1990, 2)))
+
+  expect_identical(ncol(scored[["posterior"]][["forecast"]][["loglik"]]), 2L)
+})
+
+test_that("a model with nothing to score against is refused", {
+  fit <- scored_setup()
+  expect_error(add_predictive_loglik(fit$object), "carries none in data")
+
+  wide <- fit$object
+  wide[["data"]][["test"]][["x"]] <- cbind(fit$test, fit$test[, 1])[1:3, , drop = FALSE]
+  expect_error(add_predictive_loglik(wide), "columns, but the model has")
+
+  long <- fit$object
+  long[["data"]][["test"]][["x"]] <- as.matrix(fit$test)
+  expect_error(add_predictive_loglik(long), "more than the 3 this model forecasts")
+})
+
+test_that("a model without a forecast cannot be scored", {
+  sim <- sim_dfm(tt = 44)
+  object <- create_dfmodel(x = sim$x, p = sim$p, n = sim$n, iterations = 20, burnin = 10)
+  object <- add_posterior_coefficients(add_initial_values(add_priors(object)))
+
+  expect_error(add_predictive_loglik(object, test_sample = sim$x), "no forecast horizon")
+})
+
+test_that("a model whose states drift is scored under them", {
+  fit <- scored_setup(tvp = TRUE)
+  scored <- add_predictive_loglik(fit$object, test_sample = fit$test)
+  loglik <- scored[["posterior"]][["forecast"]][["loglik"]]
+
+  expect_identical(dim(loglik), c(20L, 3L))
+  expect_true(all(is.finite(loglik)))
+
+  # Holding the states is a different model from letting them drift, so it is a
+  # different score. The states are drawn, hence the seed on either side.
+  held <- fit$object
+  held[["model"]][["forecast_states"]] <- "hold"
+  set.seed(5)
+  drifting <- add_predictive_loglik(fit$object, test_sample = fit$test)
+  set.seed(5)
+  holding <- add_predictive_loglik(held, test_sample = fit$test)
+
+  expect_false(isTRUE(all.equal(
+    unclass(drifting[["posterior"]][["forecast"]][["loglik"]]),
+    unclass(holding[["posterior"]][["forecast"]][["loglik"]]))))
+})
