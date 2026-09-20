@@ -79,3 +79,32 @@
   }
   return(TRUE)
 }
+
+# A time series as a named matrix, with its tsp intact.
+#
+# A univariate series arrives as a vector and everything downstream wants a
+# matrix, so the conversion has to be assigned back: naming a vector is an
+# error rather than a no-op, `as.matrix()` drops the `tsp`, hence the copy
+# either side of it, and `scale()` would drop a vector's while keeping a
+# matrix's. create_dfmodel() has always done this; create_favarmodel() did not,
+# so a plain `ts` vector passed as its observed block reached the binding as a
+# vector, came back as Rcpp's "Not a matrix." and was turned into `error = TRUE`
+# -- after which the only thing the caller saw was that there were no draws.
+#
+# Keyed on the column names rather than on `dimnames` as a whole, so that a
+# matrix which has row names but no column names is named here as well instead
+# of carrying empty names through to the output. A `ts` matrix built without
+# names already has R's own "Series 1" and is left alone.
+.as_named_ts_matrix <- function(x, prefix) {
+
+  if (!is.null(colnames(x))) {
+    return(x)
+  }
+
+  tsp_temp <- stats::tsp(x)
+  x <- stats::ts(as.matrix(x))
+  stats::tsp(x) <- tsp_temp
+  colnames(x) <- if (NCOL(x) == 1) prefix else paste0(prefix, seq_len(NCOL(x)))
+
+  return(x)
+}

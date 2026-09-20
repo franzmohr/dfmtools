@@ -1,5 +1,24 @@
 # dfmtools 0.1.0
 
+* **A univariate block passed as a plain vector broke a factor augmented VAR.**
+  `create_favarmodel()` left `x` and `y` as they arrived, so a `ts` vector --
+  which is what a single observed variable is, unless a caller thought to keep
+  it a one-column matrix -- reached the binding as a vector and came back as
+  Rcpp's `Not a matrix.`, which `add_posterior_coefficients()` turned into
+  `error = TRUE`. All the caller then saw was that there were no draws.
+  `create_dfmodel()` has always converted; both now use the same helper, which
+  keeps the `tsp` and names columns that R never named.
+
+* `Depends` requires `R (>= 4.0)` rather than `(>= 3.5)`. `src/Makevars` sets
+  `CXX_STD = CXX17` and 3.5 predates a toolchain that reliably honours it, so
+  the old floor was a claim nothing tested -- the check matrix goes back only
+  to `oldrel-1`.
+
+* `Date` in `DESCRIPTION` and `date-released` in `CITATION.cff` are current and
+  agree, as `.github/CONTRIBUTING.md` asks of them, and `.Rbuildignore` no
+  longer names a `CONTRIBUTING.md` that has not been at the top level for some
+  time.
+
 * **A test sample with a missing period was scored against the wrong periods.**
   `add_predictive_loglik()` dropped incomplete rows with `na.omit()`, which on a
   time series is `na.omit.ts()`: where it drops leading `NA`s it advances the
