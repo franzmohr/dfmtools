@@ -1,5 +1,41 @@
 # dfmtools 0.1.0
 
+* **Vendored BayesTS core refreshed: a scored forecast keeps its filter positive
+  semi-definite.** `add_predictive_loglik()` on class `dfmodel` could stop with
+  "the one step ahead forecast variance of a scored period is not positive
+  definite" on input there was nothing wrong with, on some toolchains and not
+  others. The filter the score runs updated its state covariance in the short
+  form `P - K F K'`, a difference of two positive semi-definite matrices. The
+  innovation variance of a transition of order above one is singular -- it
+  carries the factor variances in its leading block and zeros elsewhere -- so
+  the lagged blocks of that covariance are never refreshed and rounding error
+  accumulates in them instead of being flooded out, until the matrix drifts
+  indefinite and the check rejects a forecast variance that is mathematically
+  fine. Whether the drift crosses zero depends on which BLAS rounds which way,
+  which is why upstream's Windows job found it and its two others did not. The
+  update is now the Joseph form, `(I - K Z) P (I - K Z)' + K R K'`, a sum of two
+  positive semi-definite terms, and the density is evaluated through a Cholesky
+  of the forecast variance rather than an LU determinant and a general solve.
+
+    **Scores change by a rounding error** and nothing else does. The four
+    dynamic factor samplers were fitted from a pinned seed against the package
+    built before and after the refresh, through the coefficients, the pointwise
+    log likelihood, a three-step forecast and the score of it: every
+    `posterior$forecast$loglik` moved in its last bit, by at most 2.9e-16
+    relative, and every coefficient draw, forecast path and pointwise log
+    likelihood is bit-identical. The factor augmented VAR is untouched, having
+    no score to compute.
+
+    The refresh takes the core to upstream `7d7c6ca`, which is BayesTS 0.3.0
+    and that fix. What 0.3.0 itself adds is a pair of discounted time varying
+    VAR and VEC models, which are not vendored here and reach this package only
+    as declarations in `bayests/inputs.h`, `priors.h`, `results.h` and `spec.h`
+    that no sampler here reads. The vendored set is still the same 35 files, so
+    `inst/COPYRIGHTS` lists the same names -- though `src/core/VENDORED.md` had
+    gone on calling the copy BayesTS 0.2.0 through the two refreshes before this
+    one, and now records the commit it is actually at and the three files those
+    refreshes added.
+
 * **A forecast can be scored against what its horizon realised.**
   `add_predictive_loglik()` takes a fitted model with a forecast and a test
   sample, and adds `posterior$forecast$loglik`: one row per draw and one column

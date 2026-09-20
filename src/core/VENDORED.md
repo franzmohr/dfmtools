@@ -7,10 +7,22 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS 0.2.0**: tag `v0.2.0`, commit `c27d516`, archived at
-<https://doi.org/10.5281/zenodo.22765348>. Upstream commits after the tag that
-change nothing under `include/` or `src/core/` do not move it off that version;
-a refresh that copies anything newer has to update this paragraph.
+The copy is **BayesTS 0.3.0 plus one commit**: `7d7c6ca`, which is the 0.3.0
+release -- the version in upstream's `CMakeLists.txt` and `CHANGELOG.md` -- and
+the fix to `factor_score.h` that followed it. That release is not tagged or
+archived yet, so there is no version DOI to name here; the concept DOI
+<https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
+whenever one is cut. The last archived release is 0.2.0,
+<https://doi.org/10.5281/zenodo.22765348>, which this copy is past.
+
+Upstream commits that change nothing under `include/` or `src/core/` do not move
+the copy off that commit; a refresh that copies anything newer has to update this
+paragraph. Nothing enforces that -- the script compares the vendored *files* and
+`inst/COPYRIGHTS`, never this prose -- and it has gone stale once already: the
+refreshes that brought `forecast_states.h` and then the forecast score left the
+paragraph claiming `v0.2.0` while the files were a release's worth of commits
+past it. So check it against the upstream `git log` on the way out, as part of
+the refresh rather than after it.
 
 The same arrangement bvartools uses, and for the same reason: there is one
 implementation of each sampler, upstream, and the R packages are translation
@@ -29,9 +41,10 @@ are a plain rectangle.
 ## Which files, and why not all of them
 
 Only what the five factor models reach. This package has those five samplers;
-upstream has twenty, and compiling the other fifteen would cost a minute of build
-time and a larger shared object for code that is never called. bvartools mirrors
-the whole core because it uses fourteen of them, which is a different trade.
+upstream has twenty-two, and compiling the other seventeen would cost a minute of
+build time and a larger shared object for code that is never called. bvartools
+mirrors the whole core because it uses fifteen of them, which is a different
+trade.
 
 **`FavarNormalWishart` is now taken.** A factor augmented VAR is a factor model
 -- it reaches `dfm_support.h` and the band sampler like the four above it -- so
@@ -71,7 +84,14 @@ the transition path and which no constant-coefficient model reaches.
 `DfmTvpStochvol` grew it by two, its own, having nothing left to reach for that
 the three before it had not already brought. `FavarNormalWishart` grew it by
 five: its own two, `favar_support.h`, and `wishart.{h,cpp}`, which no factor
-model with a diagonal transition precision reaches. Thirty-two now.
+model with a diagonal transition precision reaches. Thirty-two at that point.
+
+Three have arrived since, none of them a sampler: `forecast_states.h` with the
+refresh that carries a model's drift over the forecast horizon, and
+`factor_score.h` and `predictive_score.h` with `predictive_log_density()`, which
+is how a forecast is scored against what its periods realised. **Thirty-five
+now**, and that is the number `inst/COPYRIGHTS` lists and the refresh script
+counts.
 
 The set is *computed* rather than listed. `tools/update-bayests-core.R` starts
 from
