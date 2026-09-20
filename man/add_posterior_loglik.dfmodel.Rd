@@ -32,7 +32,10 @@ them can report without a filtering pass per draw. The marginal log-likelihood
 would need a Kalman filter over the sample for every draw and is a different number.
 
 The layout is the one \code{waic} and \code{loo} expect: draws along the rows,
-observations along the columns.
+observations along the columns. It is a \code{\link[coda]{mcmc}} object, as
+every other block of draws in this package is, so a thinned model's
+log-likelihood carries the same draw labels as its coefficients; \code{waic}
+and \code{loo} take it as the matrix it is.
 }
 \examples{
 

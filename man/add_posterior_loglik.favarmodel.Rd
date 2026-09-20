@@ -12,8 +12,29 @@
 \item{...}{not used.}
 }
 \value{
-The model object with the result attached under \code{posterior}.
+The model object with the result attached under \code{posterior}, as
+element \code{loglik}: a \code{\link[coda]{mcmc}} object with one row per
+draw and one column per observation.
 }
 \description{
 Computes the pointwise log likelihood, draws by periods.
+}
+\examples{
+
+data("bem_dfmdata")
+
+panel <- bem_dfmdata[, -1]
+observed <- bem_dfmdata[, 1, drop = FALSE]
+
+model <- create_favarmodel(x = panel, y = observed, p = 1, n = 1,
+                           iterations = 500, burnin = 100)
+# Chosen number of iterations and burn-in should be much higher.
+
+model <- add_priors(model)
+model <- add_initial_values(model)
+model <- add_posterior_coefficients(model)
+
+model <- add_posterior_loglik(model)
+dim(model$posterior$loglik)
+
 }

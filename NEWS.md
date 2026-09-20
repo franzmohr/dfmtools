@@ -1,5 +1,82 @@
 # dfmtools 0.1.0
 
+* **Starting values of the error precisions came from the wrong distribution.**
+  `add_initial_values()` on class `dfmodel` drew each element of `uinv` and
+  `vinv` as the reciprocal of a gamma drawn with the rate inverted, rather than
+  from the Gamma(`shape`, `rate`) prior that `add_priors()` had stored on the
+  precision and the sampler draws it from. At the documented defaults, shape 5
+  and rate 4, that is a mean of 1/16 where the prior mean is 5/4 -- a factor of
+  twenty, and an initial idiosyncratic *variance* near 16 on a panel the
+  normalisation has already set to variance one. Only the starting values were
+  affected, so this cost burn-in rather than correctness, and a chain long
+  enough to have converged gives the same posterior as before. Short chains move.
+  `add_initial_values()` on class `favarmodel` and the error precisions of a
+  bvartools VAR were already drawn the right way; all three now go through one
+  helper, which also refuses a `shape` of zero rather than starting from the
+  singular precision `rgamma()` returns for it.
+
+* **`irf()` on class `favarmodel` returned a transposed object for
+  `n_ahead = 0, cumulative = TRUE`.** Accumulating over a single horizon left
+  `apply()` with nothing to keep the horizon dimension for, so a draws-by-one
+  matrix came back as one-by-draws and the credible interval was then taken
+  over the draws rather than over the horizon. `fevd()` already guarded the
+  same case where it accumulates.
+
+* **A test sample is put on the model's scale before it is scored.**
+  `create_dfmodel()` normalises the panel by default, so a forecast and the
+  density `add_predictive_loglik()` computes are on the standardised scale --
+  but `test_sample` was passed through in the data's own units and scored
+  against it as it stood, silently and with nothing in the result to say so.
+  Realised values are now centred and scaled with the *estimation sample's*
+  moments, and `data$test$x` holds what was scored, on that scale. A model
+  created with `normalize_x = FALSE` is unaffected and is scored in the data's
+  units, as it was estimated in them; the two differ by the Jacobian of the
+  normalisation, so densities are comparable across models only when the models
+  normalise alike. A new section of `?add_predictive_loglik.dfmodel` says this.
+  Scores computed with an earlier version on a normalised model are wrong and
+  worth recomputing.
+
+* `posterior$loglik` is a `coda::mcmc` object rather than a bare matrix, for
+  both classes, so a thinned model's pointwise log-likelihood carries the same
+  draw labels as its coefficients -- which every other block of draws in the
+  package already did. `waic()` and `loo()` take it as the matrix it still is.
+
+* Of the steps after estimation, `add_posterior_forecasts()`,
+  `add_posterior_loglik()` and `add_predictive_loglik()` now report a failure
+  and stop, for both classes, rather than three of them returning the model
+  with `error = TRUE`. They are cheap and derived, and what goes wrong in them
+  is nearly always the call rather than the chain, so a message beats a flag.
+  `add_posterior_coefficients()` is unchanged and still carries on, which is
+  what makes a list of models lose only the one that failed.
+
+* `create_dfmodel()` and `create_favarmodel()` check `p`, `n`, `iterations` and
+  `burnin` where the caller names them, as they have always checked `thin`. A
+  non-integer or non-numeric `p` used to travel as far as a matrix
+  multiplication -- `"a" < 0` compares as strings and is `FALSE` -- and a
+  non-positive `iterations` as far as the sampler, a priors and starting values
+  round trip later.
+
+* `add_initial_values()` on class `dfmodel` says when `priors` is missing
+  instead of failing inside `nrow(NULL)`, as the `favarmodel` method already
+  did. `add_priors()` on the same class says which argument a `NULL` block was,
+  instead of failing inside `diag()`, and reports a short `u` or `v` by the
+  field it is short of rather than by its length.
+
+* Documentation fixes: `README.md` no longer contains the four R errors a
+  render against a stale installed package baked into it; the
+  `tvp-and-stochastic-volatility` vignette reads the forecast draws from
+  `posterior$forecast$forecasts` rather than from the `posterior$forecast` that
+  stopped being a matrix; `create_dfmodel()` names the returned data element
+  `x`, which is what it is; two help pages show bold text rather than the
+  literal asterisks around it; the three `favarmodel` methods that had no
+  examples have them; and the places that still asked for `bvartools (>= 1.0.0)`
+  now agree with the `DESCRIPTION` that has required `(>= 0.3.0.9000)` since
+  September. `tools/render-readme.R` and `vignettes/precompile.R` both stop on a
+  failed chunk and render in English, and `.github/CONTRIBUTING.md` says to
+  regenerate both from the installed package.
+
+* A `test-coverage.yaml` workflow, the same one bvartools runs.
+
 * **Vendored BayesTS core refreshed: a scored forecast keeps its filter positive
   semi-definite.** `add_predictive_loglik()` on class `dfmodel` could stop with
   "the one step ahead forecast variance of a scored period is not positive
@@ -765,7 +842,7 @@ following bvartools, which has retired the `draw_posterior` generic.
 object, in `object$posterior`, as `coda::mcmc` matrices with one row per draw.
 
 * `Matrix` is no longer a dependency; it was needed only by the R implementation
-of the sampler. `bvartools (>= 1.0.0)` is, for the generics
+of the sampler. `bvartools (>= 0.3.0.9000)` is, for the generics
 `add_priors`, `add_initial_values`, `add_posterior_coefficients`,
 `add_posterior_forecasts` and `add_posterior_loglik`.
 

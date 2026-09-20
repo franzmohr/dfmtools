@@ -65,7 +65,7 @@ The transition equation is a VAR in the whole state
 \deqn{s_t = \sum_{i = 1}^{p} \Phi_i s_{t - i} + v_t,}
 with \eqn{v_t \sim N(0, Q)} and \eqn{Q} unrestricted.
 
-**The observed block is part of the state, not a set of regressors.** It
+\strong{The observed block is part of the state, not a set of regressors.} It
 appears on the left of the transition equation as well as the right, and the
 model's own dynamics run over it. That is what a FAVAR is estimated to
 measure: \eqn{Q} is unrestricted precisely so that its cross block -- the

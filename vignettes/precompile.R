@@ -36,6 +36,10 @@ precompile <- function(name) {
   # to show an error still set error = TRUE themselves.
   knitr::opts_chunk$set(error = FALSE)
 
+  # R's own messages would otherwise be baked in in the renderer's language,
+  # and a vignette is read in English whoever precompiled it.
+  Sys.setenv(LANGUAGE = "en")
+
   # Every vignette writes to figures/ under its own prefix, so dropping that
   # prefix leaves no stale plots behind when chunks are renamed or removed.
   dir.create("figures", showWarnings = FALSE)

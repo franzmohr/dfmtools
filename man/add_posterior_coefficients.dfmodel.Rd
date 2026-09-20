@@ -70,6 +70,15 @@ The workers run with one thread, so the draws equal those of a session doing
 the same, and may differ in the last digits from those of a session running
 several. \code{add_posterior_forecasts()} and \code{add_posterior_loglik()}
 take \code{cores} for a list as well.
+
+
+A simulation that fails does not stop: the model comes back as it went in
+with an element \code{error} set to \code{TRUE}, so that a list of models
+loses only the one that failed. Estimation is the only step that does this.
+\code{add_posterior_forecasts()}, \code{add_posterior_loglik()} and
+\code{add_predictive_loglik()} are cheap and derived, and what goes wrong in
+them is nearly always the call rather than the chain, so they report it and
+stop.
 }
 \examples{
 

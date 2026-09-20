@@ -108,6 +108,12 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
   if (!method %in% c("pca", "prior")) {
     stop("Argument 'method' can be 'pca' or 'prior' for dynamic factor models.")
   }
+  # Every block below is drawn from a prior, so a model without them has nothing
+  # to start from. Said here rather than left to nrow(NULL) two lines down, as
+  # the factor augmented VAR's method has always said it.
+  if (is.null(object[["priors"]])) {
+    stop("Element 'priors' is missing. Did you call add_priors?")
+  }
 
   tvp <- isTRUE(object$model$tvp)
 
@@ -136,23 +142,15 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
 
   if (error == "gamma") {
 
-    # U
-    sigma_shape <- object$priors$u$shape
-    sigma_rate <- 1 / object$priors$u$rate
-    object$initial$uinv <- diag(1, object$model$m)
-    for (i in 1:object$model$m) {
-      object$initial$uinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
-    }
-    rm(list = c("sigma_shape", "sigma_rate"))
-
-    # V
-    sigma_shape <- object$priors$v$shape
-    sigma_rate <- 1 / object$priors$v$rate
-    object$initial$vinv <- diag(1, object$model$n)
-    for (i in 1:object$model$n) {
-      object$initial$vinv[i, i] <- 1 / stats::rgamma(1, shape = sigma_shape[i], rate = sigma_rate[i])
-    }
-    rm(list = c("sigma_shape", "sigma_rate"))
+    # Both error blocks are stored as precisions and the sampler draws them as
+    # precisions -- Gamma(shape + T/2, rate + sse/2), see
+    # draw_diagonal_precision() in src/core/models/dfm_support.h -- so the prior
+    # on each of them is the Gamma(shape, rate) that add_priors.dfmodel() built,
+    # and a draw from it is that gamma directly. The same draw as
+    # add_initial_values.favarmodel() and as bvartools makes for the error
+    # precisions of a VAR.
+    object$initial$uinv <- .dfm_gamma_initial(object$priors$u, object$model$m, "u")
+    object$initial$vinv <- .dfm_gamma_initial(object$priors$v, object$model$n, "v")
 
   } else if (error == "sv") {
 
@@ -315,4 +313,34 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
   }
 
   as.numeric(mu) + backsolve(chol(vinv), stats::rnorm(k))
+}
+
+# One draw of a diagonal error precision from its gamma prior. `k` is the width
+# -- the number of observed series for u, the number of factors for v -- and
+# `name` is what a message calls the argument.
+#
+# The block is a precision on both sides of the boundary: add_priors.dfmodel()
+# stores the Gamma(shape, rate) prior on it, and the sampler draws it from that
+# same gamma updated by the data. So the starting value is a draw from that
+# gamma and nothing is inverted on the way. Taking the reciprocal of a gamma
+# drawn with the rate inverted -- which this did until it was reconciled with
+# the factor augmented VAR and with bvartools -- starts a default model at a
+# precision a factor of twenty below its prior mean, which costs burn-in on data
+# whose variance the normalisation has already set to one.
+#
+# A shape of zero is an improper prior with nothing to draw from: rgamma()
+# returns zero for it, which is a singular precision rather than a starting
+# value. Refused here, where the argument still has a name.
+.dfm_gamma_initial <- function(prior, k, name) {
+
+  shape <- as.numeric(prior$shape)
+  rate <- as.numeric(prior$rate)
+
+  if (any(shape <= 0)) {
+    stop("Starting values drawn from the prior need a proper gamma prior on the ",
+         "error precisions: argument '", name, "$shape' of add_priors() must be ",
+         "larger than 0.", call. = FALSE)
+  }
+
+  return(diag(stats::rgamma(k, shape = shape, rate = rate), k))
 }

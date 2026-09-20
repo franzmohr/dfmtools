@@ -23,13 +23,37 @@
 #' \code{\link{add_posterior_coefficients.favarmodel}} leaves in
 #' \code{posterior$factors}.
 #'
+#' There is no \code{add_predictive_loglik} method for this class, so a
+#' forecast made here is not scored against what its horizon realised the way
+#' \code{\link{add_predictive_loglik.dfmodel}} scores a dynamic factor model's;
+#' see there for why. The draws returned here are what a score would be computed
+#' from.
+#'
 #' @return The model object with element \code{forecast} added to its
 #' \code{posterior}. It holds one row per draw and
-#' \eqn{h \times (k + n_{obs})} columns -- **wider than the panel**, because
+#' \eqn{h \times (k + n_{obs})} columns -- \strong{wider than the panel}, because
 #' each horizon carries the \eqn{k} panel series followed by the
 #' \eqn{n_{obs}} observed ones. Those are what a FAVAR is usually forecast for
 #' and they have no other object to go in, a dynamic factor model's forecast
 #' being \eqn{h \times k}.
+#'
+#' @examples
+#'
+#' data("bem_dfmdata")
+#'
+#' panel <- bem_dfmdata[, -1]
+#' observed <- bem_dfmdata[, 1, drop = FALSE]
+#'
+#' model <- create_favarmodel(x = panel, y = observed, p = 1, n = 1,
+#'                            iterations = 500, burnin = 100)
+#' # Chosen number of iterations and burn-in should be much higher.
+#'
+#' model <- add_priors(model)
+#' model <- add_initial_values(model)
+#' model <- add_posterior_coefficients(model)
+#'
+#' model <- add_posterior_forecasts(model, n_ahead = 4)
+#' dim(model$posterior$forecast$forecasts)
 #'
 #' @export
 add_posterior_forecasts.favarmodel <- function(object, n_ahead = 10, ...) {
@@ -52,28 +76,18 @@ add_posterior_forecasts.favarmodel <- function(object, n_ahead = 10, ...) {
   # design matrix for a model without regressors.
   object[["model"]][["h"]] <- as.integer(n_ahead)
 
-  model <- object
-
-  object <- try({
-    algorithm <- object[["model"]][["algorithm"]]
-    if (is.null(algorithm)) {
-      stop("Element 'model$algorithm' is missing. Was the object produced by ",
-           "create_favarmodel?")
-    }
-    if (algorithm != "FavarNormalWishart") {
-      stop("Algorithm '", algorithm, "' not supported.")
-    }
-
-    object <- .FavarNormalWishartForecasts(object)
-    object[["posterior"]][["forecast"]][["forecasts"]] <-
-      .mcmc_draws(object[["model"]], object[["posterior"]][["forecast"]][["forecasts"]])
-
-    object
-  })
-
-  if (inherits(object, "try-error")) {
-    object <- c(model, list(error = TRUE))
+  algorithm <- object[["model"]][["algorithm"]]
+  if (is.null(algorithm)) {
+    stop("Element 'model$algorithm' is missing. Was the object produced by ",
+         "create_favarmodel?")
   }
+  if (algorithm != "FavarNormalWishart") {
+    stop("Algorithm '", algorithm, "' not supported.")
+  }
+
+  object <- .FavarNormalWishartForecasts(object)
+  object[["posterior"]][["forecast"]][["forecasts"]] <-
+    .mcmc_draws(object[["model"]], object[["posterior"]][["forecast"]][["forecasts"]])
 
   class(object) <- class_of_object
 

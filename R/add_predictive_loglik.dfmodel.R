@@ -6,9 +6,12 @@
 #' @param object an object of class 'dfmodel', usually the result of a call to
 #' \code{\link[bvartools]{add_posterior_forecasts}}.
 #' @param test_sample a time-series object of the observed series that covers
-#' the forecast periods. If \code{NULL} (default), the values in
-#' \code{data$test$x} of the object are used, which is what a model carries
-#' after it has been scored once.
+#' the forecast periods, in the units of the data the model was created from.
+#' Where the model normalised its panel it is normalised here too, with the
+#' centre and the scale of the estimation sample; see 'Details'. If
+#' \code{NULL} (default), the values in \code{data$test$x} of the object are
+#' used, which is what a model carries after it has been scored once and are
+#' already on the model's scale.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details
@@ -41,10 +44,36 @@
 #' there are the ones that can be scored, and the rest of the forecast is left
 #' alone.
 #'
+#' A factor augmented VAR is not scored: there is no
+#' \code{add_predictive_loglik} method for class \code{'favarmodel'} and no
+#' filter behind one. Its observed block is part of the state rather than data
+#' past the end of the sample, so a realised observation would update the state
+#' through a different recursion from the one here, and writing that is a piece
+#' of work rather than a wrapper. \code{\link{add_posterior_forecasts.favarmodel}}
+#' still gives the predictive draws, which can be scored by hand.
+#'
+#' @section Scale:
+#' \code{\link{create_dfmodel}} normalises the panel by default, so a model's
+#' forecast, its in-sample log-likelihood and the density computed here are all
+#' on the standardised scale rather than on the data's. A test sample is
+#' therefore centred and scaled here with the \emph{estimation sample's} moments
+#' -- \code{attr(object$data$x, "scaled:center")} and \code{"scaled:scale"} --
+#' before it is scored, and \code{data$test$x} holds what it was scored against,
+#' on that scale. Its own moments are not used and are not wanted: the model was
+#' not fitted to them, and a horizon of three periods has no scale to speak of.
+#'
+#' Two consequences are worth stating. A model created with
+#' \code{normalize_x = FALSE} is scored in the data's units, and the two scores
+#' differ by \eqn{\sum_i \log \sigma_i} per period -- the Jacobian of the
+#' normalisation -- so densities are comparable across models only when the
+#' models normalise alike. And a caller who writes \code{data$test$x} directly
+#' rather than passing \code{test_sample} is supplying the scored values
+#' themselves, which have to be on the model's scale already.
+#'
 #' @return The object in \code{object} with \code{posterior$forecast$loglik}
 #' added, a \code{\link[coda]{mcmc}} object with one row per draw and one column
 #' per scored period, and with the values it was scored against in
-#' \code{data$test$x}.
+#' \code{data$test$x}, on the model's own scale.
 #'
 #' @examples
 #'
@@ -154,13 +183,51 @@ add_predictive_loglik.dfmodel <- function(object, test_sample = NULL, ...) {
     return(NULL)
   }
 
-  return(test_sample[seq_len(min(h, nrow(test_sample))), , drop = FALSE])
+  test_sample <- test_sample[seq_len(min(h, nrow(test_sample))), , drop = FALSE]
+
+  return(.normalise_like_train(object, test_sample))
+}
+
+
+# A test sample put on the scale the model was estimated on.
+#
+# create_dfmodel() normalises the panel by default, so `data$x`, the forecast
+# and the in-sample log-likelihood are all on the standardised scale. A caller
+# passes realised values in the data's own units -- that is what they have -- so
+# they are centred and scaled here with the moments scale() left on the
+# estimation sample. Without this the filter would compare a standardised
+# forecast with unstandardised observations and report a density of the wrong
+# scale, quietly and with no symptom but the number.
+#
+# The estimation sample's moments and not the test sample's: the model was not
+# fitted to the latter, and a horizon of a few periods has no scale to estimate
+# one from. A model created with normalize_x = FALSE carries no such attributes
+# and is scored in the data's units, as it was estimated in them.
+.normalise_like_train <- function(object, test_sample) {
+
+  train <- object[["data"]][["x"]]
+  center <- attr(train, "scaled:center")
+  scale <- attr(train, "scaled:scale")
+
+  if (is.null(center) && is.null(scale)) {
+    return(test_sample)
+  }
+
+  if (!is.null(center)) {
+    test_sample <- sweep(test_sample, 2, as.numeric(center), "-")
+  }
+  if (!is.null(scale)) {
+    test_sample <- sweep(test_sample, 2, as.numeric(scale), "/")
+  }
+
+  return(test_sample)
 }
 
 
 # The realised values a model carries in data$test$x, checked against what it
-# forecast. Already aligned: they are the periods of the horizon and nothing
-# else.
+# forecast. Already aligned and already on the model's scale: they are what a
+# previous call scored, so .normalise_like_train() has run over them once and
+# must not run again.
 .realised_series <- function(object) {
 
   x <- object[["data"]][["test"]][["x"]]

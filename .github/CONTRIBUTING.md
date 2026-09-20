@@ -26,7 +26,8 @@ What *is* maintained here is the translation layer: `src/DfmNormalGamma.cpp`,
 
 ## Setting up
 
-`bvartools (>= 1.0.0)` is not on CRAN yet. It comes from GitHub:
+`bvartools (>= 0.3.0.9000)` is a development version and is not on CRAN. It
+comes from GitHub:
 
 ```r
 # install.packages("remotes")
@@ -54,6 +55,22 @@ Xcode command line tools on macOS.
   devtools::check()
   ```
 
+* **The README and the vignettes are generated, and from the *installed*
+  package.** Both run real samplers, so both bake in whatever `library(dfmtools)`
+  loads rather than the working tree. `R CMD INSTALL .` first, then
+
+  ```sh
+  Rscript tools/render-readme.R                          # README.md
+  Rscript vignettes/precompile.R                         # both vignettes
+  Rscript vignettes/precompile.R favar-monetary-policy   # or just one
+  ```
+
+  Regenerate them whenever a change alters what they show -- an API that moved,
+  an argument that was added, a draw that comes out differently. Skipping this
+  is how a `README.md` full of error messages and a vignette teaching an API
+  that no longer exists both reached the repository at once. Both renderers set
+  `error = FALSE`, so a broken chunk now stops them instead of being written
+  into the output.
 * **Style.** Follow the surrounding code rather than a style guide: two-space
   indent, `<-` for assignment, `stats::`/`coda::` prefixes on imported
   functions, and comments that say why rather than what.
@@ -85,8 +102,9 @@ delivers it, so `.Rbuildignore` has no bearing on what the archive contains --
 1. Bump `Version` and `Date` in `DESCRIPTION`, and `version` and
    `date-released` in `CITATION.cff`, to the same values.
 2. Move the `NEWS.md` entries from *development version* to the release version.
-3. `devtools::check()` clean, and `README.md` regenerated from `README.Rmd` if
-   any of it changed.
+3. `devtools::check()` clean, and `README.md` and the vignettes regenerated
+   from their sources if any of what they show changed -- see *Making a change*
+   above for the two commands.
 4. Tag and push: `git tag -a v0.1.0 -m "dfmtools 0.1.0" && git push origin v0.1.0`.
 5. Publish a GitHub release for the tag -- publishing it, not just pushing the
    tag, is what notifies Zenodo.

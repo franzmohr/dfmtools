@@ -67,13 +67,10 @@ add_initial_values.favarmodel <- function(object, method = "prior", ...) {
     object[["initial"]][["a"]] <- matrix(stats::rnorm(n_a, sd = a_sd))
   }
 
-  # Idiosyncratic precisions, one draw per panel series from its own gamma.
-  shape <- object[["priors"]][["u"]][["shape"]]
-  rate <- object[["priors"]][["u"]][["rate"]]
-  object[["initial"]][["uinv"]] <- diag(1, m)
-  for (i in seq_len(m)) {
-    object[["initial"]][["uinv"]][i, i] <- stats::rgamma(1, shape = shape[i], rate = rate[i])
-  }
+  # Idiosyncratic precisions, one draw per panel series from its own gamma. The
+  # same helper as a dynamic factor model's, so that the two cannot drift apart
+  # in what they draw from.
+  object[["initial"]][["uinv"]] <- .dfm_gamma_initial(object[["priors"]][["u"]], m, "u")
 
   # The precision of the state innovations, at the mean of its Wishart prior.
   object[["initial"]][["vinv"]] <-

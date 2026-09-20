@@ -66,8 +66,8 @@ like a series whose idiosyncratic variance rose.
 
 ## Installation
 
-`dfmtools` needs `bvartools (>= 1.0.0)`, which is not on CRAN yet, so both come
-from GitHub:
+`dfmtools` needs the development version of `bvartools`, which is ahead of the
+one on CRAN, so both come from GitHub:
 
 ```r
 # install.packages("remotes")
