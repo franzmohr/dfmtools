@@ -19,13 +19,13 @@
 call to \code{\link{create_favarmodel}}.}
 
 \item{lambda}{a named list of prior specifications for the loadings. Element
-\code{vinv} is the prior precision of every free element.}
+\code{vinv} is the prior precision of every free element, larger than 0.}
 
 \item{a}{a named list of prior specifications for the transition
 coefficients, with element \code{vinv} as above.}
 
 \item{u}{a named list of prior specifications for the idiosyncratic error
-precisions, with elements \code{shape} and \code{rate}.}
+precisions, with elements \code{shape} and \code{rate}, both larger than 0.}
 
 \item{v}{a named list of prior specifications for the precision of the state
 innovations, with elements \code{df} and \code{scale}, which must be a
@@ -52,7 +52,13 @@ the state innovations gets a \emph{Wishart} prior instead, because \eqn{Q} is
 unrestricted in a FAVAR -- its off-diagonal block is the correlation between
 the factor innovations and the shock to the observed variables, which is the
 quantity the model exists to measure. \code{df} defaults to the width of the
-state and \code{scale} to the identity of that size.
+state and \code{scale} to the identity of that size; \code{scale} has to be
+symmetric and positive definite, which is checked here rather than left to
+the sampler.
+
+Every precision and every gamma parameter a starting value is drawn from must
+be larger than 0, for the reason \code{\link{add_priors.dfmodel}} gives: a
+flat prior has no variance to draw a starting value with.
 
 The number of free loadings is \eqn{(k - n)(n + n_{obs})}: the first \eqn{n}
 panel series identify the factors and carry no free loading at all, and every

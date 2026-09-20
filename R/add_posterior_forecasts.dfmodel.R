@@ -76,9 +76,7 @@ add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, forecast_state
   if (is.null(object[["posterior"]][["factors"]][["coeffs"]])) {
     stop("Argument 'object' does not contain posterior draws of the factors, which a dynamic factor model forecasts from.")
   }
-  if (n_ahead < 1) {
-    stop("Argument 'n_ahead' must be at least 1.")
-  }
+  .check_whole_number(n_ahead, "n_ahead", 1)
 
   class_of_object <- class(object)
 

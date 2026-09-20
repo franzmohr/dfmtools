@@ -60,10 +60,12 @@ add_posterior_coefficients.favarmodel <- function(object, posterior_function = N
 
   class_of_object <- class(object)
 
+  # Both the copy kept for the failure path and the object handed to the
+  # sampler are stripped of what a previous run left; see the dynamic factor
+  # model's method for why the binding needs that now.
+  object[["posterior"]] <- NULL
+  object[["error"]] <- NULL
   model <- object
-  if ("posterior" %in% names(model)) {
-    model[["posterior"]] <- NULL
-  }
 
   if (!is.null(posterior_function)) {
     object <- try(posterior_function(object))

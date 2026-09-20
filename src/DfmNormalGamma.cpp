@@ -31,6 +31,9 @@ namespace {
 
 using namespace bayests_r;
 using dfmtools::lambda_row_major_order;
+using dfmtools::permute_free_loadings;
+using dfmtools::permute_free_loadings_both;
+using dfmtools::permute_free_loadings_rows;
 
 /// The diagonal of a precision that R stores as a full matrix. Both of this
 /// model's error precisions are diagonal by assumption, and the core carries
@@ -83,15 +86,16 @@ bayests::DfmNormalGammaInput read_input(const Rcpp::List &object) {
       const Rcpp::List prior_lambda = priors["lambda"];
       arma::mat v_inv;
       read_mat_if_present(prior_lambda, "vinv", v_inv);
-      if (v_inv.n_rows == order.n_elem) {
-        input.lambda_prior.v_inv = v_inv.submat(order, order);
-      }
+      input.lambda_prior.v_inv = permute_free_loadings_both(v_inv, order);
       // add_priors.dfmodel() writes no prior mean for the loadings, so the
       // implied one is zero. Read anyway, for a caller that supplies it.
       arma::vec mu;
       read_vec_if_present(prior_lambda, "mu", mu);
-      input.lambda_prior.mu = mu.n_elem == order.n_elem ? arma::vec(mu.elem(order))
-                                                        : arma::vec(order.n_elem, arma::fill::zeros);
+      // An absent mean is the implied zero; one that is there is permuted, or
+      // handed over as it is so that a wrong size is rejected by its own size.
+      input.lambda_prior.mu = mu.is_empty()
+                                ? arma::vec(order.n_elem, arma::fill::zeros)
+                                : permute_free_loadings(mu, order);
     }
 
     if (has(priors, "a")) {
@@ -114,9 +118,7 @@ bayests::DfmNormalGammaInput read_input(const Rcpp::List &object) {
 
     arma::vec lambda;
     read_vec_if_present(initial, "lambda", lambda);
-    if (lambda.n_elem == order.n_elem) {
-      input.initial.lambda = lambda.elem(order);
-    }
+    input.initial.lambda = permute_free_loadings(lambda, order);
 
     read_vec_if_present(initial, "a", input.initial.a);
     input.initial.u_sigma_inv = diagonal_of(initial, "uinv");
@@ -197,11 +199,12 @@ Rcpp::List DfmNormalGammaCoefficients(Rcpp::List object) {
   const bayests::DfmNormalGammaDraws draws =
     bayests::DfmNormalGammaSampler().draw_coefficients(input, reporter);
 
-  return Rcpp::List::create(Rcpp::Named("data") = object["data"],
-                            Rcpp::Named("model") = object["model"],
-                            Rcpp::Named("initial") = object["initial"],
-                            Rcpp::Named("priors") = object["priors"],
-                            Rcpp::Named("posterior") = write_draws(draws));
+  // Assigned into the object rather than rebuilt from a list of five
+  // names, which silently dropped anything else the caller had put on
+  // it. The R method has already removed a stale `posterior` and a
+  // stale `error` from what it passes in.
+  object["posterior"] = write_draws(draws);
+  return object;
 }
 
 // [[Rcpp::export(.DfmNormalGammaForecasts)]]

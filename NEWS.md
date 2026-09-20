@@ -1,5 +1,57 @@
 # dfmtools 0.1.0
 
+* **The prior arguments are checked for what they are, not only for where they
+  lie.** `spec$shape < 0` on the character `"a"` compares as strings and is
+  `FALSE`, so every range check in this package passed exactly the argument it
+  was written to catch. `add_priors()` on class `favarmodel` took a character
+  `lambda$vinv` without a word -- `diag()` coerced it to `NA` and only warned,
+  leaving an all-`NA` precision matrix -- and read `v$df` with the same string
+  comparison; the stochastic volatility fields of class `dfmodel` took one too,
+  and the complaint arrived from `add_initial_values()` as `missing value where
+  TRUE/FALSE needed`. Every prior field of both classes now goes through one
+  helper that checks the type first and names the argument, and the two
+  `add_priors()` methods share it, along with the builder of the idiosyncratic
+  gamma priors, so they cannot drift apart again.
+
+* **A flat prior is refused where it is written.** Every precision, and every
+  gamma a starting value is drawn from, must now be larger than 0 rather than
+  at least 0 as the documentation used to say. `vinv = 0` was accepted and then
+  had no variance to draw a starting value with: a dynamic factor model stopped
+  inside `chol()` with "the leading minor of order 1 is not positive", and a
+  factor augmented VAR drew `rnorm(sd = Inf)`, put `NA` starting values in front
+  of the sampler and came back complaining about `NaN` from
+  `chan_jeliazkov_2009`. A gamma of shape 0 was the same story one function
+  later. The one place a zero is still a number rather than a mistake is the
+  loading block of a model with a single series and a single factor, which has
+  no freely estimated element for the prior to be about, and `shape` of a
+  stochastic volatility specification, which nothing draws from.
+
+* `v$scale` of a factor augmented VAR must be positive definite, not only
+  symmetric. A matrix of zeros passed the symmetry test trivially --
+  `max(abs(0 - 0)) <= 0` -- so the one scale that is certainly wrong was the
+  one that got through.
+
+* A wrong-sized loading prior or starting value is reported by the size it
+  actually has. The bindings set these only when the size already matched, so
+  the sampler's validator described what it had been given rather than what the
+  caller wrote: `prior precision of lambda must be 7x7, got 0x0` for a 3 x 3.
+
+* `add_posterior_coefficients()` keeps what a caller has put on the model
+  object. It was rebuilt from `data`, `model`, `initial`, `priors` and
+  `posterior`, which silently dropped everything else; it is now assigned into,
+  and the R method clears a stale `posterior` and `error` before the call.
+
+* `n_ahead` of `add_posterior_forecasts()`, `irf()` and `fevd()` must be a whole
+  number. `n_ahead = 2.7` was accepted and quietly behaved as 2.
+
+* `add_predictive_loglik()` is documented in `inst/agents/`, which had never
+  mentioned it, with a runnable example that the agent documentation test
+  executes -- including that the test sample is passed in the data's own units.
+
+* `release-version.yaml` no longer truncates a tag at the first dash. An R
+  version number may use `-` as a separator, so `v0.2-5` would have been checked
+  as `0.2`; only a recognised pre-release suffix is stripped now.
+
 * **Starting values of the error precisions came from the wrong distribution.**
   `add_initial_values()` on class `dfmodel` drew each element of `uinv` and
   `vinv` as the reciprocal of a gamma drawn with the rate inverted, rather than

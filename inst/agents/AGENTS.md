@@ -11,7 +11,9 @@ context at all times.
 2. **The order**: `create_dfmodel()` or `create_favarmodel()`, then
    `add_priors()`, `add_initial_values()`, `add_posterior_coefficients()`,
    `add_posterior_forecasts(model, n_ahead = h)` and `add_posterior_loglik()`.
-   There is no `add_forecast_input()` step.
+   There is no `add_forecast_input()` step. `add_predictive_loglik(model,
+   test_sample = )` scores a forecast against what its horizon realised, for a
+   DFM only, and takes the realised values in the data's own units.
 3. **Column order of `x` identifies the factors.** A DFM fixes the leading
    `n x n` block of the loadings to be unit lower triangular. A FAVAR fixes it to
    the identity, so its first `n` panel series *are* the factors up to noise.

@@ -5,11 +5,11 @@
 #' @param object an object of class \code{'favarmodel'}, usually the result of a
 #' call to \code{\link{create_favarmodel}}.
 #' @param lambda a named list of prior specifications for the loadings. Element
-#' \code{vinv} is the prior precision of every free element.
+#' \code{vinv} is the prior precision of every free element, larger than 0.
 #' @param a a named list of prior specifications for the transition
 #' coefficients, with element \code{vinv} as above.
 #' @param u a named list of prior specifications for the idiosyncratic error
-#' precisions, with elements \code{shape} and \code{rate}.
+#' precisions, with elements \code{shape} and \code{rate}, both larger than 0.
 #' @param v a named list of prior specifications for the precision of the state
 #' innovations, with elements \code{df} and \code{scale}, which must be a
 #' symmetric matrix. Unlike every other error block in this package this one is a
@@ -26,7 +26,13 @@
 #' unrestricted in a FAVAR -- its off-diagonal block is the correlation between
 #' the factor innovations and the shock to the observed variables, which is the
 #' quantity the model exists to measure. \code{df} defaults to the width of the
-#' state and \code{scale} to the identity of that size.
+#' state and \code{scale} to the identity of that size; \code{scale} has to be
+#' symmetric and positive definite, which is checked here rather than left to
+#' the sampler.
+#'
+#' Every precision and every gamma parameter a starting value is drawn from must
+#' be larger than 0, for the reason \code{\link{add_priors.dfmodel}} gives: a
+#' flat prior has no variance to draw a starting value with.
 #'
 #' The number of free loadings is \eqn{(k - n)(n + n_{obs})}: the first \eqn{n}
 #' panel series identify the factors and carry no free loading at all, and every
@@ -96,9 +102,11 @@ add_priors.favarmodel <- function(object,
   n_lambda <- (m - n) * n_state
   n_a <- n_state * n_state * p
 
-  if (is.null(lambda[["vinv"]]) || lambda[["vinv"]] < 0) {
-    stop("Argument 'lambda$vinv' must be at least 0.")
-  }
+  # The same checks a dynamic factor model's priors go through, through the same
+  # helpers. Until they were shared, this method took a character `vinv` without
+  # a word -- diag() coerced it to NA and only warned -- and read `v$df` with a
+  # comparison that compares strings when it is given one.
+  .check_coefficient_prior(lambda, "lambda")
   object[["priors"]][["lambda"]] <- list(mu = matrix(0, n_lambda),
                                          vinv = diag(lambda[["vinv"]], n_lambda))
 
@@ -112,7 +120,10 @@ add_priors.favarmodel <- function(object,
       }
       slow <- slow[["series"]]
     }
-    if (!is.numeric(slow_vinv) || length(slow_vinv) != 1 || slow_vinv < 0) {
+    # Zero is allowed here, unlike the precisions above: it is the restriction
+    # switched off for a named series, not a prior nothing can start from.
+    if (!is.numeric(slow_vinv) || length(slow_vinv) != 1 || is.na(slow_vinv) ||
+        !is.finite(slow_vinv) || slow_vinv < 0) {
       stop("Argument 'slow$vinv' must be a single number of at least 0.")
     }
 
@@ -134,27 +145,17 @@ add_priors.favarmodel <- function(object,
     }
   }
 
+  # A model with p = 0 has no transition to put a prior on, so `a` is not looked
+  # at at all and need not be given.
   if (n_a > 0) {
-    if (is.null(a[["vinv"]]) || a[["vinv"]] < 0) {
-      stop("Argument 'a$vinv' must be at least 0.")
-    }
+    .check_coefficient_prior(a, "a")
     object[["priors"]][["a"]] <- list(mu = matrix(0, n_a),
                                       vinv = diag(a[["vinv"]], n_a))
   }
 
-  for (field in c("shape", "rate")) {
-    if (!field %in% names(u)) {
-      stop("Argument u$", field, " is missing.")
-    }
-  }
-  if (u[["shape"]] < 0) {
-    stop("Argument 'u$shape' must be at least 0.")
-  }
-  if (u[["rate"]] <= 0) {
-    stop("Argument 'u$rate' must be larger than 0.")
-  }
-  object[["priors"]][["u"]] <- list(shape = matrix(u[["shape"]], m),
-                                    rate = matrix(u[["rate"]], m))
+  # One gamma per panel series, built by the same function that builds a
+  # dynamic factor model's: the object wanted is the same object.
+  object[["priors"]][["u"]] <- .dfm_gamma_prior(u, m, "u")
 
   # Q is unrestricted, so its prior is a Wishart rather than a set of
   # independent gammas. The defaults are the least informative proper ones: the
@@ -163,10 +164,15 @@ add_priors.favarmodel <- function(object,
   df <- if (is.null(v[["df"]])) n_state else v[["df"]]
   scale <- if (is.null(v[["scale"]])) diag(1, n_state) else v[["scale"]]
 
+  # The type through the shared check, the bound in the terms the argument has:
+  # a Wishart with fewer degrees of freedom than the width of what it is a prior
+  # over is improper, which is a different thing from a number being too small.
+  .check_prior_number(df, "v$df")
   if (df < n_state) {
     stop("Argument 'v$df' must be at least the width of the state (", n_state,
          ") for the Wishart prior to be proper.")
   }
+
   if (!identical(dim(as.matrix(scale)), as.integer(c(n_state, n_state)))) {
     stop("Argument 'v$scale' must be a ", n_state, " x ", n_state, " matrix.")
   }
@@ -176,6 +182,14 @@ add_priors.favarmodel <- function(object,
   if (!is.numeric(scale) || !all(is.finite(scale)) ||
       !(max(abs(scale - t(scale))) <= 1e-8 * max(abs(scale)))) {
     stop("Argument 'v$scale' must be a symmetric matrix.")
+  }
+  # Symmetry is not enough. A Wishart needs a positive definite scale, and the
+  # test above passes a matrix of zeros trivially -- max(abs(0 - 0)) <= 0 -- so
+  # the one scale that is certainly wrong was the one that got through. chol()
+  # on the symmetrised matrix is the same question the sampler asks.
+  if (inherits(try(chol((scale + t(scale)) / 2), silent = TRUE), "try-error")) {
+    stop("Argument 'v$scale' must be positive definite: it is the scale of a ",
+         "Wishart prior, and its inverse is what the prior is built from.")
   }
   object[["priors"]][["v"]] <- list(df = df, scale = scale)
 

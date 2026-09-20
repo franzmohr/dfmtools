@@ -48,11 +48,17 @@ precision of the loading factors of the measurement equation. Default is 0.01.
 Argument \code{a} can only contain the element \code{vinv}, which is a numeric specifying the prior
 precision of the coefficients of the transition equation. Default is 0.01.
 
+Every precision here must be larger than 0, and every shape and rate of a gamma that a
+starting value is drawn from as well. A flat prior is not a specification this package can
+carry: \code{\link{add_initial_values.dfmodel}} draws each block from its prior, and a
+precision of 0 has no variance to draw with, as a gamma of shape 0 has no positive value to
+return. The bound is checked here, where the argument has a name, rather than where the draw
+breaks.
+
 For a model created with \code{tvp = TRUE} both coefficient blocks follow random walks, and both
 arguments must contain two further elements. \code{vinv} then describes the state of the period
-before the sample rather than a coefficient that holds throughout, and must be larger than 0:
-the sampler integrates that state out of the first period, which takes the inverse of its
-precision, so a flat prior on it has no variance to give. The pair below describes
+before the sample rather than a coefficient that holds throughout: the sampler integrates that
+state out of the first period, which takes the inverse of its precision. The pair below describes
 how far the state may drift from one period to the next. There are no defaults for them, so a
 call that forgets is told which elements are missing:
 \describe{
@@ -76,8 +82,8 @@ factors. Which elements are required depends on how the model was created.
 For \code{error = "gamma"} the function assumes an inverse gamma prior, and both arguments can
 contain the following elements:
 \describe{
-  \item{\code{shape}}{a numeric specifying the prior shape parameter. Default is 5.}
-  \item{\code{rate}}{a numeric specifying the prior rate parameter. Default is 4.}
+  \item{\code{shape}}{a numeric specifying the prior shape parameter, larger than 0. Default is 5.}
+  \item{\code{rate}}{a numeric specifying the prior rate parameter, larger than 0. Default is 4.}
 }
 
 For \code{error = "sv"} the log-volatility of every error term follows a random walk, and both
@@ -87,7 +93,8 @@ stochastic volatility priors of its VAR and VEC models, so that the two families
   \item{\code{mu}}{a numeric of the prior mean of the initial state of the log-volatilities.}
   \item{\code{v_i}}{a numeric of the prior precision of the initial state of the log-volatilities.}
   \item{\code{shape}}{a numeric of the prior shape parameter of the variance of the
-  log-volatility innovations.}
+  log-volatility innovations. May be 0, unlike the shapes above: nothing is drawn from this
+  gamma to start with, the paths starting at \code{state_variance}.}
   \item{\code{rate}}{a numeric of the prior rate parameter of that variance.}
   \item{\code{state_variance}}{a numeric of the initial draw for the variance of the
   log-volatilities. A starting value rather than a prior; it is kept here because that is where

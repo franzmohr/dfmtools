@@ -108,7 +108,43 @@ model. The stochastic volatility lists do use bvartools' names:
 FAVAR has impulse responses and variance decompositions. Model comparison on a
 DFM works from `add_posterior_loglik()` directly.
 
-**9. Vectors make lists.** `p = 1:2` or `n = 1:3` give a `'modellist'` that
+**9. A forecast is scored with `add_predictive_loglik()`, and the test sample is
+in the data's own units.** It takes a model that has been through
+`add_posterior_forecasts()` and the periods the horizon realised, and adds
+`posterior$forecast$loglik`, draws by scored periods. `create_dfmodel()`
+normalises the panel by default, so the forecast is on the standardised scale --
+the function puts the test sample on that scale itself, with the centre and
+spread of the *estimation* sample, and leaves what it scored in `data$test$x`.
+Pass raw values, not pre-standardised ones. Fewer realised periods than the
+horizon is fine; the rest of the forecast is left alone. There is no method for
+a `'favarmodel'`.
+
+```r
+library(dfmtools)
+set.seed(7)
+data("bem_dfmdata")
+series <- bem_dfmdata[, 1:8]
+train <- window(series, end = c(2013, 4))
+test <- window(series, start = c(2014, 1))
+
+model <- create_dfmodel(x = train, p = 1, n = 1, iterations = 200, burnin = 100)
+model <- add_posterior_coefficients(add_initial_values(add_priors(model)))
+model <- add_posterior_forecasts(model, n_ahead = 4)
+model <- add_predictive_loglik(model, test_sample = test)
+
+loglik <- model$posterior$forecast$loglik
+stopifnot(all(dim(loglik) == c(200, 4)))
+
+# The log predictive likelihood of the whole realised stretch
+logmeanexp <- function(z) { mx <- max(z); mx + log(mean(exp(z - mx))) }
+stopifnot(is.finite(sum(apply(loglik, 2, logmeanexp))))
+
+# What it was scored against is on the model's scale, not the data's
+stopifnot(!isTRUE(all.equal(unname(model$data$test$x[1, ]),
+                            unname(as.matrix(test)[1, ]))))
+```
+
+**10. Vectors make lists.** `p = 1:2` or `n = 1:3` give a `'modellist'` that
 every step maps over. `add_posterior_coefficients(models, cores = 4)`, and the
 same argument of `add_posterior_forecasts()` and `add_posterior_loglik()`,
 simulate the models of such a list on four worker processes. Each model draws
