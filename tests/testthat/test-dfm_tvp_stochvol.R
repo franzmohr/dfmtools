@@ -172,9 +172,9 @@ test_that("forecasts and the log likelihood run over the wider posterior", {
 
   # Everything is held at its last in-sample period, so the forecast is the same
   # shape a constant model's is.
-  expect_equal(dim(object$posterior$forecast), c(20, 5 * sim$m))
-  expect_true(all(is.finite(object$posterior$forecast)))
-  expect_s3_class(object$posterior$forecast, "mcmc")
+  expect_equal(dim(object$posterior$forecast$forecasts), c(20, 5 * sim$m))
+  expect_true(all(is.finite(object$posterior$forecast$forecasts)))
+  expect_s3_class(object$posterior$forecast$forecasts, "mcmc")
 
   # The log likelihood scores every period under its own loadings and its own
   # precision, and there is one column per period either way.

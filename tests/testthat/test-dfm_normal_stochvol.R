@@ -245,9 +245,9 @@ test_that("forecasts and the log-likelihood dispatch to the sv sampler", {
   object <- add_posterior_coefficients(prep$object)
   object <- add_posterior_forecasts(object, n_ahead = n_ahead)
 
-  expect_s3_class(object$posterior$forecast, "mcmc")
-  expect_equal(dim(object$posterior$forecast), c(iterations, n_ahead * m))
-  expect_true(all(is.finite(object$posterior$forecast)))
+  expect_s3_class(object$posterior$forecast$forecasts, "mcmc")
+  expect_equal(dim(object$posterior$forecast$forecasts), c(iterations, n_ahead * m))
+  expect_true(all(is.finite(object$posterior$forecast$forecasts)))
 
   object <- add_posterior_loglik(object)
   expect_equal(dim(object$posterior$loglik), c(iterations, tt))

@@ -6,6 +6,7 @@
 #include "core/algorithms/stochvol_ocsn_2007.h"
 #include "core/models/dfm_support.h"
 #include "core/models/forecast_states.h"
+#include "core/models/factor_score.h"
 #include "core/models/model_support.h"
 
 #include <algorithm>
@@ -475,6 +476,95 @@ arma::mat DfmNormalStochvolSampler::log_likelihood(const DfmNormalStochvolInput 
     }
 
     return loglik;
+}
+
+arma::mat DfmNormalStochvolSampler::predictive_log_density(
+    const DfmNormalStochvolInput &input, const DfmNormalStochvolDraws &coefficients) const
+{
+    const int k = input.spec.k;
+    const int n = input.spec.n_factors;
+    const int p = input.spec.p;
+    const bool use_a = input.use_a();
+    const bool simulate = simulates_states(input.spec);
+
+    if (!coefficients.has_factors())
+    {
+        throw std::invalid_argument("posterior draws of the factors are missing; a factor model "
+                                    "is scored by filtering on from them");
+    }
+    if (coefficients.lambda.n_elem == 0)
+    {
+        throw std::invalid_argument("posterior draws of lambda are missing");
+    }
+    if (coefficients.u_sigma_inv.n_elem == 0 || coefficients.v_sigma_inv.n_elem == 0)
+    {
+        throw std::invalid_argument("posterior draws of the error precisions are missing");
+    }
+    if (use_a && !coefficients.has_a())
+    {
+        throw std::invalid_argument("the factors have a transition of order " +
+                                    std::to_string(p) + " but posterior draws of a are missing");
+    }
+    if (simulate)
+    {
+        const arma::uword draws = coefficients.iterations();
+        require_state_variances(coefficients.u_h_sigma, static_cast<arma::uword>(k), draws,
+                                "the log-volatilities of the series");
+        require_state_variances(coefficients.v_h_sigma, static_cast<arma::uword>(n), draws,
+                                "the log-volatilities of the factor innovations");
+    }
+
+    const int tt = static_cast<int>(input.train.periods(k));
+
+    // The loadings and the transition stand still; both volatilities do not, and
+    // they take their steps in the order the forecast takes them so that a file
+    // scored and a file forecast move through the same states.
+    arma::vec u_h, v_h, u_h_sigma, v_h_sigma;
+
+    const auto step = [&](const arma::uword draw, const int i, core::FactorPeriod &out) {
+        if (i == 0)
+        {
+            out.lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
+            out.transition =
+                use_a ? arma::reshape(coefficients.a.col(draw), n, n * p) : arma::mat();
+            if (!use_a && p > 0)
+            {
+                out.transition = arma::zeros<arma::mat>(n, n * p);
+            }
+            if (p > 0)
+            {
+                const arma::mat drawn = arma::reshape(coefficients.factors.col(draw), n, tt);
+                out.start = drawn.tail_cols(p);
+            }
+
+            const arma::vec u_precision = terminal_block(coefficients.u_sigma_inv, draw,
+                                                         static_cast<arma::uword>(k), "u_sigma_inv");
+            const arma::vec v_precision = terminal_block(coefficients.v_sigma_inv, draw,
+                                                         static_cast<arma::uword>(n), "v_sigma_inv");
+            out.u_var = 1.0 / u_precision;
+            out.v_var = 1.0 / v_precision;
+
+            if (simulate)
+            {
+                u_h = -arma::log(u_precision);
+                v_h = -arma::log(v_precision);
+                u_h_sigma = coefficients.u_h_sigma.col(draw);
+                v_h_sigma = coefficients.v_h_sigma.col(draw);
+            }
+        }
+
+        if (simulate)
+        {
+            // The factor innovation's volatility, then the series', as the
+            // forecast steps them.
+            step_random_walk(v_h, v_h_sigma, arma::vec());
+            step_random_walk(u_h, u_h_sigma, arma::vec());
+            out.v_var = arma::exp(v_h);
+            out.u_var = arma::exp(u_h);
+        }
+    };
+
+    return core::score_factor_forecast(input.spec, input.test.y, coefficients.iterations(), step);
 }
 
 } // namespace bayests

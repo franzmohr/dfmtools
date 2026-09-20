@@ -102,6 +102,15 @@ bayests::DfmTvpStochvolInput read_input(const Rcpp::List &object) {
   if (has(object, "data")) {
     const Rcpp::List data = object["data"];
     read_mat_if_present(data, "x", input.train.y);
+
+    // What the horizon realised, where the model carries it: one row per
+    // period and one column per series, as `data$x` is. Absent from every
+    // model that is forecast rather than scored, and read into the same member
+    // the model file's /data/test/y is read into.
+    if (has(data, "test")) {
+      const Rcpp::List test = data["test"];
+      read_mat_if_present(test, "x", input.test.y);
+    }
   }
 
   // Only draw_coefficients() needs the priors and the initial values, so a
@@ -348,8 +357,8 @@ Rcpp::List DfmTvpStochvolForecasts(Rcpp::List object) {
     bayests::DfmTvpStochvolSampler().forecast(input, draws, reporter);
 
   Rcpp::List posterior = object["posterior"];
-  posterior.push_back(draws_to_r(forecast.values), "forecast");
-  object["posterior"] = posterior;
+  object["posterior"] = with_forecast_member(posterior, "forecasts",
+                                            draws_to_r(forecast.values));
 
   return object;
 }
@@ -404,3 +413,23 @@ matrix(colMeans(object$posterior$lambda$coeffs), m * n, tt)[2, ]
 matrix(1 / colMeans(object$posterior$u_sigma_inv$coeffs), m, tt)[2, ]
 
 */
+
+// [[Rcpp::export(.DfmTvpStochvolScore)]]
+Rcpp::List DfmTvpStochvolScore(Rcpp::List object) {
+
+  const bayests::DfmTvpStochvolInput input = read_input(object);
+  // The terminal period, as a forecast reads it: the score carries the
+  // states forward from the end of the sample exactly as the forecast does.
+  const bayests::DfmTvpStochvolDraws draws = read_draws(object, input, true);
+
+  const arma::mat score =
+    bayests::DfmTvpStochvolSampler().predictive_log_density(input, draws);
+
+  // Not through draws_to_r(), which transposes because the samplers store one
+  // column per draw. This one is draws by scored periods already -- the same
+  // shape as the pointwise log likelihood -- so it crosses as it stands.
+  Rcpp::List posterior = object["posterior"];
+  object["posterior"] = with_forecast_member(posterior, "loglik", score);
+
+  return object;
+}

@@ -87,6 +87,36 @@ inline bayests::GammaPrior read_gamma_prior(const Rcpp::List &group)
   return prior;
 }
 
+/// The forecast group of the posterior, with `value` under `name`.
+///
+/// posterior$forecast is a list rather than a matrix of draws: everything the
+/// forecast periods produce hangs below it -- `forecasts`, the simulated paths,
+/// and `loglik`, the score against what those periods realised. It is the layout
+/// bvartools uses and the one the model file writes as /posterior/forecast, and
+/// the members are named after what they hold because all of them are draws.
+inline Rcpp::List with_forecast_member(Rcpp::List posterior, const char *name,
+                                       const arma::mat &value) {
+  const Rcpp::RObject wrapped = Rcpp::wrap(value);
+  Rcpp::List forecast;
+  if (posterior.containsElementNamed("forecast") &&
+      Rf_isNewList(posterior["forecast"])) {
+    forecast = Rcpp::List(Rf_shallow_duplicate(posterior["forecast"]));
+  }
+
+  if (forecast.containsElementNamed(name)) {
+    forecast[name] = wrapped;
+  } else {
+    forecast.push_back(wrapped, name);
+  }
+
+  if (posterior.containsElementNamed("forecast")) {
+    posterior["forecast"] = forecast;
+  } else {
+    posterior.push_back(forecast, "forecast");
+  }
+  return posterior;
+}
+
 } // namespace bayests_r
 
 #endif // DFMTOOLS_BAYESTS_R_IO_H

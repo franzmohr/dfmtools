@@ -65,13 +65,13 @@ Windows, the Xcode command line tools on macOS.
 
 ## Development
 
-`main` carries the currently released version and moves only when a release is
-made. Development happens on `dev`: a change starts on its own branch off `dev`
-and is merged back into `dev`, and `dev` reaches `main` as part of cutting a
-release. The development version therefore installs from that branch:
+`main` is the development version: work happens on short-lived branches off
+`main` and merges back into it, and a release is a tag plus a published GitHub
+release rather than a branch of its own. Installing from `main`, as above,
+therefore gives the development version; the latest release installs with
 
 ```r
-remotes::install_github("franzmohr/dfmtools@dev")
+remotes::install_github("franzmohr/dfmtools@*release")
 ```
 
 ## Usage
@@ -153,11 +153,11 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
 round(head(lambda, 6), 3)
 #>            f1     f2
 #> GDPC96  1.000  0.000
-#> PCECC96 2.699  1.000
-#> PCDGx   2.133 -0.643
-#> PCESVx  2.189  0.786
-#> PCNDx   1.930  0.718
-#> GPDIC96 3.480  0.470
+#> PCECC96 3.767  1.000
+#> PCDGx   3.441  1.887
+#> PCESVx  2.434 -0.368
+#> PCNDx   2.755  0.850
+#> GPDIC96 4.539  0.878
 ```
 
 The factor path is stored period by period, all `N` factors of a period
@@ -189,8 +189,9 @@ posterior predictive distribution rather than a conditional mean.
 ``` r
 model <- add_posterior_forecasts(model, n_ahead = 8)
 
-dim(model$posterior$forecast)
-#> [1] 5000 1568
+dim(model$posterior$forecast$forecasts)
+#> Error in `model$posterior$forecast$forecasts`:
+#> ! $ operator is invalid for atomic vectors
 ```
 
 The horizons are stacked within a row in the variable order of the sample, so
@@ -200,21 +201,18 @@ reshaping a draw to $M \times h$ puts the variables in the rows:
 ``` r
 gdp <- which(colnames(model$data$x) == "GDPC96")
 
-fc <- t(apply(model$posterior$forecast[, seq(gdp, 8 * model$model$m,
+fc <- t(apply(model$posterior$forecast$forecasts[, seq(gdp, 8 * model$model$m,
                                             by = model$model$m)],
               2, quantile, probs = c(0.1, 0.5, 0.9)))
+#> Error in `model$posterior$forecast$forecasts`:
+#> ! $ operator is invalid for atomic vectors
 rownames(fc) <- paste0("h = ", 1:8)
+#> Error:
+#> ! Objekt 'fc' nicht gefunden
 
 round(fc, 3)
-#>          10%    50%   90%
-#> h = 1 -1.126 -0.008 1.170
-#> h = 2 -1.190 -0.002 1.186
-#> h = 3 -1.182 -0.021 1.204
-#> h = 4 -1.180  0.001 1.188
-#> h = 5 -1.233 -0.042 1.186
-#> h = 6 -1.199  0.018 1.188
-#> h = 7 -1.218 -0.022 1.196
-#> h = 8 -1.198 -0.020 1.212
+#> Error:
+#> ! Objekt 'fc' nicht gefunden
 ```
 
 Those are in the units of the normalised data. Multiplying by the sample standard
@@ -247,7 +245,7 @@ lppd <- sum(apply(ll, 2, logmeanexp))
 p_waic <- sum(apply(ll, 2, stats::var))
 
 round(-2 * (lppd - p_waic), 1)
-#> [1] 105945.5
+#> [1] 106678.8
 ```
 
 ### Drifting loadings and changing volatility
@@ -320,8 +318,10 @@ runs. The installed package carries it at
 `system.file("agents", package = "dfmtools")`, matching its version. In Claude
 Code it installs as a plugin:
 
-    /plugin marketplace add franzmohr/dfmtools
-    /plugin install dfmtools@dfmtools
+```
+/plugin marketplace add franzmohr/dfmtools
+/plugin install dfmtools@dfmtools
+```
 
 Other assistants can be pointed at `inst/agents/AGENTS.md`.
 

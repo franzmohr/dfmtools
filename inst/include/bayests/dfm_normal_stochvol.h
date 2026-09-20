@@ -106,6 +106,24 @@ public:
     /// Requires `draws.factors` and the whole path of `u_sigma_inv`.
     arma::mat log_likelihood(const DfmNormalStochvolInput &input,
                              const DfmNormalStochvolDraws &draws) const;
+
+    /// The log predictive density of what the horizon realised, draws x scored
+    /// periods -- one row per posterior draw, one column per period of
+    /// `input.test.y`.
+    ///
+    /// A factor model is scored by filtering rather than by evaluating a
+    /// likelihood on another sample: its history reaches the density through
+    /// the latent factors, so at every scored period the realised observation
+    /// updates their distribution before the next is predicted. See
+    /// core/models/factor_score.h for the recursion.
+    ///
+    /// Both volatilities take a step of their random walk per scored period
+    /// where `spec.forecast_states` says to simulate, exactly as the forecast
+    /// steps them; under `hold` the last in-sample pair serves every period. The
+    /// filter itself draws nothing, so the score moves between runs only as far
+    /// as those steps do.
+    arma::mat predictive_log_density(const DfmNormalStochvolInput &input,
+                                     const DfmNormalStochvolDraws &draws) const;
 };
 
 } // namespace bayests

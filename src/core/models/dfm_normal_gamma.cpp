@@ -4,6 +4,7 @@
 #include "bayests/dfm_normal_gamma.h"
 
 #include "core/models/dfm_support.h"
+#include "core/models/factor_score.h"
 #include "core/models/model_support.h"
 
 #include <algorithm>
@@ -332,6 +333,67 @@ arma::mat DfmNormalGammaSampler::log_likelihood(const DfmNormalGammaInput &input
     }
 
     return loglik;
+}
+
+arma::mat DfmNormalGammaSampler::predictive_log_density(
+    const DfmNormalGammaInput &input, const DfmNormalGammaDraws &coefficients) const
+{
+    const int k = input.spec.k;
+    const int n = input.spec.n_factors;
+    const int p = input.spec.p;
+    const bool use_a = input.use_a();
+
+    if (!coefficients.has_factors())
+    {
+        throw std::invalid_argument("posterior draws of the factors are missing; a factor model "
+                                    "is scored by filtering on from them");
+    }
+    if (coefficients.lambda.n_elem == 0)
+    {
+        throw std::invalid_argument("posterior draws of lambda are missing");
+    }
+    if (coefficients.u_sigma_inv.n_elem == 0 || coefficients.v_sigma_inv.n_elem == 0)
+    {
+        throw std::invalid_argument("posterior draws of the error precisions are missing");
+    }
+    if (use_a && !coefficients.has_a())
+    {
+        throw std::invalid_argument("the factors have a transition of order " +
+                                    std::to_string(p) + " but posterior draws of a are missing");
+    }
+
+    const int tt = static_cast<int>(input.train.periods(k));
+    if (p > 0 && tt < p)
+    {
+        throw std::invalid_argument("a transition of order " + std::to_string(p) +
+                                    " needs that many factors to start from, and the sample has " +
+                                    std::to_string(tt));
+    }
+
+    // Nothing in this model moves over the horizon, so every scored period is
+    // the same loadings, the same transition and the same variances; what the
+    // filter carries from one to the next is the distribution of the factors.
+    const auto step = [&](const arma::uword draw, const int i, core::FactorPeriod &out) {
+        if (i == 0)
+        {
+            out.lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
+            out.u_var = 1.0 / coefficients.u_sigma_inv.col(draw);
+            out.v_var = 1.0 / coefficients.v_sigma_inv.col(draw);
+            out.transition =
+                use_a ? arma::reshape(coefficients.a.col(draw), n, n * p) : arma::mat();
+            if (p > 0)
+            {
+                const arma::mat drawn = arma::reshape(coefficients.factors.col(draw), n, tt);
+                out.start = drawn.tail_cols(p);
+            }
+            if (!use_a && p > 0)
+            {
+                out.transition = arma::zeros<arma::mat>(n, n * p);
+            }
+        }
+    };
+
+    return core::score_factor_forecast(input.spec, input.test.y, coefficients.iterations(), step);
 }
 
 } // namespace bayests

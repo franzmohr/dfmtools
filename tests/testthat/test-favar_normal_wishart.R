@@ -125,9 +125,9 @@ test_that("the forecast covers the observed block as well as the panel", {
   # Wider than the panel: each horizon carries k panel series followed by the
   # n_obs observed ones. This is the one forecast in the package that is not
   # h * k, and getting it wrong would silently truncate the observed block.
-  expect_equal(ncol(model$posterior$forecast), 6 * (8 + 1))
-  expect_equal(nrow(model$posterior$forecast), 600)
-  expect_true(all(is.finite(model$posterior$forecast)))
+  expect_equal(ncol(model$posterior$forecast$forecasts), 6 * (8 + 1))
+  expect_equal(nrow(model$posterior$forecast$forecasts), 600)
+  expect_true(all(is.finite(model$posterior$forecast$forecasts)))
 })
 
 test_that("the log likelihood is draws by periods", {

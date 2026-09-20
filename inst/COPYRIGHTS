@@ -49,10 +49,12 @@ BSD 3-Clause portion
     src/core/models/dfm_support.h
     src/core/models/dfm_tvp_gamma.cpp
     src/core/models/dfm_tvp_stochvol.cpp
+    src/core/models/factor_score.h
     src/core/models/favar_normal_wishart.cpp
     src/core/models/favar_support.h
     src/core/models/forecast_states.h
     src/core/models/model_support.h
+    src/core/models/predictive_score.h
     src/core/spec.cpp
 
     That is not the whole of the BayesTS core, only what the four dynamic

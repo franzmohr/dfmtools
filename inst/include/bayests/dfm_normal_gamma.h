@@ -86,6 +86,24 @@ public:
     /// Requires `draws.factors`.
     arma::mat log_likelihood(const DfmNormalGammaInput &input,
                              const DfmNormalGammaDraws &draws) const;
+
+    /// The log predictive density of what the horizon realised, draws x scored
+    /// periods -- one row per posterior draw, one column per period of
+    /// `input.test.y`.
+    ///
+    /// A factor model is scored by filtering rather than by evaluating a
+    /// likelihood on another sample: its history reaches the density through
+    /// the latent factors, so at every scored period the realised observation
+    /// updates their distribution before the next is predicted. The column is
+    /// that period's prediction error decomposition, and the filter starts from
+    /// the drawn factors at the end of the sample. See
+    /// core/models/factor_score.h for the recursion and for why simulating the
+    /// factors forward instead would answer a different question.
+    ///
+    /// Draws nothing, a filter being a recursion rather than a simulation, so
+    /// it repeats without a seed. Requires `input.test.y` and the drawn factors.
+    arma::mat predictive_log_density(const DfmNormalGammaInput &input,
+                                     const DfmNormalGammaDraws &draws) const;
 };
 
 } // namespace bayests

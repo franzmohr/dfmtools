@@ -13,6 +13,10 @@
     .Call(`_dfmtools_DfmNormalGammaLogLik`, object)
 }
 
+.DfmNormalGammaScore <- function(object) {
+    .Call(`_dfmtools_DfmNormalGammaScore`, object)
+}
+
 .DfmNormalStochvolCoefficients <- function(object) {
     .Call(`_dfmtools_DfmNormalStochvolCoefficients`, object)
 }
@@ -23,6 +27,10 @@
 
 .DfmNormalStochvolLogLik <- function(object) {
     .Call(`_dfmtools_DfmNormalStochvolLogLik`, object)
+}
+
+.DfmNormalStochvolScore <- function(object) {
+    .Call(`_dfmtools_DfmNormalStochvolScore`, object)
 }
 
 .DfmTvpGammaCoefficients <- function(object) {
@@ -37,6 +45,10 @@
     .Call(`_dfmtools_DfmTvpGammaLogLik`, object)
 }
 
+.DfmTvpGammaScore <- function(object) {
+    .Call(`_dfmtools_DfmTvpGammaScore`, object)
+}
+
 .DfmTvpStochvolCoefficients <- function(object) {
     .Call(`_dfmtools_DfmTvpStochvolCoefficients`, object)
 }
@@ -47,6 +59,10 @@
 
 .DfmTvpStochvolLogLik <- function(object) {
     .Call(`_dfmtools_DfmTvpStochvolLogLik`, object)
+}
+
+.DfmTvpStochvolScore <- function(object) {
+    .Call(`_dfmtools_DfmTvpStochvolScore`, object)
 }
 
 .FavarNormalWishartCoefficients <- function(object) {
