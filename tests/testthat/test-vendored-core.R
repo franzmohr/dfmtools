@@ -12,11 +12,20 @@
 # than reading the headers. The grep below is the weaker second question --
 # whether any vendored file still asks for <armadillo> by name.
 
+# Where the sources are, from wherever the tests were started.
+#
+# devtools::test() runs from tests/testthat inside the checkout; R CMD check
+# runs from <pkg>.Rcheck/tests/testthat, with the unpacked tarball beside it as
+# <pkg>.Rcheck/dfmtools. Both have to be found, or this skips in exactly the
+# run it exists for. The installed package is not a candidate: src/core is not
+# installed, only compiled.
 vendored_root <- function() {
-  # Installed, the headers are under inst/include -> include; in a source
-  # checkout they are where they were written.
-  for (root in c(".", "..", "../..", system.file(package = "dfmtools"))) {
-    if (dir.exists(file.path(root, "src", "core"))) {
+  candidates <- c(".", "..", "../..", "../../..",
+                  "../dfmtools", "../../dfmtools", "../../../dfmtools",
+                  "../00_pkg_src/dfmtools", "../../00_pkg_src/dfmtools")
+  for (root in candidates) {
+    if (dir.exists(file.path(root, "src", "core")) &&
+        file.exists(file.path(root, "inst", "COPYRIGHTS"))) {
       return(root)
     }
   }
@@ -27,10 +36,9 @@ root <- vendored_root()
 
 test_that("inst/COPYRIGHTS lists exactly the files that are vendored", {
 
-  skip_if(is.null(root), "not run from a source checkout")
+  skip_if(is.null(root), "no source tree beside the tests")
 
   copyrights <- file.path(root, "inst", "COPYRIGHTS")
-  skip_if_not(file.exists(copyrights))
 
   # The same rule the refresh script applies: an indented path under inst/ or
   # src/ is a claim that the file is vendored.
