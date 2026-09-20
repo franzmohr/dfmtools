@@ -11,8 +11,8 @@
 ## change one, change the other.
 ##
 ## Unlike bvartools, which mirrors the whole core, this package takes only what
-## the dynamic factor models reach -- they are the samplers here, and compiling
-## the other thirteen would be a minute of build time and a larger shared object
+## the five factor models reach -- they are the samplers here, and compiling
+## the other seventeen would be a minute of build time and a larger shared object
 ## for code that is never called. The set is *computed* rather than listed: the script
 ## starts from the entry points below and follows every #include of a
 ## "bayests/..." or "core/..." header until nothing new turns up, taking each
@@ -56,10 +56,11 @@ keep <- c("core/VENDORED.md")
 ##     Input::validate(). They are reached by no #include -- the samplers call
 ##     them across translation units -- so they have to be named.
 ##
-## All four dynamic factor models are here. They share most of what they reach
-## -- dfm_support.h, model_support.h, chan_jeliazkov_2009 -- so each one after the
-## first costs little more than its own two files, and naming every one of them is
-## what keeps the closure from silently dropping whichever is not listed. An
+## All five are here, the four dynamic factor models and the factor augmented VAR
+## beside them. They share most of what they reach -- dfm_support.h,
+## model_support.h, chan_jeliazkov_2009 -- so each one after the first costs
+## little more than its own two files, and naming every one of them is what keeps
+## the closure from silently dropping whichever is not listed. An
 ## unlisted sampler is not an error here; it is a link error later.
 entry <- c("bayests/dfm_normal_gamma.h",
            "core/models/dfm_normal_gamma.cpp",

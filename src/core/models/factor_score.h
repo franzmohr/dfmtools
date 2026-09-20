@@ -170,29 +170,53 @@ inline arma::mat score_factor_forecast(const VarSpec &spec, const arma::mat &rea
             arma::mat scale = observation * gain + arma::diagmat(current.u_var);
             scale = (scale + arma::trans(scale)) / 2;
 
-            double log_det = 0.0;
-            double sign = 0.0;
-            arma::log_det(log_det, sign, scale);
-            if (sign <= 0.0)
+            // Factorised rather than put through arma::log_det(), which is an LU
+            // and decides definiteness from a pivot count. F is symmetric
+            // positive definite by construction, so a Cholesky is the test that
+            // matches it -- it fails exactly when the matrix is not one -- and it
+            // carries the determinant and both solves below with it.
+            arma::mat chol_scale;
+            if (!arma::chol(chol_scale, scale, "lower"))
             {
                 throw std::runtime_error(
                     "the one step ahead forecast variance of a scored period is not positive "
                     "definite, which no set of variances this filter was given can make it");
             }
+            const double log_det = 2.0 * arma::accu(arma::log(chol_scale.diag()));
 
-            const arma::vec weighted = arma::solve(scale, innovation, arma::solve_opts::likely_sympd);
+            const arma::vec weighted =
+                arma::solve(arma::trimatu(arma::trans(chol_scale)),
+                            arma::solve(arma::trimatl(chol_scale), innovation));
             loglik(draw, i) =
                 constant - log_det / 2 - arma::dot(innovation, weighted) / 2;
 
             // Update, so that the next period conditions on what this one
-            // realised. Held in the Joseph-free form the prediction error
-            // decomposition above is written against; the state is small here
-            // and the variance is rebuilt from the transition every period, so
-            // the usual worry about symmetry drifting has nowhere to accumulate.
-            const arma::mat kalman = arma::solve(scale, arma::trans(gain),
-                                                 arma::solve_opts::likely_sympd);
-            state += arma::trans(kalman) * innovation;
-            variance -= gain * kalman;
+            // realised, in the **Joseph form**: P = (I - K Z) P (I - K Z)' +
+            // K R K', a sum of two positive semi-definite terms and so one
+            // whatever rounding does to it.
+            //
+            // The short form P - K F K' the prediction error decomposition is
+            // written against is a *difference* of two of them, and it is not
+            // safe here for a reason particular to this filter: `state_noise`
+            // carries diag(v_var) in the leading n x n block and zeros
+            // elsewhere, so Q is singular for any transition of order above one,
+            // and the lagged blocks of P are never refreshed by it -- they only
+            // shift down through T. Error there accumulates instead of being
+            // flooded out, P drifts indefinite, and the Cholesky above then
+            // rejects an F that is mathematically fine. That took a release to
+            // find, because whether the drift crosses zero depends on which BLAS
+            // rounds which way: it passed on two toolchains and failed on a
+            // third.
+            const arma::mat kalman =
+                arma::trans(arma::solve(arma::trimatu(arma::trans(chol_scale)),
+                                        arma::solve(arma::trimatl(chol_scale),
+                                                    arma::trans(gain))));
+            state += kalman * innovation;
+
+            const arma::mat spread =
+                arma::eye<arma::mat>(n_state, n_state) - kalman * observation;
+            variance = spread * variance * arma::trans(spread) +
+                       kalman * arma::diagmat(current.u_var) * arma::trans(kalman);
             variance = (variance + arma::trans(variance)) / 2;
         }
     }

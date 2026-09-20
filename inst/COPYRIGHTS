@@ -59,10 +59,10 @@ BSD 3-Clause portion
 
     That is not the whole of the BayesTS core, only what the four dynamic
     factor models and the factor augmented VAR reach -- this package has
-    those five samplers and does not need the other fifteen. tools/update-bayests-core.R computes that
-    set by following the #include graph from them, so the list above is
-    derived rather than curated, and the script refuses to finish when the
-    two disagree.
+    those five samplers and does not need the other seventeen.
+    tools/update-bayests-core.R computes that set by following the #include
+    graph from them, so the list above is derived rather than curated, and
+    the script refuses to finish when the two disagree.
 
     inst/include/bayests_reporter.h is *not* part of this set. It lives one
     directory up, belongs to this package rather than to BayesTS, and is
