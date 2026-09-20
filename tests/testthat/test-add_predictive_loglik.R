@@ -8,20 +8,29 @@
 # against so the same call can be made again without them.
 
 # A fitted model with a forecast, and the periods held back from it.
-scored_setup <- function(n_ahead = 3, tvp = FALSE, iterations = 20, burnin = 10) {
+#
+# `error` as well as `tvp`, so that all four samplers can be scored. Only the
+# two constant-variance ones used to be: the filter behind the stochastic
+# volatility score carries a log-volatility random walk over the horizon that
+# nothing here ran, and the one bug this code has had was in that filter.
+scored_setup <- function(n_ahead = 3, tvp = FALSE, error = "gamma",
+                         iterations = 20, burnin = 10) {
   sim <- sim_dfm(tt = 44)
   train <- stats::window(sim$x, end = c(1989, 4))
   test <- stats::window(sim$x, start = c(1990, 1))
 
   object <- create_dfmodel(x = train, p = sim$p, n = sim$n, tvp = tvp,
-                           iterations = iterations, burnin = burnin)
-  object <- if (tvp) {
-    add_priors(object,
-               lambda = tvp_prior(vinv = 0.02, shape = 4, rate = 0.05),
-               a = tvp_prior(vinv = 0.03, shape = 5, rate = 0.06))
+                           error = error, iterations = iterations, burnin = burnin)
+
+  coefficients <- if (tvp) {
+    list(lambda = tvp_prior(vinv = 0.02, shape = 4, rate = 0.05),
+         a = tvp_prior(vinv = 0.03, shape = 5, rate = 0.06))
   } else {
-    add_priors(object)
+    list()
   }
+  errors <- if (error == "sv") list(u = sv_prior(), v = sv_prior()) else list()
+  object <- do.call(add_priors, c(list(object), coefficients, errors))
+
   object <- add_initial_values(object)
   set.seed(24)
   object <- add_posterior_coefficients(object)
@@ -29,6 +38,45 @@ scored_setup <- function(n_ahead = 3, tvp = FALSE, iterations = 20, burnin = 10)
 
   list(object = object, test = test, sim = sim)
 }
+
+test_that("every one of the four samplers can be scored", {
+
+  # The two stochastic volatility scores were never run here. They work; what
+  # was missing was anything that said so, which is how the defect in this
+  # filter reached a release and was found by a toolchain elsewhere.
+  for (error in c("gamma", "sv")) {
+    for (tvp in c(FALSE, TRUE)) {
+      fit <- scored_setup(tvp = tvp, error = error)
+      scored <- add_predictive_loglik(fit$object, test_sample = fit$test)
+      loglik <- scored[["posterior"]][["forecast"]][["loglik"]]
+
+      label <- paste0("error = ", error, ", tvp = ", tvp)
+      expect_s3_class(loglik, "mcmc")
+      expect_identical(dim(loglik), c(20L, 3L), label = label)
+      expect_true(all(is.finite(loglik)), label = label)
+    }
+  }
+})
+
+test_that("a test sample the horizon never reaches leaves the model alone", {
+
+  # Documented: "a model estimated to the end of a series forecasts past what
+  # was ever observed", and that is not an error. The object comes back as it
+  # went in, with no loglik and nothing in data$test.
+  fit <- scored_setup()
+
+  before <- stats::window(fit$sim$x, end = c(1980, 4))
+  untouched <- add_predictive_loglik(fit$object, test_sample = before)
+
+  expect_null(untouched[["posterior"]][["forecast"]][["loglik"]])
+  expect_null(untouched[["data"]][["test"]])
+  expect_identical(untouched, fit$object)
+
+  # An empty sample is the same answer.
+  empty <- stats::window(fit$sim$x, start = c(1980, 1), end = c(1980, 1))
+  empty[] <- NA_real_
+  expect_identical(add_predictive_loglik(fit$object, test_sample = empty), fit$object)
+})
 
 test_that("a forecast is scored against the periods its horizon realised", {
   fit <- scored_setup()

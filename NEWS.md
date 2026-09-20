@@ -1,5 +1,42 @@
 # dfmtools 0.1.0
 
+* **A test sample with a missing period was scored against the wrong periods.**
+  `add_predictive_loglik()` dropped incomplete rows with `na.omit()`, which on a
+  time series is `na.omit.ts()`: where it drops leading `NA`s it advances the
+  `tsp` of what it returns, and the period labels were computed from the
+  original start, so every realised value was attributed one period early.
+  Interior `NA`s it refused outright, and a wholly missing sample was an error
+  rather than no periods to score. Each row is now matched to the period it came
+  from before anything is dropped, and what is scored is the unbroken run from
+  the first forecast period -- a gap ends the run rather than being skipped,
+  because the filter conditions each period on the one before it.
+
+* `add_posterior_coefficients()` takes `verbose`. The sampler has been able to
+  report its progress since the C++ core arrived -- a percentage, at most one
+  line per percent -- and no argument reached it, so a chain of the default
+  length said nothing for minutes. It is still silent by default, and reporting
+  changes no draw.
+
+* The documentation of the seed no longer lets the reproducibility of
+  `add_posterior_coefficients()` be read as covering the steps after it.
+  `add_posterior_forecasts()` is not seeded: its draws come from R's generator
+  as it stands, so on a cluster they depend on which worker took the model, and
+  the same list forecast on one worker and on four does not give the same paths.
+
+* Tests for what was never run: all four samplers are scored rather than the two
+  with constant error variances, which is the code the one defect this filter
+  has had was in; the factor augmented VAR's methods have their refusals
+  covered; the shipped `inst/COPYRIGHTS` is checked against the files actually
+  vendored, which only `tools/update-bayests-core.R` did and only with an
+  upstream checkout to hand; and the package's unload hook runs in a process of
+  its own. Coverage of `R/` goes from 91.9% to 95.1%.
+
+* `data-raw/bem_dfmdata.R` says what it does and checks the one thing it cannot
+  see: that the headerless panel and the FRED-QD file it takes the series names
+  from describe the same columns in the same order. A mismatch would have named
+  all 196 series wrongly in silence. The script reproduces the shipped object
+  exactly.
+
 * **The prior arguments are checked for what they are, not only for where they
   lie.** `spec$shape < 0` on the character `"a"` compares as strings and is
   `FALSE`, so every range check in this package passed exactly the argument it

@@ -7,6 +7,11 @@
 #' and \code{\link{add_initial_values.dfmodel}}.
 #' @param posterior_function the function to be applied to the model in argument \code{object}.
 #' If \code{NULL} (default), internal functions are used.
+#' @param verbose logical indicating whether the sampler should report its
+#' progress. Defaults to \code{FALSE}. A chain of the default length on a
+#' panel of any size takes minutes and said nothing at all until this was
+#' added; \code{TRUE} prints a percentage, at most once per percent, to the
+#' console. Ignored by a \code{posterior_function}, which is called as it is.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details The function implements the posterior simulation algorithm for Bayesian
@@ -44,7 +49,13 @@
 #' The workers run with one thread, so the draws equal those of a session doing
 #' the same, and may differ in the last digits from those of a session running
 #' several. \code{add_posterior_forecasts()} and \code{add_posterior_loglik()}
-#' take \code{cores} for a list as well.
+#' take \code{cores} for a list as well -- but the guarantee above is about
+#' \emph{these} draws and does not extend to them. Only this function is
+#' seeded. \code{add_posterior_forecasts()} draws from R's generator as it
+#' stands, so its draws depend on the state that generator is in, and on a
+#' cluster that is the state of whichever worker took the model: the same list
+#' forecast on one worker and on four does not give the same paths.
+#' \code{set.seed()} immediately before the call is what fixes them.
 #'
 #'
 #' A simulation that fails does not stop: the model comes back as it went in
@@ -97,7 +108,13 @@
 #' model <- add_posterior_coefficients(model)
 #'
 #' @export
-add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL, ...){
+add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL,
+                                               verbose = FALSE, ...){
+
+  # Carried on the model rather than passed down, which is how
+  # `forecast_states` reaches the binding too, and kept there so that a model
+  # says whether it was watched.
+  object[["model"]][["verbose"]] <- .check_verbose(verbose)
 
   class_of_object <- class(object)
 

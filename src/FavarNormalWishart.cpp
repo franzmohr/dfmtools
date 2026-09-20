@@ -184,7 +184,7 @@ Rcpp::List FavarNormalWishartCoefficients(Rcpp::List object) {
   const bayests::FavarNormalWishartInput input = read_input(object);
 
   // Throttled Rcpp::checkUserInterrupt(); silent unless asked to report.
-  dfmtools::RcppReporter reporter;
+  dfmtools::RcppReporter reporter(read_verbose(object["model"]));
 
   // The sampler validates the input and throws std::invalid_argument naming the
   // first inconsistency it finds; Rcpp turns that into an R error.
