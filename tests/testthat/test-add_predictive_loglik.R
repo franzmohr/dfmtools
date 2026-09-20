@@ -52,8 +52,16 @@ test_that("a scored model carries what it was scored against", {
   realised <- scored[["data"]][["test"]][["x"]]
 
   expect_identical(dim(realised), c(3L, as.integer(fit$sim$m)))
-  expect_equal(as.numeric(realised),
-               as.numeric(stats::window(fit$test, end = c(1990, 3))))
+
+  # On the model's scale, not the data's: scored_setup() creates the model with
+  # the default normalisation, so the forecast the density is computed against
+  # is standardised and the realised values are put on that scale with the
+  # estimation sample's own centre and spread before they are scored.
+  train <- scored[["data"]][["x"]]
+  expected <- stats::window(fit$test, end = c(1990, 3))
+  expected <- sweep(sweep(as.matrix(expected), 2, attr(train, "scaled:center"), "-"),
+                    2, attr(train, "scaled:scale"), "/")
+  expect_equal(as.numeric(realised), as.numeric(expected))
 
   # And is scored again from them, to the same numbers, without the sample.
   again <- add_predictive_loglik(scored)

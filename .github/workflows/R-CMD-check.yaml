@@ -1,7 +1,8 @@
 # Workflow derived from https://github.com/r-lib/actions/tree/v2/examples
 # Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
 #
-# bvartools (>= 1.0.0) is not on CRAN yet, so the dependency is resolved from
+# The bvartools that DESCRIPTION requires is a development version, ahead of
+# the one on CRAN, so the dependency is resolved from
 # GitHub. DESCRIPTION states that under Remotes:, which is what
 # setup-r-dependencies below reads; there is nothing to configure here. It is
 # also what makes a plain remotes::install_github("franzmohr/dfmtools") work for
@@ -59,5 +60,6 @@ jobs:
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
-          # No vignettes, and no LaTeX on the runners either way.
+          # The vignettes are precompiled, so there is nothing here to
+          # evaluate; --no-manual because there is no LaTeX on the runners.
           build_args: 'c("--no-manual")'

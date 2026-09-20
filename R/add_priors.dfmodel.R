@@ -132,25 +132,13 @@ add_priors.dfmodel <- function(object,
                                ...){
 
   # Checks - Coefficient priors ----
-  if (!is.null(lambda)) {
-    if (!is.null(lambda$vinv)) {
-      if (lambda$vinv < 0) {
-        stop("Argument 'lambda$vinv' must be at least 0.")
-      }
-    } else {
-      stop("Argument 'lambda$vinv' is missing.")
-    }
-  }
-
-  if (!is.null(a)) {
-    if (!is.null(a$vinv)) {
-      if (a$vinv < 0) {
-        stop("Argument 'a$vinv' must be at least 0.")
-      }
-    } else {
-      stop("Argument 'a$vinv' is missing.")
-    }
-  }
+  #
+  # The loading block is built whatever the model, so a NULL here is a missing
+  # argument rather than a way of leaving a prior out: guarding the check with
+  # is.null() and then calling diag(NULL, k) only moved the complaint into
+  # diag(), where it no longer named the argument. The transition block is
+  # checked below, where it is known whether the model has one.
+  .check_coefficient_prior(lambda, "lambda")
 
   # Get model specs to obtain total number of coeffs
   m <- object$model$m
@@ -172,7 +160,11 @@ add_priors.dfmodel <- function(object,
   object$priors$lambda <- list(vinv = diag(lambda$vinv, n_lambda))
 
   # Priors for Phi ----
+  #
+  # A model with p = 0 has no transition to put a prior on, so `a` is not looked
+  # at at all and need not be given.
   if (n_a > 0) {
+    .check_coefficient_prior(a, "a")
     object$priors$a <- list(mu = matrix(0, n_a),
                             vinv = diag(a$vinv, n_a))
   }
@@ -248,13 +240,14 @@ add_priors.dfmodel <- function(object,
 # is what a message calls the argument.
 .dfm_gamma_prior <- function(spec, k, name) {
 
-  if (length(spec) < 2) {
-    stop("Argument '", name, "' must be at least of length 2.")
-  }
-  for (field in c("shape", "rate")) {
-    if (!field %in% names(spec)) {
-      stop("Argument ", name, "$", field, " is missing.")
-    }
+  # Named, like the two builders below, rather than counted: a list of length
+  # one used to be reported as a length rather than as the field it was short
+  # of.
+  missing_fields <- setdiff(c("shape", "rate"), names(spec))
+  if (length(missing_fields) > 0) {
+    stop("Argument '", name, "' is missing the specification",
+         if (length(missing_fields) > 1) "s" else "", " ",
+         paste0("'", missing_fields, "'", collapse = ", "), ".")
   }
   if (spec$shape < 0) {
     stop("Argument '", name, "$shape' must be at least 0.")
@@ -341,4 +334,25 @@ add_priors.dfmodel <- function(object,
        rate = matrix(spec$rate, k),
        sigma = matrix(spec$state_variance, k),
        offset = matrix(spec$offset, k))
+}
+
+# The normal prior on one of the two coefficient blocks: a single non-negative
+# precision under `vinv`. `name` is what a message calls the argument.
+.check_coefficient_prior <- function(spec, name) {
+
+  if (is.null(spec) || !is.list(spec)) {
+    stop("Argument '", name, "' must be a named list with element 'vinv'.")
+  }
+  if (is.null(spec$vinv)) {
+    stop("Argument '", name, "$vinv' is missing.")
+  }
+  if (!is.numeric(spec$vinv) || length(spec$vinv) != 1 || is.na(spec$vinv) ||
+      !is.finite(spec$vinv)) {
+    stop("Argument '", name, "$vinv' must be a single number.")
+  }
+  if (spec$vinv < 0) {
+    stop("Argument '", name, "$vinv' must be at least 0.")
+  }
+
+  return(invisible(spec))
 }

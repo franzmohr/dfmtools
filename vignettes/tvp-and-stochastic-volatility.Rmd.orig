@@ -356,7 +356,7 @@ horizon <- 8
 forecast <- function(model) {
   model <- add_posterior_forecasts(model, n_ahead = horizon)
   i <- match("GDPC96", series)
-  draws <- model$posterior$forecast[, (seq_len(horizon) - 1) * model$model$m + i]
+  draws <- model$posterior$forecast$forecasts[, (seq_len(horizon) - 1) * model$model$m + i]
   band <- t(apply(draws, 2, quantile, probs = c(0.05, 0.5, 0.95)))
   ts(band * attr(model$data$x, "scaled:scale")[i] +
        attr(model$data$x, "scaled:center")[i],

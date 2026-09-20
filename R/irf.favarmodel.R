@@ -247,8 +247,13 @@ irf.favarmodel <- function(x, impulse = NULL, response = NULL, n_ahead = 5,
     }
   }
 
+  # apply() drops the horizon dimension at n_ahead = 0, where cumsum() gets a
+  # row of length one and the result simplifies to a vector, so the transpose
+  # would turn a draws x 1 matrix into a 1 x draws one and the quantiles below
+  # would then be taken over the draws. fevd.favarmodel() guards the same case
+  # where it accumulates.
   if (cumulative) {
-    result <- t(apply(result, 1, cumsum))
+    result <- matrix(t(apply(result, 1, cumsum)), nrow = draws, ncol = n_ahead + 1)
   }
 
   if (keep_draws) {

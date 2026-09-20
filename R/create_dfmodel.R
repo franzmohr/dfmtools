@@ -86,7 +86,7 @@
 #'
 #' @return An object of class \code{'dfmodel'}, which contains the following elements:
 #' \item{data}{A list of data objects, which can be used for posterior simulation. Element
-#' \code{X} is a time-series object of normalised observable variables, i.e. each column has
+#' \code{x} is a time-series object of normalised observable variables, i.e. each column has
 #' zero mean and unity variance.}
 #' \item{model}{A list of model specifications.}
 #'
@@ -137,13 +137,10 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
     stop("Argument 'x' must be an object of class 'ts'.")
   }
   
-  if (any(p < 0)) {
-    stop("Argument 'p' must be at least 0.")
-  }
-  
-  if (any(n < 1)) {
-    stop("Argument 'n' must be at least 1.")
-  }
+  .check_model_integer(p, "p", 0)
+  .check_model_integer(n, "n", 1)
+  .check_sampler_length(iterations, "iterations", 1)
+  .check_sampler_length(burnin, "burnin", 0)
   
   if ("character" %in% class(error)) {
     if (!error %in% c("gamma", "sv")) {

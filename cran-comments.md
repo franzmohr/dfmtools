@@ -4,15 +4,16 @@
 from it; this file tracks both so the submission itself is routine once they're
 done.
 
-1. `bvartools (>= 1.0.0)` is a hard `Depends`, and CRAN has 0.3.0 (published
-   2026-09-11). CRAN resolves dependencies from CRAN itself, so submitting
-   dfmtools before bvartools 1.0.0 is accepted will fail outright. Submit
-   bvartools first.
+1. `bvartools (>= 0.3.0.9000)` is a hard `Depends`, and that is a development
+   version: CRAN has 0.3.0 (published 2026-09-11). CRAN resolves dependencies
+   from CRAN itself, so submitting dfmtools before a bvartools release at or
+   above that version is accepted will fail outright. Submit bvartools first,
+   and raise the requirement here to whatever it is released as.
 2. `DESCRIPTION` carries `Remotes: franzmohr/bvartools` so that
    `remotes::install_github()` and the GitHub Actions check pick bvartools up
    from GitHub in the meantime. Drop that field before the actual submission
-   -- once bvartools 1.0.0 is on CRAN it is no longer needed, and CRAN flags
-   it as an unknown field otherwise.
+   -- once the required bvartools is on CRAN it is no longer needed, and CRAN
+   flags it as an unknown field otherwise.
 
 The URL check no longer flags anything: `https://github.com/franzmohr/dfmtools`
 is public, so the `URL`, `BugReports` and `inst/CITATION` links resolve, and the
@@ -30,8 +31,14 @@ rather than the `www.` address that redirects there.
 
 ## R CMD check results
 
-0 errors | 0 warnings | 2 notes
+0 errors | 0 warnings | 3 notes
 
+* `checking installed package size ... NOTE`: the installed package is about
+  24Mb, nearly all of it `libs`. That is the vendored BayesTS core, which is
+  five Gibbs samplers of templated C++ compiled with debugging symbols by
+  default; it is the size the package is and there is nothing to strip that
+  CRAN does not strip itself. Recent R reports this as `INFO` rather than
+  `NOTE`, so a local check may not show it where CRAN's does.
 * `checking CRAN incoming feasibility ... NOTE`, which carries two items:
     * `New submission` -- expected, this is a first submission.
     * `Unknown, possibly misspelled, fields in DESCRIPTION: 'Remotes'` -- goes
@@ -46,8 +53,12 @@ bundled with Positron (`resources/app/quarto/bin/tools/pandoc.exe`) on it; a
 check run without that adds a third local-only note, `Files 'README.md' or
 'NEWS.md' cannot be checked without 'pandoc' being installed`.
 
-The tests pass: `[ FAIL 0 | WARN 0 | SKIP 1 | PASS 715 ]`. The one skip is
-`test-agent-docs.R`, which skips itself on CRAN.
+The tests pass: `[ FAIL 0 | WARN 0 | SKIP 4 | PASS 813 ]`. The four skips are
+`test-agent-docs.R`, which runs the examples in `inst/agents/` and skips itself
+on CRAN, and the three cases of `test-parallel.R` that start worker processes.
+All four run here: with `NOT_CRAN` set the suite is `[ FAIL 0 | WARN 0 |
+SKIP 0 | PASS 872 ]` against the installed package, which is worth doing before
+a submission because the skipped four are the ones CRAN never exercises.
 
 ## Downstream dependencies
 

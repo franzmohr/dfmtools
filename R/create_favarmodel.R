@@ -33,7 +33,7 @@
 #' \deqn{s_t = \sum_{i = 1}^{p} \Phi_i s_{t - i} + v_t,}
 #' with \eqn{v_t \sim N(0, Q)} and \eqn{Q} unrestricted.
 #'
-#' **The observed block is part of the state, not a set of regressors.** It
+#' \strong{The observed block is part of the state, not a set of regressors.} It
 #' appears on the left of the transition equation as well as the right, and the
 #' model's own dynamics run over it. That is what a FAVAR is estimated to
 #' measure: \eqn{Q} is unrestricted precisely so that its cross block -- the
@@ -99,12 +99,10 @@ create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
   if (!"ts" %in% class(y)) {
     stop("Argument 'y' must be an object of class 'ts'.")
   }
-  if (any(p < 0)) {
-    stop("Argument 'p' must be at least 0.")
-  }
-  if (any(n < 1)) {
-    stop("Argument 'n' must be at least 1.")
-  }
+  .check_model_integer(p, "p", 0)
+  .check_model_integer(n, "n", 1)
+  .check_sampler_length(iterations, "iterations", 1)
+  .check_sampler_length(burnin, "burnin", 0)
   if (nrow(as.matrix(x)) != nrow(as.matrix(y))) {
     stop("Arguments 'x' and 'y' must cover the same periods.")
   }

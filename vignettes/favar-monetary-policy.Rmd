@@ -145,9 +145,9 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
                  ncol(panel), model$model$n + model$model$n_obs)
 
 range(lambda[seq_along(slow), 4])          # slow block, loading on FEDFUNDS
-#> [1] -3.020311e-08  3.460819e-08
+#> [1] -1.232881e-08  1.780274e-08
 range(lambda[-seq_along(slow), 4])         # fast block
-#> [1] -0.02324920  0.02904062
+#> [1] -0.02361349  0.02869847
 ```
 
 The slow block is at zero to seven decimal places while the fast block is not,

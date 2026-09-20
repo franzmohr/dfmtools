@@ -26,3 +26,38 @@
   thin <- as.numeric(thin)
   return(coda::mcmc(draws, start = thin, end = NROW(draws) * thin, thin = thin))
 }
+
+
+# An argument that has to be a vector of whole numbers at or above `minimum`.
+# `p` and `n` of create_dfmodel() and create_favarmodel(), which index a model
+# rather than measure anything.
+#
+# The `any(p < 0)` this replaces let a character through: "a" < 0 compares as
+# strings and is FALSE, so a typed argument travelled on and failed several
+# steps later, inside a matrix multiplication, in terms of a quantity the caller
+# never named.
+.check_model_integer <- function(value, name, minimum) {
+  if (!is.numeric(value) || length(value) == 0 || anyNA(value) ||
+      any(!is.finite(value)) || any(value != round(value))) {
+    stop("Argument '", name, "' must be a vector of whole numbers.", call. = FALSE)
+  }
+  if (any(value < minimum)) {
+    stop("Argument '", name, "' must be at least ", minimum, ".", call. = FALSE)
+  }
+  return(invisible(value))
+}
+
+# The length of a chain, validated where the caller names it rather than where
+# the sampler trips over it. The core refuses a non-positive `iterations` and a
+# negative `burnin` too, but only once add_posterior_coefficients() runs, which
+# is a priors and starting values round trip after the mistake was made -- and
+# there the message arrives through the `error = TRUE` path rather than as a
+# stop. `thin` has been checked here all along; these two now are as well.
+.check_sampler_length <- function(value, name, minimum) {
+  if (!is.numeric(value) || length(value) != 1 || is.na(value) ||
+      !is.finite(value) || value != round(value) || value < minimum) {
+    stop("Argument '", name, "' must be a single whole number of at least ",
+         minimum, ".", call. = FALSE)
+  }
+  return(invisible(value))
+}

@@ -77,13 +77,24 @@ test_that("add_priors rejects invalid input", {
   expect_error(add_priors(object, a = list()), "'a\\$vinv' is missing")
   expect_error(add_priors(object, a = list(vinv = -1)), "must be at least 0")
 
-  expect_error(add_priors(object, u = list(shape = 5)), "at least of length 2")
-  expect_error(add_priors(object, u = list(shape = 5, scale = 4)), "u\\$rate is missing")
+  # A NULL block is a missing argument, not a way of leaving a prior out, and
+  # says so rather than dying inside diag().
+  expect_error(add_priors(object, lambda = NULL), "must be a named list")
+  expect_error(add_priors(object, a = NULL), "must be a named list")
+
+  # Except where the model has no transition to put a prior on.
+  no_transition <- create_dfmodel(x = sim$x, p = 0, n = 1)
+  expect_s3_class(add_priors(no_transition, a = NULL), "dfmodel")
+
+  # A short list is reported by the field it is short of, not by its length.
+  expect_error(add_priors(object, u = list(shape = 5)), "'u' is missing the specification 'rate'")
+  expect_error(add_priors(object, u = list()), "specifications 'shape', 'rate'")
+  expect_error(add_priors(object, u = list(shape = 5, scale = 4)), "'u' is missing the specification 'rate'")
   expect_error(add_priors(object, u = list(shape = -1, rate = 4)), "'u\\$shape' must be at least 0")
   expect_error(add_priors(object, u = list(shape = 5, rate = 0)), "'u\\$rate' must be larger than 0")
 
-  expect_error(add_priors(object, v = list(shape = 5)), "at least of length 2")
-  expect_error(add_priors(object, v = list(shape = 5, scale = 4)), "v\\$rate is missing")
+  expect_error(add_priors(object, v = list(shape = 5)), "'v' is missing the specification 'rate'")
+  expect_error(add_priors(object, v = list(shape = 5, scale = 4)), "'v' is missing the specification 'rate'")
   expect_error(add_priors(object, v = list(shape = -1, rate = 4)), "'v\\$shape' must be at least 0")
   expect_error(add_priors(object, v = list(shape = 5, rate = 0)), "'v\\$rate' must be larger than 0")
 })

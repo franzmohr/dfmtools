@@ -51,8 +51,8 @@ like a series whose idiosyncratic variance rose.
 
 ## Installation
 
-`dfmtools` needs `bvartools (>= 1.0.0)`, which is not on CRAN yet, so both come
-from GitHub:
+`dfmtools` needs the development version of `bvartools`, which is ahead of the
+one on CRAN, so both come from GitHub:
 
 ```r
 # install.packages("remotes")
@@ -153,11 +153,11 @@ lambda <- matrix(colMeans(model$posterior$lambda$coeffs),
 round(head(lambda, 6), 3)
 #>            f1     f2
 #> GDPC96  1.000  0.000
-#> PCECC96 3.767  1.000
-#> PCDGx   3.441  1.887
-#> PCESVx  2.434 -0.368
-#> PCNDx   2.755  0.850
-#> GPDIC96 4.539  0.878
+#> PCECC96 3.765  1.000
+#> PCDGx   3.440  1.887
+#> PCESVx  2.433 -0.368
+#> PCNDx   2.754  0.850
+#> GPDIC96 4.537  0.879
 ```
 
 The factor path is stored period by period, all `N` factors of a period
@@ -190,8 +190,7 @@ posterior predictive distribution rather than a conditional mean.
 model <- add_posterior_forecasts(model, n_ahead = 8)
 
 dim(model$posterior$forecast$forecasts)
-#> Error in `model$posterior$forecast$forecasts`:
-#> ! $ operator is invalid for atomic vectors
+#> [1] 5000 1568
 ```
 
 The horizons are stacked within a row in the variable order of the sample, so
@@ -204,15 +203,18 @@ gdp <- which(colnames(model$data$x) == "GDPC96")
 fc <- t(apply(model$posterior$forecast$forecasts[, seq(gdp, 8 * model$model$m,
                                             by = model$model$m)],
               2, quantile, probs = c(0.1, 0.5, 0.9)))
-#> Error in `model$posterior$forecast$forecasts`:
-#> ! $ operator is invalid for atomic vectors
 rownames(fc) <- paste0("h = ", 1:8)
-#> Error:
-#> ! Objekt 'fc' nicht gefunden
 
 round(fc, 3)
-#> Error:
-#> ! Objekt 'fc' nicht gefunden
+#>          10%    50%   90%
+#> h = 1 -1.136  0.011 1.149
+#> h = 2 -1.135  0.032 1.221
+#> h = 3 -1.127  0.041 1.187
+#> h = 4 -1.113  0.008 1.206
+#> h = 5 -1.153  0.002 1.194
+#> h = 6 -1.198 -0.019 1.245
+#> h = 7 -1.198  0.002 1.228
+#> h = 8 -1.208  0.009 1.216
 ```
 
 Those are in the units of the normalised data. Multiplying by the sample standard

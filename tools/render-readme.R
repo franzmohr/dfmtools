@@ -18,6 +18,22 @@ if (!file.exists("README.Rmd")) {
   stop("Run this from the package root: README.Rmd is not here.", call. = FALSE)
 }
 
+## A chunk that fails must fail the render. knitr's default is to record the
+## error in the output and carry on, which is how a README whose every forecast
+## chunk was an error message once reached the front page of the repository.
+## vignettes/precompile.R has set this for the same reason for as long as it has
+## existed. Chunks that mean to show an error still set error = TRUE themselves.
+knitr::opts_chunk$set(error = FALSE)
+
+## R's own messages otherwise come out in the renderer's language, and a README
+## is read in English whoever renders it. Set for this process only; the script
+## is run with Rscript and takes nothing back to the session.
+Sys.setenv(LANGUAGE = "en")
+
+## The chunks call `library(dfmtools)`, so what is baked into README.md is the
+## *installed* package, not the sources in this working tree. Install first:
+##
+##     R CMD INSTALL .
 knitr::knit("README.Rmd", "README.md", encoding = "UTF-8")
 
 lines <- readLines("README.md", encoding = "UTF-8", warn = FALSE)

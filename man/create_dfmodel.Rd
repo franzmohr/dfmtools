@@ -48,7 +48,7 @@ the draws that are not kept are never held in memory.}
 \value{
 An object of class \code{'dfmodel'}, which contains the following elements:
 \item{data}{A list of data objects, which can be used for posterior simulation. Element
-\code{X} is a time-series object of normalised observable variables, i.e. each column has
+\code{x} is a time-series object of normalised observable variables, i.e. each column has
 zero mean and unity variance.}
 \item{model}{A list of model specifications.}
 }

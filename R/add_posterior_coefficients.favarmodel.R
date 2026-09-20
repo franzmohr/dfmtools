@@ -27,7 +27,33 @@
 #' \code{add_posterior_forecasts()} and \code{add_posterior_loglik()} take
 #' \code{cores} for a list as well.
 #'
+#'
+#' A simulation that fails does not stop: the model comes back as it went in
+#' with an element \code{error} set to \code{TRUE}, so that a list of models
+#' loses only the one that failed. Estimation is the only step that does this.
+#' \code{add_posterior_forecasts()}, \code{add_posterior_loglik()} and
+#' \code{add_predictive_loglik()} are cheap and derived, and what goes wrong in
+#' them is nearly always the call rather than the chain, so they report it and
+#' stop.
+#'
 #' @return The model object with the result attached under \code{posterior}.
+#'
+#' @examples
+#'
+#' data("bem_dfmdata")
+#'
+#' panel <- bem_dfmdata[, -1]
+#' observed <- bem_dfmdata[, 1, drop = FALSE]
+#'
+#' model <- create_favarmodel(x = panel, y = observed, p = 1, n = 1,
+#'                            iterations = 500, burnin = 100)
+#' # Chosen number of iterations and burn-in should be much higher.
+#'
+#' model <- add_priors(model)
+#' model <- add_initial_values(model)
+#' model <- add_posterior_coefficients(model)
+#'
+#' dim(model$posterior$lambda$coeffs)
 #'
 #' @export
 add_posterior_coefficients.favarmodel <- function(object, posterior_function = NULL, ...) {
