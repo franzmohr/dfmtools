@@ -73,9 +73,13 @@ test_that("add_priors rejects invalid input", {
   object <- create_dfmodel(x = sim$x, p = 1, n = 1)
 
   expect_error(add_priors(object, lambda = list()), "'lambda\\$vinv' is missing")
-  expect_error(add_priors(object, lambda = list(vinv = -1)), "must be at least 0")
+  expect_error(add_priors(object, lambda = list(vinv = -1)), "must be larger than 0")
   expect_error(add_priors(object, a = list()), "'a\\$vinv' is missing")
-  expect_error(add_priors(object, a = list(vinv = -1)), "must be at least 0")
+  expect_error(add_priors(object, a = list(vinv = -1)), "must be larger than 0")
+  # A flat prior is not a specification either: a starting value is drawn from
+  # every block, and a precision of zero has no variance to draw with.
+  expect_error(add_priors(object, lambda = list(vinv = 0)), "must be larger than 0")
+  expect_error(add_priors(object, a = list(vinv = 0)), "must be larger than 0")
 
   # A NULL block is a missing argument, not a way of leaving a prior out, and
   # says so rather than dying inside diag().
@@ -90,11 +94,11 @@ test_that("add_priors rejects invalid input", {
   expect_error(add_priors(object, u = list(shape = 5)), "'u' is missing the specification 'rate'")
   expect_error(add_priors(object, u = list()), "specifications 'shape', 'rate'")
   expect_error(add_priors(object, u = list(shape = 5, scale = 4)), "'u' is missing the specification 'rate'")
-  expect_error(add_priors(object, u = list(shape = -1, rate = 4)), "'u\\$shape' must be at least 0")
+  expect_error(add_priors(object, u = list(shape = -1, rate = 4)), "'u\\$shape' must be larger than 0")
   expect_error(add_priors(object, u = list(shape = 5, rate = 0)), "'u\\$rate' must be larger than 0")
 
   expect_error(add_priors(object, v = list(shape = 5)), "'v' is missing the specification 'rate'")
   expect_error(add_priors(object, v = list(shape = 5, scale = 4)), "'v' is missing the specification 'rate'")
-  expect_error(add_priors(object, v = list(shape = -1, rate = 4)), "'v\\$shape' must be at least 0")
+  expect_error(add_priors(object, v = list(shape = -1, rate = 4)), "'v\\$shape' must be larger than 0")
   expect_error(add_priors(object, v = list(shape = 5, rate = 0)), "'v\\$rate' must be larger than 0")
 })

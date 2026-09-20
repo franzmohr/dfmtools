@@ -93,9 +93,7 @@ fevd.favarmodel <- function(x, response = NULL, n_ahead = 5, type = "oir",
     stop("Argument 'x' does not contain posterior draws. Use ",
          "add_posterior_coefficients first.")
   }
-  if (n_ahead < 0) {
-    stop("Argument 'n_ahead' must be at least 0.")
-  }
+  .check_whole_number(n_ahead, "n_ahead", 0)
   if (!type %in% c("oir", "gir")) {
     stop("Argument 'type' must be one of \"oir\" or \"gir\". A decomposition ",
          "of type \"feir\" is not defined: unorthogonalised innovations have ",

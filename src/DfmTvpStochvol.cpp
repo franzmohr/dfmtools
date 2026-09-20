@@ -40,6 +40,9 @@ namespace {
 
 using namespace bayests_r;
 using dfmtools::lambda_row_major_order;
+using dfmtools::permute_free_loadings;
+using dfmtools::permute_free_loadings_both;
+using dfmtools::permute_free_loadings_rows;
 
 /// One of the two stochastic volatility prior groups. They differ in their name
 /// and their width and in nothing else, so reading them through one function is
@@ -125,18 +128,18 @@ bayests::DfmTvpStochvolInput read_input(const Rcpp::List &object) {
 
       // The permutation, applied to whatever came back. The prior mean is
       // implied zero where add_priors.dfmodel() wrote none.
-      if (input.lambda_prior.initial_state.v_inv.n_rows == order.n_elem) {
-        input.lambda_prior.initial_state.v_inv =
-          input.lambda_prior.initial_state.v_inv.submat(order, order);
-      }
+      input.lambda_prior.initial_state.v_inv =
+        permute_free_loadings_both(input.lambda_prior.initial_state.v_inv, order);
+      // An absent mean is the implied zero; one that is there is permuted, or
+      // handed over as it is so that a wrong size is rejected by its own size.
       input.lambda_prior.initial_state.mu =
-        input.lambda_prior.initial_state.mu.n_elem == order.n_elem
-          ? arma::vec(input.lambda_prior.initial_state.mu.elem(order))
-          : arma::vec(order.n_elem, arma::fill::zeros);
-      if (input.lambda_prior.sigma.shape.n_elem == order.n_elem) {
-        input.lambda_prior.sigma.shape = arma::vec(input.lambda_prior.sigma.shape.elem(order));
-        input.lambda_prior.sigma.rate = arma::vec(input.lambda_prior.sigma.rate.elem(order));
-      }
+        input.lambda_prior.initial_state.mu.is_empty()
+          ? arma::vec(order.n_elem, arma::fill::zeros)
+          : permute_free_loadings(input.lambda_prior.initial_state.mu, order);
+      input.lambda_prior.sigma.shape =
+        permute_free_loadings(input.lambda_prior.sigma.shape, order);
+      input.lambda_prior.sigma.rate =
+        permute_free_loadings(input.lambda_prior.sigma.rate, order);
     }
 
     if (has(priors, "a")) {
@@ -156,21 +159,15 @@ bayests::DfmTvpStochvolInput read_input(const Rcpp::List &object) {
     // the permutation acts on rows alone -- the columns are the sample.
     arma::mat lambda;
     read_mat_if_present(initial, "lambda", lambda);
-    if (lambda.n_rows == order.n_elem) {
-      input.initial.lambda = lambda.rows(order);
-    }
+    input.initial.lambda = permute_free_loadings_rows(lambda, order);
 
     arma::mat lambda_sigma_inv;
     read_mat_if_present(initial, "lambda_sigma_inv", lambda_sigma_inv);
-    if (lambda_sigma_inv.n_rows == order.n_elem) {
-      input.initial.lambda_sigma_inv = lambda_sigma_inv.submat(order, order);
-    }
+    input.initial.lambda_sigma_inv = permute_free_loadings_both(lambda_sigma_inv, order);
 
     arma::vec lambda_init;
     read_vec_if_present(initial, "lambda_init", lambda_init);
-    if (lambda_init.n_elem == order.n_elem) {
-      input.initial.lambda_init = lambda_init.elem(order);
-    }
+    input.initial.lambda_init = permute_free_loadings(lambda_init, order);
 
     // The transition path needs no permutation: vec([A_1 .. A_p]) is the same
     // object on both sides.
@@ -334,11 +331,12 @@ Rcpp::List DfmTvpStochvolCoefficients(Rcpp::List object) {
 
   const arma::uvec order = lambda_row_major_order(input.spec.k, input.spec.n_factors);
 
-  return Rcpp::List::create(Rcpp::Named("data") = object["data"],
-                            Rcpp::Named("model") = object["model"],
-                            Rcpp::Named("initial") = object["initial"],
-                            Rcpp::Named("priors") = object["priors"],
-                            Rcpp::Named("posterior") = write_draws(draws, order));
+  // Assigned into the object rather than rebuilt from a list of five
+  // names, which silently dropped anything else the caller had put on
+  // it. The R method has already removed a stale `posterior` and a
+  // stale `error` from what it passes in.
+  object["posterior"] = write_draws(draws, order);
+  return object;
 }
 
 // [[Rcpp::export(.DfmTvpStochvolForecasts)]]

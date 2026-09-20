@@ -38,13 +38,23 @@ test_that("the error precisions start at a draw from their gamma prior", {
   expect_equal(mean(favar_draws), 5 / 4, tolerance = 0.05)
 })
 
-test_that("an improper gamma prior on a precision is refused, not drawn from", {
+test_that("an improper gamma prior on a precision is refused where it is written", {
 
   sim <- sim_dfm(tt = 40, m = 4, n = 1)
-  object <- add_priors(create_dfmodel(x = sim$x, p = 1, n = 1,
-                                      iterations = 10, burnin = 5),
-                       u = list(shape = 0, rate = 4))
-  expect_error(add_initial_values(object), "must be larger than 0")
+  object <- create_dfmodel(x = sim$x, p = 1, n = 1, iterations = 10, burnin = 5)
+
+  # rgamma() returns zero for a shape of zero, so nothing can be started from
+  # this prior. Said by add_priors(), where the argument still has a name,
+  # rather than one function later.
+  expect_error(add_priors(object, u = list(shape = 0, rate = 4)),
+               "'u[$]shape' must be larger than 0")
+  expect_error(add_priors(object, v = list(shape = 0, rate = 4)),
+               "'v[$]shape' must be larger than 0")
+
+  # add_initial_values() keeps its own guard for a prior written by hand.
+  hand_edited <- add_priors(object)
+  hand_edited$priors$u$shape[] <- 0
+  expect_error(add_initial_values(hand_edited), "must be larger than 0")
 })
 
 test_that("a cumulative response keeps its shape at horizon zero", {

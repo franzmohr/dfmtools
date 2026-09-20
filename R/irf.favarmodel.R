@@ -148,9 +148,7 @@ irf.favarmodel <- function(x, impulse = NULL, response = NULL, n_ahead = 5,
     stop("Argument 'x' does not contain posterior draws. Use ",
          "add_posterior_coefficients first.")
   }
-  if (n_ahead < 0) {
-    stop("Argument 'n_ahead' must be at least 0.")
-  }
+  .check_whole_number(n_ahead, "n_ahead", 0)
   if (!is.numeric(shock) || length(shock) != 1) {
     stop("Argument 'shock' must be a single number.")
   }

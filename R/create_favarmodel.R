@@ -101,8 +101,8 @@ create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
   }
   .check_model_integer(p, "p", 0)
   .check_model_integer(n, "n", 1)
-  .check_sampler_length(iterations, "iterations", 1)
-  .check_sampler_length(burnin, "burnin", 0)
+  .check_whole_number(iterations, "iterations", 1)
+  .check_whole_number(burnin, "burnin", 0)
   if (nrow(as.matrix(x)) != nrow(as.matrix(y))) {
     stop("Arguments 'x' and 'y' must cover the same periods.")
   }

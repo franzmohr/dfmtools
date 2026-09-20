@@ -51,6 +51,40 @@ inline arma::uvec lambda_row_major_order(const int m, const int n)
   return order;
 }
 
+/// A value put on the core's ordering where it is the size the permutation is
+/// for, left alone where it is not, and left empty where there is none.
+///
+/// The middle case is the point. These used to be `if (size matches) assign`,
+/// so a wrong-sized argument was quietly not passed on and the core's
+/// validator -- which does reject it, by size -- reported the size of what it
+/// had rather than of what the caller wrote: "prior precision of lambda must
+/// be 7x7, got 0x0" for a 3 x 3. Handing the value over unpermuted keeps the
+/// rejection and makes the message name the real size. Permuting it would not
+/// be possible and would not help.
+inline arma::vec permute_free_loadings(const arma::vec &value, const arma::uvec &order)
+{
+  if (value.n_elem == order.n_elem) {
+    return arma::vec(value.elem(order));
+  }
+  return value;
+}
+
+inline arma::mat permute_free_loadings_rows(const arma::mat &value, const arma::uvec &order)
+{
+  if (value.n_rows == order.n_elem) {
+    return arma::mat(value.rows(order));
+  }
+  return value;
+}
+
+inline arma::mat permute_free_loadings_both(const arma::mat &value, const arma::uvec &order)
+{
+  if (value.n_rows == order.n_elem && value.n_cols == order.n_elem) {
+    return arma::mat(value.submat(order, order));
+  }
+  return value;
+}
+
 } // namespace dfmtools
 
 #endif // DFMTOOLS_DFM_R_TRANSLATION_H

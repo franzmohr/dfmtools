@@ -66,9 +66,7 @@ add_posterior_forecasts.favarmodel <- function(object, n_ahead = 10, ...) {
     stop("Argument 'object' does not contain posterior draws of the factors, ",
          "which a factor augmented VAR forecasts from.")
   }
-  if (n_ahead < 1) {
-    stop("Argument 'n_ahead' must be at least 1.")
-  }
+  .check_whole_number(n_ahead, "n_ahead", 1)
 
   class_of_object <- class(object)
 

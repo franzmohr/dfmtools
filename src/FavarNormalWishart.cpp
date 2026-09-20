@@ -191,11 +191,12 @@ Rcpp::List FavarNormalWishartCoefficients(Rcpp::List object) {
   const bayests::FavarNormalWishartDraws draws =
     bayests::FavarNormalWishartSampler().draw_coefficients(input, reporter);
 
-  return Rcpp::List::create(Rcpp::Named("data") = object["data"],
-                            Rcpp::Named("model") = object["model"],
-                            Rcpp::Named("initial") = object["initial"],
-                            Rcpp::Named("priors") = object["priors"],
-                            Rcpp::Named("posterior") = write_draws(draws));
+  // Assigned into the object rather than rebuilt from a list of five
+  // names, which silently dropped anything else the caller had put on
+  // it. The R method has already removed a stale `posterior` and a
+  // stale `error` from what it passes in.
+  object["posterior"] = write_draws(draws);
+  return object;
 }
 
 // [[Rcpp::export(.FavarNormalWishartForecasts)]]

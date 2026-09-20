@@ -47,13 +47,14 @@
   return(invisible(value))
 }
 
-# The length of a chain, validated where the caller names it rather than where
-# the sampler trips over it. The core refuses a non-positive `iterations` and a
+# A single whole number at or above `minimum`: the length of a chain, or the
+# horizon of a forecast or a response. Validated where the caller names it
+# rather than where whatever consumes it trips over it. The core refuses a non-positive `iterations` and a
 # negative `burnin` too, but only once add_posterior_coefficients() runs, which
 # is a priors and starting values round trip after the mistake was made -- and
 # there the message arrives through the `error = TRUE` path rather than as a
 # stop. `thin` has been checked here all along; these two now are as well.
-.check_sampler_length <- function(value, name, minimum) {
+.check_whole_number <- function(value, name, minimum) {
   if (!is.numeric(value) || length(value) != 1 || is.na(value) ||
       !is.finite(value) || value != round(value) || value < minimum) {
     stop("Argument '", name, "' must be a single whole number of at least ",

@@ -29,10 +29,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The leading 'v' and any pre-release suffix are not part of the
-          # version that the files carry
+          # The leading 'v' is not part of the version, and neither is a
+          # pre-release suffix. Only a recognised suffix is stripped: an R
+          # version number may itself use '-' as a separator, so 0.2-5 is a
+          # version and not 0.2 with something after it, and stripping at the
+          # first dash would check the wrong number.
           tag=${GITHUB_REF_NAME#v}
-          tag=${tag%%-*}
+          case "$tag" in
+            *-rc*|*-RC*|*-alpha*|*-beta*|*-dev*|*-pre*)
+              tag=${tag%-*} ;;
+          esac
 
           read_field() {
             sed -n "s/^$2:[[:space:]]*//p" "$1" | head -1 | tr -d "\"'" | tr -d '[:space:]'

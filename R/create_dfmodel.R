@@ -139,8 +139,8 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
   
   .check_model_integer(p, "p", 0)
   .check_model_integer(n, "n", 1)
-  .check_sampler_length(iterations, "iterations", 1)
-  .check_sampler_length(burnin, "burnin", 0)
+  .check_whole_number(iterations, "iterations", 1)
+  .check_whole_number(burnin, "burnin", 0)
   
   if ("character" %in% class(error)) {
     if (!error %in% c("gamma", "sv")) {
@@ -178,7 +178,6 @@ create_dfmodel <- function(x, p = 2, n = 1, normalize_x = TRUE, error = "gamma",
     x <- scale(x)
   }
   
-  data_name <- dimnames(x)[[2]]
   m <- NCOL(x)
   tt <- nrow(x)
   p_max <- max(p)

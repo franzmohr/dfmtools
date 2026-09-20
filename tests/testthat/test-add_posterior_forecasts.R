@@ -72,7 +72,11 @@ test_that("add_posterior_forecasts rejects invalid input", {
   drawn <- add_posterior_coefficients(prep$object)
 
   expect_error(add_posterior_forecasts(drawn, n_ahead = 0),
-               "'n_ahead' must be at least 1")
+               "'n_ahead' must be a single whole number of at least 1")
+  # A horizon is a count, so a fraction of one is a mistake rather than a
+  # number to truncate.
+  expect_error(add_posterior_forecasts(drawn, n_ahead = 2.7),
+               "'n_ahead' must be a single whole number")
 
   # The factor path cannot be recomputed from the parameters, so its absence is
   # an error rather than an extra filtering pass.

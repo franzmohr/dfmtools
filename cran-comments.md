@@ -53,11 +53,11 @@ bundled with Positron (`resources/app/quarto/bin/tools/pandoc.exe`) on it; a
 check run without that adds a third local-only note, `Files 'README.md' or
 'NEWS.md' cannot be checked without 'pandoc' being installed`.
 
-The tests pass: `[ FAIL 0 | WARN 0 | SKIP 4 | PASS 813 ]`. The four skips are
+The tests pass: `[ FAIL 0 | WARN 0 | SKIP 4 | PASS 845 ]`. The four skips are
 `test-agent-docs.R`, which runs the examples in `inst/agents/` and skips itself
 on CRAN, and the three cases of `test-parallel.R` that start worker processes.
 All four run here: with `NOT_CRAN` set the suite is `[ FAIL 0 | WARN 0 |
-SKIP 0 | PASS 872 ]` against the installed package, which is worth doing before
+SKIP 0 | PASS 878 ]` against the installed package, which is worth doing before
 a submission because the skipped four are the ones CRAN never exercises.
 
 ## Downstream dependencies

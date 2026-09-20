@@ -101,11 +101,13 @@ add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL
 
   class_of_object <- class(object)
 
-  # Copy in case the simulation fails
+  # Copy in case the simulation fails. Both the copy and the object handed to
+  # the sampler are stripped of what a previous run left: the binding now
+  # assigns into the object it is given rather than rebuilding it from a fixed
+  # list of names, so anything stale on it would survive.
+  object[["posterior"]] <- NULL
+  object[["error"]] <- NULL
   model <- object
-  if ("posterior" %in% names(model)) {
-    model[["posterior"]] <- NULL
-  }
 
   if (is.null(posterior_function)) {
     object <- try(
