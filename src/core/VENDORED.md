@@ -7,13 +7,15 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS `4a64082`**, upstream `main` after the 0.3.0 release
-(tagged on `18a86c2`). Past `7d7c6ca`, where the previous refresh sat, the files
-reached here moved for three reasons, none of which changes a factor model's
-draws: the `bvs` flat-prior diagnostic and the SSVS refusals (`fa6dd89`,
-`f2abd4e`, `a85abe2` -- `priors.h`, `inputs.cpp`, `model_support.h`), and the
-non-centred random walks of `VarTvpStochvol` (`59c495f` -- `results.h` and
-three additions to the stochastic volatility files). 0.3.0 is not archived yet,
+The copy is **BayesTS `ffbd208`**, upstream `main` after the 0.3.0 release
+(tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
+none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
+and the SSVS refusals (`fa6dd89`, `f2abd4e`, `a85abe2` -- `priors.h`,
+`inputs.cpp`, `model_support.h`); the non-centred random walks of
+`VarTvpStochvol`, `VarTvpGamma` and `VecTvpStochvol` (`59c495f`, `0a2a0c0`,
+`95bacdb` -- `results.h`, `inputs.cpp` and three additions to the stochastic
+volatility files); and the constant VECs' cointegration prior (`b8d6c2c` --
+`priors.h`, `inputs.cpp`). The refresh before sat at `4a64082`. 0.3.0 is not archived yet,
 so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
 whenever one is cut. The last archived release is 0.2.0,
