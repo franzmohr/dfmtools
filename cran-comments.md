@@ -29,7 +29,7 @@ rather than the `www.` address that redirects there.
   submitting -- the vendored C++17 core (`src/core/`) has only been built
   and exercised on Windows/MinGW so far.
 
-`Depends` says `R (>= 4.0)` rather than the `(>= 3.5)` it used to, and rather
+`Depends` says `R (>= 4.0.0)` rather than the `(>= 3.5)` it used to, and rather
 than the `(>= 3.5)` bvartools says. `src/Makevars` sets `CXX_STD = CXX17`, and
 3.5 predates a toolchain that reliably honours it; the oldest R the check
 matrix exercises is `oldrel-1`, so nothing ever tested the old claim. Stricter
