@@ -1,5 +1,12 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core is refreshed to upstream `ffbd208`. Four files
+  moved -- `inputs.h`, `priors.h`, `results.h` and `inputs.cpp` -- for the
+  non-centred random walks of `VarTvpGamma` and `VecTvpStochvol` and for the
+  VEC models' cointegration prior, none of which a factor model uses. *Draws
+  are unchanged*: every factor model fixture fingerprints identically across
+  each of those upstream commits.
+
 * The vendored BayesTS core is refreshed to upstream `4a64082`. Nothing a
   factor model draws changes: the seven files that moved carry a warning and
   three refusals for the variable selection the VAR and VEC samplers offer,
