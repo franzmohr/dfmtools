@@ -1,5 +1,14 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core is refreshed to upstream `4a64082`. Nothing a
+  factor model draws changes: the seven files that moved carry a warning and
+  three refusals for the variable selection the VAR and VEC samplers offer,
+  which no factor model does, and the building blocks of a non-centred
+  stochastic volatility that only `VarTvpStochvol` uses -- additions beside
+  the mixture draw the factor models call, not changes to it. *Draws are
+  unchanged*: upstream's fingerprint recording, which includes every factor
+  model fixture, is identical before and after each of those commits.
+
 * **A univariate block passed as a plain vector broke a factor augmented VAR.**
   `create_favarmodel()` left `x` and `y` as they arrived, so a `ts` vector --
   which is what a single observed variable is, unless a caller thought to keep

@@ -13,9 +13,13 @@ namespace bayests
 /// Wishart prior on the error precision.
 ///
 /// Draws run along the columns, which is the layout the samplers accumulate in
-/// and the one that keeps a single draw contiguous. Hosts that want the
-/// convention their ecosystem expects -- draws in rows, for both the HDF5
-/// files and R -- transpose at the boundary.
+/// and the one that keeps a single draw contiguous. The model file keeps that
+/// orientation: in HDF5 dataspace terms every posterior dataset is one row per
+/// quantity and one column per draw, which is what h5py reports. R's readers
+/// reverse the dimension order, R being column-major where HDF5 is row-major,
+/// so an R session sees the transpose -- draws in rows, which is what `coda`
+/// expects of an `mcmc` object. A host whose ecosystem wants that convention
+/// transposes at the boundary; the file itself is not transposed.
 struct VarNormalWishartDraws
 {
     /// nparams x iterations. Empty when the model has no regressors.
@@ -158,6 +162,33 @@ struct VarTvpWishartDraws
     bool has_a() const { return a.n_elem > 0; }
 };
 
+/// What a block of random walks estimated under the non-centred
+/// parameterisation adds to its draws. Empty under the centred one.
+///
+/// The variance draws beside it -- `a_sigma` and the like -- are still written,
+/// as \f$\omega^2\f$, so that everything reading a random walk's variance reads
+/// it the same way whichever parameterisation produced it. See
+/// src/core/models/noncentred_support.h for the model and for what the
+/// ordinates are for.
+struct NoncentredStateDraws
+{
+    /// n x iterations: the signed standard deviations \f$\omega\f$.
+    arma::mat omega;
+
+    /// n x iterations: \f$\log p(\omega_i = 0 \mid y, \tilde x, \ldots)\f$, one
+    /// state at a time. Averaging their exponentials over the draws estimates
+    /// the posterior ordinate of the Savage-Dickey ratio for "state i does not
+    /// move".
+    arma::mat log_zero;
+
+    /// 1 x iterations: the same for the whole block at once, "none of the
+    /// states moves". Not the sum of the rows above, which are marginals of a
+    /// joint that couples them.
+    arma::mat log_zero_joint;
+
+    bool empty() const { return omega.n_elem == 0; }
+};
+
 /// Posterior draws of a VAR whose coefficients follow a random walk and whose
 /// errors carry stochastic volatility.
 ///
@@ -169,10 +200,12 @@ struct VarTvpStochvolDraws
     arma::mat a;
     arma::mat a_sigma;
     arma::mat a_lambda;
+    NoncentredStateDraws a_noncentred;
 
     arma::mat psi;
     arma::mat psi_sigma;
     arma::mat psi_lambda;
+    NoncentredStateDraws psi_noncentred;
 
     /// (k * tt) x iterations: the diagonal of the precision, period by period.
     arma::mat u_omega_inv;
@@ -184,6 +217,7 @@ struct VarTvpStochvolDraws
     /// k x iterations: the variance of the log-volatility innovations, as in
     /// VarNormalStochvolDraws.
     arma::mat h_sigma;
+    NoncentredStateDraws h_noncentred;
 
     arma::uword iterations() const { return u_sigma_inv.n_cols; }
     bool has_a() const { return a.n_elem > 0; }
@@ -221,9 +255,13 @@ struct VarTvpAldDraws
 /// Wishart prior on the error precision.
 ///
 /// Draws run along the columns, which is the layout the samplers accumulate in
-/// and the one that keeps a single draw contiguous. Hosts that want the
-/// convention their ecosystem expects -- draws in rows, for both the HDF5
-/// files and R -- transpose at the boundary.
+/// and the one that keeps a single draw contiguous. The model file keeps that
+/// orientation: in HDF5 dataspace terms every posterior dataset is one row per
+/// quantity and one column per draw, which is what h5py reports. R's readers
+/// reverse the dimension order, R being column-major where HDF5 is row-major,
+/// so an R session sees the transpose -- draws in rows, which is what `coda`
+/// expects of an `mcmc` object. A host whose ecosystem wants that convention
+/// transposes at the boundary; the file itself is not transposed.
 struct VecNormalWishartDraws
 {
     arma::mat a;          ///< nparams x iterations. Empty when the model has no regressors.
