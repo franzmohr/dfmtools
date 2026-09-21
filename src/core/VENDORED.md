@@ -7,10 +7,14 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS 0.3.0 plus one commit**: `7d7c6ca`, which is the 0.3.0
-release -- the version in upstream's `CMakeLists.txt` and `CHANGELOG.md` -- and
-the fix to `factor_score.h` that followed it. That release is not tagged or
-archived yet, so there is no version DOI to name here; the concept DOI
+The copy is **BayesTS `4a64082`**, upstream `main` after the 0.3.0 release
+(tagged on `18a86c2`). Past `7d7c6ca`, where the previous refresh sat, the files
+reached here moved for three reasons, none of which changes a factor model's
+draws: the `bvs` flat-prior diagnostic and the SSVS refusals (`fa6dd89`,
+`f2abd4e`, `a85abe2` -- `priors.h`, `inputs.cpp`, `model_support.h`), and the
+non-centred random walks of `VarTvpStochvol` (`59c495f` -- `results.h` and
+three additions to the stochastic volatility files). 0.3.0 is not archived yet,
+so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
 whenever one is cut. The last archived release is 0.2.0,
 <https://doi.org/10.5281/zenodo.22765348>, which this copy is past.
