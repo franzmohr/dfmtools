@@ -1,5 +1,10 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core is refreshed to upstream `f8b42a1`. Only
+  `inputs.cpp` moved, and only a comment in it: the description of
+  `validate_tvp_block()` is back above that function, from where an addition
+  had separated it. *Draws are unchanged*.
+
 * The vendored BayesTS core is refreshed to upstream `94f81de`. Three files
   moved. `kalman_durbin_koopman_2002.cpp` skips the products with the
   identity transition of a random walk, which makes the smoother faster and
