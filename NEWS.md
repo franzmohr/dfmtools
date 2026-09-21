@@ -1,5 +1,11 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core is refreshed to upstream `cea124b`, which adds the
+  non-centred prior for `VecTvpGamma`: two members of that model's draw struct
+  in `results.h` and a comment in `priors.h`, neither read by a factor model.
+  *Draws are unchanged*; upstream fingerprints every fixture identically across
+  the commit.
+
 * The vendored BayesTS core is refreshed to upstream `ffbd208`. Four files
   moved -- `inputs.h`, `priors.h`, `results.h` and `inputs.cpp` -- for the
   non-centred random walks of `VarTvpGamma` and `VecTvpStochvol` and for the
