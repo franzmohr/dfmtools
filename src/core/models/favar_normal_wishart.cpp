@@ -5,6 +5,7 @@
 
 #include "core/algorithms/wishart.h"
 #include "core/models/favar_support.h"
+#include "core/models/forecast_states.h"
 #include "core/models/model_support.h"
 
 #include <algorithm>
@@ -17,6 +18,7 @@ namespace bayests
 namespace
 {
 
+using core::covariance_root;
 using core::draw_conditional_factor_path;
 using core::draw_diagonal_precision;
 using core::draw_normal_precision;
@@ -28,26 +30,6 @@ using core::obs_factors_by_period;
 using core::response_by_period;
 using core::stacked_state;
 using core::transition_residuals;
-
-/// The symmetric square root of a covariance, for drawing an innovation from it.
-///
-/// The eigen route rather than a Cholesky, which is the spelling
-/// `var_normal_wishart.cpp` uses for the same job. Taken once per draw here
-/// rather than once per horizon: Q does not move over the forecast, so the
-/// factorisation does not either.
-arma::mat covariance_root(const arma::mat &precision)
-{
-    arma::vec eigval;
-    arma::mat eigvec;
-    const arma::mat covariance =
-        arma::solve(precision, arma::eye<arma::mat>(precision.n_rows, precision.n_rows));
-    if (!arma::eig_sym(eigval, eigvec, arma::symmatu(covariance)))
-    {
-        throw std::runtime_error("the drawn state innovation precision has no symmetric square "
-                                 "root; the chain has degenerated");
-    }
-    return eigvec * arma::diagmat(arma::sqrt(arma::abs(eigval))) * arma::trans(eigvec);
-}
 
 } // namespace
 
@@ -317,6 +299,8 @@ ForecastDraws FavarNormalWishartSampler::forecast(const FavarNormalWishartInput 
 
         const arma::mat lambda = arma::reshape(coefficients.lambda.col(draw), k, ns);
         const arma::vec u_sd = 1.0 / arma::sqrt(coefficients.u_sigma_inv.col(draw));
+        // Once per draw rather than once per horizon: Q does not move over the
+        // forecast, so its factorisation does not either.
         const arma::mat v_root =
             covariance_root(arma::reshape(coefficients.v_sigma_inv.col(draw), ns, ns));
 

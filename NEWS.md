@@ -1,5 +1,17 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core is refreshed to upstream `94f81de`. Three files
+  moved. `kalman_durbin_koopman_2002.cpp` skips the products with the
+  identity transition of a random walk, which makes the smoother faster and
+  is exact. `forecast_states.h` guards the square root forecast errors are
+  drawn through, which could give NaN from a badly conditioned precision in
+  the VAR and VEC models, and `favar_normal_wishart.cpp` now calls it in place
+  of its own copy. That copy already guarded against the same thing, and the
+  two differ only in what a negative eigenvalue of Q becomes -- zero now, its
+  absolute value before -- which is a rounding error either way. *Draws are
+  unchanged*: none of upstream's factor model fixtures fingerprints
+  differently across either commit.
+
 * The vendored BayesTS core is refreshed to upstream `cea124b`, which adds the
   non-centred prior for `VecTvpGamma`: two members of that model's draw struct
   in `results.h` and a comment in `priors.h`, neither read by a factor model.
