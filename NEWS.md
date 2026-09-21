@@ -9,7 +9,7 @@
   `create_dfmodel()` has always converted; both now use the same helper, which
   keeps the `tsp` and names columns that R never named.
 
-* `Depends` requires `R (>= 4.0)` rather than `(>= 3.5)`. `src/Makevars` sets
+* `Depends` requires `R (>= 4.0.0)` rather than `(>= 3.5)`. `src/Makevars` sets
   `CXX_STD = CXX17` and 3.5 predates a toolchain that reliably honours it, so
   the old floor was a claim nothing tested -- the check matrix goes back only
   to `oldrel-1`.

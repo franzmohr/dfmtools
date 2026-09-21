@@ -6,7 +6,7 @@ Authors@R: person(c("Franz", "X."), "Mohr", email = "franz.x.mohr@outlook.com", 
 Description: Assists in the set-up of algorithms for Bayesian inference of dynamic factor models and factor augmented vector autoregressive models. Functions for posterior simulation and forecasting are largely based on the introductory texts of Chan, Koop, Poirier and Tobias (2019, ISBN: 9781108437493) and Luetkepohl (2006, ISBN: 9783540262398).
 License: GPL (>= 2)
 Depends:
-    R (>= 4.0),
+    R (>= 4.0.0),
     bvartools (>= 0.3.0.9000)
 Imports: coda, methods, Rcpp (>= 0.12.14), stats
 LinkingTo: Rcpp, RcppArmadillo
