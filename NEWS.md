@@ -1,5 +1,15 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core is refreshed to upstream `d92e581`. Its samplers
+  now refuse a NaN or an infinity in the data, the priors, the initial values
+  and the realised values a forecast is scored against, and name the input
+  that holds it. Before, such a value failed later, deep in the numerics, or
+  in a forecast or a score was not caught and came back as NaN. An NA in the
+  series still stops `add_initial_values()` before the sampler is reached,
+  as it did before. The other files that moved change only comments.
+  *Draws are unchanged*: upstream fingerprints every fixture identically
+  across the commit.
+
 * The vendored BayesTS core is refreshed to upstream `f8b42a1`. Only
   `inputs.cpp` moved, and only a comment in it: the description of
   `validate_tvp_block()` is back above that function, from where an addition

@@ -7,7 +7,7 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS `f8b42a1`**, upstream `main` after the 0.3.0 release
+The copy is **BayesTS `d92e581`**, upstream `main` after the 0.3.0 release
 (tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
 none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
 and the SSVS refusals (`fa6dd89`, `f2abd4e`, `a85abe2` -- `priors.h`,
@@ -20,9 +20,14 @@ volatility files); the constant VECs' cointegration prior (`b8d6c2c` --
 forecast root (`62bc455` -- `forecast_states.h`, whose `covariance_root()`
 `favar_normal_wishart.cpp` now calls in place of its own copy, which differed
 only in flooring a negative eigenvalue with `abs()` rather than at zero, a
-case no fixture reaches); and a doc comment moved back onto
-`validate_tvp_block()` (`ca1c322` -- `inputs.cpp`, comment only). The refreshes
-before sat at `94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
+case no fixture reaches); a doc comment moved back onto
+`validate_tvp_block()` (`ca1c322` -- `inputs.cpp`, comment only); the refusal
+of a NaN or an infinity in any input, by name (`31735c8` -- `model_support.h`'s
+`require_finite()`, called from every `validate()` in `inputs.cpp` and from
+`scored_horizons()` in `predictive_score.h`); and Doxygen parameter comments
+(`fd7ece5` -- `chan_jeliazkov_2009.cpp`, `stochvol_mixture.h`,
+`dfm_support.h`, comments only). The refreshes before sat at `f8b42a1`,
+`94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
 so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
 whenever one is cut. The last archived release is 0.2.0,
