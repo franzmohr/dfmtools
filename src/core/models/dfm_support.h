@@ -174,6 +174,8 @@ inline void draw_diagonal_precision(arma::vec &precision, const arma::mat &resid
 /// @param x_a (N p) x tt lagged factors, as fill_lagged_factors() writes them.
 /// @param factors N x tt factor path.
 /// @param v_precision tt x N, one row per period: the diagonal of V_t^-1.
+/// @param n N, the number of factors.
+/// @param p the order of the factor transition.
 inline void accumulate_transition_moments(arma::mat &precision, arma::vec &rhs,
                                           const arma::mat &x_a, const arma::mat &factors,
                                           const arma::mat &v_precision, const int n, const int p)
