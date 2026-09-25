@@ -15,6 +15,7 @@ S3method(add_seed,dfmodel)
 S3method(add_seed,favarmodel)
 S3method(fevd,favarmodel)
 S3method(irf,favarmodel)
+S3method(time_variation_test,dfmodel)
 export(create_dfmodel)
 export(create_favarmodel)
 import(methods)
@@ -28,6 +29,7 @@ importFrom(bvartools,
   add_priors,
   add_seed,
   fevd,
-  irf
+  irf,
+  time_variation_test
 )
 useDynLib(dfmtools, .registration = TRUE)

@@ -267,8 +267,14 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
   # sampler is handed the precision and flips it back on the way in, which is the
   # convention every time varying model in this family follows. Empty at a width
   # of zero, on the same grounds as the state above.
+  # Under the non-centred prior there is no gamma to draw from: N(0, omega_v) is
+  # on the signed standard deviation, so a draw from the prior on the variance
+  # is the square of a normal one. add_priors.dfmodel() has already refused a
+  # block that carries both parameterisations, so which is present decides.
   variance <- if (k == 0) {
     numeric(0)
+  } else if (!is.null(prior$omega_v)) {
+    stats::rnorm(k, sd = sqrt(as.numeric(prior$omega_v)))^2
   } else {
     1 / stats::rgamma(k, shape = as.numeric(prior$shape),
                       rate = as.numeric(prior$rate))

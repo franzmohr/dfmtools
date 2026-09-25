@@ -6,6 +6,7 @@
 #include <RcppArmadillo.h>
 
 #include "bayests/priors.h"
+#include "bayests/results.h"
 #include "bayests/spec.h"
 
 #include <string>
@@ -65,6 +66,26 @@ inline void read_draws_if_present(const Rcpp::List &list, const char *name, arma
 inline arma::mat draws_to_r(const arma::mat &draws)
 {
   return arma::trans(draws);
+}
+
+/// A block's draws with what the non-centred parameterisation adds beside its
+/// `sigma`: the signed standard deviation and the log ordinates at zero the
+/// Savage-Dickey test for time variation is built from. Unchanged for a block
+/// the caller gave `shape` and `rate`, which is what makes it safe to call on
+/// every random walk of a model whether or not `omega_v` was set.
+///
+/// The draws arrive in the core's ordering of the states, so a block whose
+/// rows R orders differently -- the free loadings, which this package permutes
+/// at both ends -- is permuted by its binding before it gets here. The joint
+/// ordinate is one number per draw and has no ordering to get wrong.
+inline Rcpp::List with_noncentred(Rcpp::List block, const bayests::NoncentredStateDraws &nc)
+{
+  if (!nc.empty()) {
+    block["omega"] = draws_to_r(nc.omega);
+    block["omega_log_zero"] = draws_to_r(nc.log_zero);
+    block["omega_log_zero_joint"] = draws_to_r(nc.log_zero_joint);
+  }
+  return block;
 }
 
 /// Whether a forecast carries the random walks of a time-varying model over the

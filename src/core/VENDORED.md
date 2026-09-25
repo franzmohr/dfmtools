@@ -7,7 +7,7 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS `d92e581`**, upstream `main` after the 0.3.0 release
+The copy is **BayesTS `d5ca82c`**, upstream `main` after the 0.3.0 release
 (tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
 none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
 and the SSVS refusals (`fa6dd89`, `f2abd4e`, `a85abe2` -- `priors.h`,
@@ -26,8 +26,15 @@ of a NaN or an infinity in any input, by name (`31735c8` -- `model_support.h`'s
 `require_finite()`, called from every `validate()` in `inputs.cpp` and from
 `scored_horizons()` in `predictive_score.h`); and Doxygen parameter comments
 (`fd7ece5` -- `chan_jeliazkov_2009.cpp`, `stochvol_mixture.h`,
-`dfm_support.h`, comments only). The refreshes before sat at `f8b42a1`,
-`94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
+`dfm_support.h`, comments only); the non-centred parameterisation of the two
+time-varying factor models' random walks (`1e21f94` -- `noncentred_support.h`,
+which is new here, `dfm_tvp_gamma.cpp`, `dfm_tvp_stochvol.cpp`, `priors.h`,
+`results.h`, `inputs.cpp`), which is the first refresh since this package
+existed to widen what a factor model can be asked for rather than only what it
+refuses; and `/model/n_iid`, an equation carrying no coefficients, which is a
+VAR feature whose refusal every `validate()` calls (`3425586` -- `spec.h`,
+`inputs.cpp`, `model_support.h`). The refreshes before sat at `d92e581`,
+`f8b42a1`, `94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
 so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
 whenever one is cut. The last archived release is 0.2.0,
@@ -104,12 +111,14 @@ the three before it had not already brought. `FavarNormalWishart` grew it by
 five: its own two, `favar_support.h`, and `wishart.{h,cpp}`, which no factor
 model with a diagonal transition precision reaches. Thirty-two at that point.
 
-Three have arrived since, none of them a sampler: `forecast_states.h` with the
-refresh that carries a model's drift over the forecast horizon, and
+Four have arrived since, none of them a sampler: `forecast_states.h` with the
+refresh that carries a model's drift over the forecast horizon;
 `factor_score.h` and `predictive_score.h` with `predictive_log_density()`, which
-is how a forecast is scored against what its periods realised. **Thirty-five
-now**, and that is the number `inst/COPYRIGHTS` lists and the refresh script
-counts.
+is how a forecast is scored against what its periods realised; and
+`noncentred_support.h` with the refresh that put `DfmTvpGamma` and
+`DfmTvpStochvol` on the non-centred parameterisation of their random walks.
+**Thirty-six now**, and that is the number `inst/COPYRIGHTS` lists and the
+refresh script counts.
 
 The set is *computed* rather than listed. `tools/update-bayests-core.R` starts
 from

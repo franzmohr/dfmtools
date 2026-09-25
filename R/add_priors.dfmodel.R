@@ -43,7 +43,40 @@
 #'   innovations.}
 #'   \item{\code{rate}}{a numeric of the prior rate parameter of that variance. The smaller it is,
 #'   the more tightly the coefficients are held to a constant.}
+#'   \item{\code{omega_v}}{a positive numeric, in place of \code{shape} and \code{rate}: the
+#'   variance of the normal prior on the signed standard deviation of the state innovations. See
+#'   'The non-centred prior' below.}
 #' }
+#'
+#' @section The non-centred prior:
+#'
+#' A random walk \eqn{x_t = x_{t-1} + v_t}, \eqn{v_t \sim N(0, \sigma)}, is the same model as
+#' \eqn{x_t = x_0 + \omega \tilde{x}_t} with \eqn{\tilde{x}_t} a standard random walk and
+#' \eqn{\omega = \pm\sqrt{\sigma}}, and \code{omega_v} is the variance of the normal prior
+#' \eqn{\omega \sim N(0, V_\omega)} on that signed standard deviation. It replaces \code{shape}
+#' and \code{rate} rather than joining them -- one random walk takes one prior on how far it moves
+#' -- and a group that gives both is refused. The implied prior on the variance itself is
+#' \eqn{\mathrm{Gamma}(1/2, 1 / (2 V_\omega))}, which puts more mass near zero than the inverse
+#' gamma does, so a block that does not move is held at rest more readily.
+#'
+#' What it buys is a test. \eqn{\omega = 0} is a constant coefficient and an interior point of
+#' this prior's support, where a variance of zero is the boundary of the gamma's, so the
+#' Savage-Dickey density ratio of Chan (2018) is available:
+#' \code{\link[=time_variation_test.dfmodel]{time_variation_test}} reads it off the draws and
+#' reports a Bayes factor per state and per block.
+#'
+#' It is available for the random walks of the two samplers that draw them that way, and for no
+#' other block: \code{lambda} and \code{a} of a model created with \code{tvp = TRUE}, and, for one
+#' created with \code{tvp = TRUE} and \code{error = "sv"}, the log-volatility groups \code{u} and
+#' \code{v} as well. The four are independent -- a model may take it for its loadings and leave
+#' the transition on the gamma prior. A model with \code{error = "sv"} and constant coefficients
+#' has drifting log-volatilities but no non-centred draw for them, so \code{omega_v} is refused
+#' there as everywhere else it would not be read.
+#'
+#' The stochastic volatility groups keep their remaining elements under this prior:
+#' \code{state_variance} is still the starting value of the variance of the log-volatility
+#' innovations, and \code{mu}, \code{v_i} and \code{offset} are still read. Only \code{shape} and
+#' \code{rate} are replaced.
 #'
 #' The two specifications are independent of one another: a model created with \code{tvp = TRUE}
 #' and \code{error = "sv"} takes the state equation above for \code{lambda} and \code{a} and the
@@ -76,6 +109,9 @@
 #'   \item{\code{state_variance}}{a numeric of the initial draw for the variance of the
 #'   log-volatilities. A starting value rather than a prior; it is kept here because that is where
 #'   \code{bvartools} keeps it.}
+#'   \item{\code{omega_v}}{a positive numeric, in place of \code{shape} and \code{rate}: the
+#'   variance of the normal prior on the signed standard deviation of the log-volatility
+#'   innovations. See 'The non-centred prior' below.}
 #'   \item{\code{offset}}{a numeric of the constant added before taking the log of the squared
 #'   errors, which keeps that logarithm finite when a residual lands on zero.}
 #' }
@@ -129,6 +165,14 @@
 #'                         a = list(vinv = .01, shape = 3, rate = .01),
 #'                         u = list(shape = 5, rate = 4),
 #'                         v = list(shape = 5, rate = 4))
+#'
+#' # The same with the non-centred prior on both random walks, which
+#' # time_variation_test() can test for time variation afterwards
+#' model_nc <- add_priors(model_tvp,
+#'                        lambda = list(vinv = .01, omega_v = .1),
+#'                        a = list(vinv = .01, omega_v = .1),
+#'                        u = list(shape = 5, rate = 4),
+#'                        v = list(shape = 5, rate = 4))
 #'
 #' @export
 add_priors.dfmodel <- function(object,
@@ -194,6 +238,11 @@ add_priors.dfmodel <- function(object,
     if (n_a > 0) {
       object$priors$a <- c(object$priors$a, .dfm_rw_prior(a, n_a, "a"))
     }
+  } else {
+    # A block that does not drift has no random walk to put this prior on, and
+    # nothing downstream would read it, so it is refused rather than stored.
+    .dfm_refuse_omega_v(lambda, "lambda", "a model with tvp = TRUE")
+    .dfm_refuse_omega_v(a, "a", "a model with tvp = TRUE")
   }
 
   # Error terms ----
@@ -204,8 +253,13 @@ add_priors.dfmodel <- function(object,
     object$priors$u <- .dfm_gamma_prior(u, m, "u")
     object$priors$v <- .dfm_gamma_prior(v, n, "v")
   } else if (error == "sv") {
-    object$priors$u <- .dfm_sv_prior(u, m, "u")
-    object$priors$v <- .dfm_sv_prior(v, n, "v")
+    # Only DfmTvpStochvol draws a log-volatility non-centred. DfmNormalStochvol
+    # takes the same prior group but has no such draw, and the vendored core
+    # refuses the group -- by the shape it is then missing, which names neither
+    # `omega_v` nor the reason -- so the pair is refused here instead.
+    noncentred <- isTRUE(object$model$tvp)
+    object$priors$u <- .dfm_sv_prior(u, m, "u", noncentred)
+    object$priors$v <- .dfm_sv_prior(v, n, "v", noncentred)
   } else {
     stop("Error specification '", error, "' not supported.")
   }
@@ -236,6 +290,10 @@ add_priors.dfmodel <- function(object,
 # the number of observed series for u, the number of factors for v -- and `name`
 # is what a message calls the argument.
 .dfm_gamma_prior <- function(spec, k, name) {
+
+  # This error term is a constant precision rather than a path, so there is no
+  # random walk here for the non-centred prior to be on.
+  .dfm_refuse_omega_v(spec, name, "a model with error = \"sv\" and tvp = TRUE")
 
   # Named, like the two builders below, rather than counted: a list of length
   # one used to be reported as a length rather than as the field it was short
@@ -269,6 +327,11 @@ add_priors.dfmodel <- function(object,
 # question for them without saying so.
 .dfm_rw_prior <- function(spec, k, name) {
 
+  # The non-centred parameterisation replaces the pair rather than joining it.
+  if (!is.null(spec$omega_v)) {
+    return(list(omega_v = .dfm_omega_v_prior(spec, k, name)))
+  }
+
   required <- c("shape", "rate")
   missing_fields <- setdiff(required, names(spec))
   if (length(missing_fields) > 0) {
@@ -298,9 +361,21 @@ add_priors.dfmodel <- function(object,
 # reads: `sigma` is the starting value of the variance of the log-volatility
 # innovations rather than a prior, and `v_inv` is a matrix where the caller gave
 # a scalar precision.
-.dfm_sv_prior <- function(spec, k, name) {
+.dfm_sv_prior <- function(spec, k, name, noncentred_allowed = TRUE) {
 
-  required <- c("mu", "v_i", "shape", "rate", "state_variance", "offset")
+  if (!noncentred_allowed) {
+    .dfm_refuse_omega_v(spec, name,
+                        "a model with error = \"sv\" and tvp = TRUE")
+  }
+
+  # `shape` and `rate` are the prior on the variance of the log-volatility
+  # innovations, and `omega_v` is the other way of writing it, so a group that
+  # gives the second needs neither of the first. Everything else is required
+  # either way: the initial state's prior, the starting value of that variance
+  # and the offset are all still read.
+  noncentred <- !is.null(spec$omega_v)
+  required <- c("mu", "v_i", if (!noncentred) c("shape", "rate"),
+                "state_variance", "offset")
   missing_fields <- setdiff(required, names(spec))
   if (length(missing_fields) > 0) {
     stop("Argument '", name, "' is missing the stochastic volatility ",
@@ -316,20 +391,77 @@ add_priors.dfmodel <- function(object,
   # can carry.
   .check_prior_number(spec$mu, paste0(name, "$mu"))
   .check_prior_number(spec$v_i, paste0(name, "$v_i"), minimum = 0, strict = TRUE)
-  .check_prior_number(spec$shape, paste0(name, "$shape"), minimum = 0)
-  .check_prior_number(spec$rate, paste0(name, "$rate"), minimum = 0, strict = TRUE)
+  if (!noncentred) {
+    .check_prior_number(spec$shape, paste0(name, "$shape"), minimum = 0)
+    .check_prior_number(spec$rate, paste0(name, "$rate"), minimum = 0, strict = TRUE)
+  }
   .check_prior_number(spec$state_variance, paste0(name, "$state_variance"),
                       minimum = 0, strict = TRUE)
   # Added inside a logarithm, so a zero here is an infinity that would only show
   # up as a broken draw further down.
   .check_prior_number(spec$offset, paste0(name, "$offset"), minimum = 0, strict = TRUE)
 
-  list(mu = matrix(spec$mu, k),
-       v_inv = diag(spec$v_i, k),
-       shape = matrix(spec$shape, k),
-       rate = matrix(spec$rate, k),
-       sigma = matrix(spec$state_variance, k),
-       offset = matrix(spec$offset, k))
+  prior <- list(mu = matrix(spec$mu, k),
+                v_inv = diag(spec$v_i, k),
+                sigma = matrix(spec$state_variance, k),
+                offset = matrix(spec$offset, k))
+
+  if (noncentred) {
+    prior$omega_v <- .dfm_omega_v_prior(spec, k, name)
+  } else {
+    prior$shape <- matrix(spec$shape, k)
+    prior$rate <- matrix(spec$rate, k)
+  }
+
+  return(prior)
+}
+
+# A group given 'omega_v' where nothing drifts. The vendored core reads that
+# prior for the random walk of a block, so a model without one would carry a
+# prior that is written, stored and never looked at -- which is the one failure
+# mode a prior has no way of announcing later. `where` names the models that do
+# have the random walk in question.
+.dfm_refuse_omega_v <- function(spec, name, where) {
+
+  if (is.list(spec) && !is.null(spec$omega_v)) {
+    stop("Argument '", name, "$omega_v' is only available for ", where, ".",
+         call. = FALSE)
+  }
+
+  return(invisible(NULL))
+}
+
+# The non-centred prior on how far one random walk moves, checked and widened to
+# the block. `k` is that block's width and `name` what a message calls the
+# argument.
+#
+# The parameterisation is Fruehwirth-Schnatter and Wagner (2010): the path is
+# written x_t = x_0 + omega * xtilde_t with xtilde a standard random walk, so
+# `omega_v` is the variance of the normal prior on the signed standard deviation
+# omega rather than on the variance omega^2 itself. It replaces `shape` and
+# `rate` instead of joining them -- one random walk has one prior on how far it
+# moves -- and the vendored core refuses a block that carries both, so the pair
+# is refused here, where the argument still has a name.
+#
+# What it buys is the test: omega = 0 is a constant coefficient and an interior
+# point of this prior's support, where a variance of zero is the boundary of the
+# gamma's, so the Savage-Dickey density ratio of Chan (2018) can be read off the
+# draws. time_variation_test() is what reads it.
+.dfm_omega_v_prior <- function(spec, k, name) {
+
+  given <- intersect(c("shape", "rate"), names(spec))
+  if (length(given) > 0) {
+    stop("Argument '", name, "' gives both 'omega_v' and ",
+         paste0("'", given, "'", collapse = ", "),
+         ". Use 'omega_v' for the non-centred prior or 'shape' and 'rate' for ",
+         "the gamma prior, not both.", call. = FALSE)
+  }
+  .check_prior_number(spec$omega_v, paste0(name, "$omega_v"), minimum = 0,
+                      strict = TRUE)
+
+  # rep_len() for the reason .dfm_rw_prior() gives: `k` is zero for the loadings
+  # of a model with a single observed series, and matrix(1, 0) is an error.
+  matrix(rep_len(spec$omega_v, k), nrow = k, ncol = 1)
 }
 
 # One field of one prior, checked for what it is before it is checked for where

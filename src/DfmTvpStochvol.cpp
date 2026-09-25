@@ -60,6 +60,9 @@ void read_stochvol_group(const Rcpp::List &priors, const char *name,
   read_vec_if_present(group, "offset", prior.offset);
   read_vec_if_present(group, "shape", prior.state.sigma.shape);
   read_vec_if_present(group, "rate", prior.state.sigma.rate);
+  // The non-centred parameterisation of this group's random walk, in place of
+  // shape and rate; validate() refuses a group that carries both.
+  read_vec_if_present(group, "omega_v", prior.state.omega_v);
   read_vec_if_present(group, "mu", prior.state.initial_state.mu);
   read_mat_if_present(group, "v_inv", prior.state.initial_state.v_inv);
 
@@ -80,8 +83,24 @@ void read_random_walk_prior(const Rcpp::List &group, bayests::RandomWalkPrior &p
 
   read_vec_if_present(group, "shape", prior.sigma.shape);
   read_vec_if_present(group, "rate", prior.sigma.rate);
+  // The non-centred parameterisation, in place of shape and rate; validate()
+  // refuses a block that carries both.
+  read_vec_if_present(group, "omega_v", prior.omega_v);
   read_vec_if_present(group, "mu", prior.initial_state.mu);
   read_mat_if_present(group, "vinv", prior.initial_state.v_inv);
+}
+
+/// A block's non-centred draws with the rows of the two per-state members put
+/// back on R's ordering of the free loadings. Only the loadings need it; the
+/// transition and the two log-volatility groups are the same objects on both
+/// sides.
+bayests::NoncentredStateDraws to_r_order(const bayests::NoncentredStateDraws &nc,
+                                         const arma::uvec &order) {
+
+  bayests::NoncentredStateDraws out = nc;
+  out.omega = dfmtools::unpermute_free_loadings_rows(nc.omega, order);
+  out.log_zero = dfmtools::unpermute_free_loadings_rows(nc.log_zero, order);
+  return out;
 }
 
 bayests::DfmTvpStochvolInput read_input(const Rcpp::List &object) {
@@ -140,6 +159,10 @@ bayests::DfmTvpStochvolInput read_input(const Rcpp::List &object) {
         permute_free_loadings(input.lambda_prior.sigma.shape, order);
       input.lambda_prior.sigma.rate =
         permute_free_loadings(input.lambda_prior.sigma.rate, order);
+      // One per free loading when the caller gave one each, so it is permuted
+      // with the rest; a single number repeats and reads the same either way.
+      input.lambda_prior.omega_v =
+        permute_free_loadings(input.lambda_prior.omega_v, order);
     }
 
     if (has(priors, "a")) {
@@ -285,12 +308,8 @@ bayests::DfmTvpStochvolDraws read_draws(const Rcpp::List &object,
 /// `lambda$coeffs` is the whole M x N matrix per period and is already in it.
 Rcpp::List write_draws(const bayests::DfmTvpStochvolDraws &draws, const arma::uvec &order) {
 
-  arma::mat lambda_sigma(draws.lambda_sigma.n_rows, draws.lambda_sigma.n_cols);
-  if (draws.lambda_sigma.n_rows == order.n_elem) {
-    lambda_sigma.rows(order) = draws.lambda_sigma;
-  } else {
-    lambda_sigma = draws.lambda_sigma;
-  }
+  const arma::mat lambda_sigma =
+    dfmtools::unpermute_free_loadings_rows(draws.lambda_sigma, order);
 
   Rcpp::List posteriors =
     Rcpp::List::create(Rcpp::Named("lambda") = Rcpp::List::create(
@@ -310,6 +329,19 @@ Rcpp::List write_draws(const bayests::DfmTvpStochvolDraws &draws, const arma::uv
     posteriors["a"] = Rcpp::List::create(Rcpp::Named("coeffs") = draws_to_r(draws.a),
                                          Rcpp::Named("sigma") = draws_to_r(draws.a_sigma));
   }
+
+  // What the non-centred prior adds, for whichever of this model's four random
+  // walks was given it. Each call is a no-op for a block drawn under shape and
+  // rate, so they are made unconditionally.
+  posteriors["lambda"] = with_noncentred(Rcpp::List(posteriors["lambda"]),
+                                         to_r_order(draws.lambda_noncentred, order));
+  if (draws.has_a()) {
+    posteriors["a"] = with_noncentred(Rcpp::List(posteriors["a"]), draws.a_noncentred);
+  }
+  posteriors["u_sigma_inv"] =
+    with_noncentred(Rcpp::List(posteriors["u_sigma_inv"]), draws.u_h_noncentred);
+  posteriors["v_sigma_inv"] =
+    with_noncentred(Rcpp::List(posteriors["v_sigma_inv"]), draws.v_h_noncentred);
 
   return posteriors;
 }

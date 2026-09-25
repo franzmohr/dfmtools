@@ -9,6 +9,7 @@
 #include "core/models/forecast_states.h"
 #include "core/models/factor_score.h"
 #include "core/models/model_support.h"
+#include "core/models/noncentred_support.h"
 
 #include <algorithm>
 #include <cmath>
@@ -82,6 +83,15 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
     // the identifying block.
     const bool use_lambda = n_lambda > 0;
 
+    // Which random walks are drawn non-centred: each block for itself, by
+    // whether its prior names omega_v. See core/models/noncentred_support.h.
+    // All four of this model's random walks can be: the loadings, the factor
+    // transition and the two log-volatilities.
+    const bool lambda_noncentred = use_lambda && input.lambda_prior.noncentred();
+    const bool a_noncentred = use_a && input.a_prior.noncentred();
+    const bool u_h_noncentred = input.u_sigma_prior.state.noncentred();
+    const bool v_h_noncentred = input.v_sigma_prior.state.noncentred();
+
     DfmTvpStochvolDraws out;
     out.lambda = arma::mat(static_cast<arma::uword>(k) * n * tt, iterations);
     out.factors = arma::mat(static_cast<arma::uword>(n) * tt, iterations);
@@ -96,6 +106,13 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
     arma::mat lambda_path;
     arma::vec lambda_sigma, lambda_init, lambda_sigma_post_shape;
     arma::mat lambda_init_prior_v;
+
+    // Non-centred: the signed standard deviations, the standardised path and
+    // the ordinates at zero. The loadings are drawn row by row, so the row
+    // results are assembled into one block below.
+    arma::vec lambda_omega;
+    arma::mat lambda_tilde;
+    core::NoncentredCoefficients lambda_nc;
     if (use_lambda)
     {
         lambda_path = input.initial.lambda;
@@ -104,6 +121,16 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
         lambda_init_prior_v = initial_state_variance(input.lambda_prior.initial_state);
         lambda_sigma_post_shape = input.lambda_prior.sigma.shape + tt * 0.5;
         out.lambda_sigma = arma::mat(n_lambda, iterations);
+
+        if (lambda_noncentred)
+        {
+            // The chain starts on the positive branch; the sign switch reaches
+            // the other within a draw.
+            lambda_omega = arma::sqrt(lambda_sigma);
+            core::allocate_noncentred(out.lambda_noncentred,
+                                      static_cast<arma::uword>(n_lambda),
+                                      static_cast<arma::uword>(iterations));
+        }
         fill_stacked_loadings(lambda_stack, lambda_path, k, n);
     }
 
@@ -112,6 +139,10 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
     arma::mat a_path, a_stack, a_B, x_a, z_a;
     arma::vec a_sigma, a_init, a_sigma_post_shape;
     arma::mat a_init_prior_v;
+
+    arma::vec a_omega;
+    arma::mat a_tilde;
+    core::NoncentredCoefficients a_nc;
     if (use_a)
     {
         a_path = input.initial.a;
@@ -132,6 +163,13 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
 
         out.a = arma::mat(static_cast<arma::uword>(n_a) * tt, iterations);
         out.a_sigma = arma::mat(n_a, iterations);
+
+        if (a_noncentred)
+        {
+            a_omega = arma::sqrt(a_sigma);
+            core::allocate_noncentred(out.a_noncentred, static_cast<arma::uword>(n_a),
+                                      static_cast<arma::uword>(iterations));
+        }
     }
     else
     {
@@ -154,6 +192,16 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
     const arma::vec u_h_sigma_post_shape = input.u_sigma_prior.state.sigma.shape + tt * 0.5;
     const arma::vec &u_h_sigma_prior_rate = input.u_sigma_prior.state.sigma.rate;
 
+    arma::vec u_h_omega;
+    arma::mat u_h_tilde;
+    core::NoncentredCoefficients u_h_nc;
+    if (u_h_noncentred)
+    {
+        u_h_omega = arma::sqrt(u_h_sigma);
+        core::allocate_noncentred(out.u_h_noncentred, static_cast<arma::uword>(k),
+                                  static_cast<arma::uword>(iterations));
+    }
+
     // Factor innovation volatility
     arma::mat v_h = input.initial.v_h; // tt x n
     arma::vec v_h_init = input.initial.v_h_init;
@@ -162,11 +210,26 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
     const arma::vec v_h_sigma_post_shape = input.v_sigma_prior.state.sigma.shape + tt * 0.5;
     const arma::vec &v_h_sigma_prior_rate = input.v_sigma_prior.state.sigma.rate;
 
+    arma::vec v_h_omega;
+    arma::mat v_h_tilde;
+    core::NoncentredCoefficients v_h_nc;
+    if (v_h_noncentred)
+    {
+        v_h_omega = arma::sqrt(v_h_sigma);
+        core::allocate_noncentred(out.v_h_noncentred, static_cast<arma::uword>(n),
+                                  static_cast<arma::uword>(iterations));
+    }
+
     // The two covariance stacks the factor path reads, one K x K or N x N block
     // per period. Zeroed once and never zeroed again: both covariances are
     // diagonal, so fill_stacked_diagonal only ever writes the diagonal.
     arma::mat u_stack(static_cast<arma::uword>(k) * tt, k, arma::fill::zeros);
     arma::mat v_stack(static_cast<arma::uword>(n) * tt, n, arma::fill::zeros);
+
+    // The same information as a precision, in the same stacked shape, which is
+    // what the non-centred transition draw reads. Only built when that draw is
+    // used.
+    arma::mat v_precision_stack;
 
     arma::mat u_variance = arma::exp(u_h); // tt x k
     arma::mat u_precision = 1.0 / u_variance;
@@ -174,6 +237,11 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
     arma::mat v_precision = 1.0 / v_variance;
     fill_stacked_diagonal(u_stack, u_variance);
     fill_stacked_diagonal(v_stack, v_variance);
+    if (a_noncentred)
+    {
+        v_precision_stack = arma::zeros<arma::mat>(static_cast<arma::uword>(n) * tt, n);
+        fill_stacked_diagonal(v_precision_stack, v_precision);
+    }
 
     arma::mat factors, u, v;
 
@@ -213,6 +281,12 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
         if (use_lambda)
         {
             int pos = 0;
+            if (lambda_noncentred)
+            {
+                lambda_tilde.set_size(n_lambda, tt);
+                lambda_nc.log_zero.set_size(n_lambda);
+                lambda_nc.log_zero_joint = 0.0;
+            }
             for (int i = 1; i < k; i++)
             {
                 const int width = lambda_row_width(i, n);
@@ -225,24 +299,60 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
                 const arma::mat u_sigma_i = u_variance.col(i);
                 const arma::mat sigma_i =
                     arma::diagmat(lambda_sigma.subvec(pos, pos + width - 1));
-
-                // The loadings before the sample are integrated out of the prior
-                // of the first period, whose covariance for this row is the
-                // corresponding block of theirs; see initial_state_variance().
                 const arma::uword last = static_cast<arma::uword>(pos + width - 1);
-                lambda_path.rows(pos, last) =
-                    kalman_durbin_koopman_2002(y_i, z_i, u_sigma_i, sigma_i,
-                                               arma::eye<arma::mat>(width, width),
-                                               input.lambda_prior.initial_state.mu.subvec(pos, last),
-                                               lambda_init_prior_v.submat(pos, pos, last, last) +
-                                                   sigma_i)
-                        .cols(0, tt - 1);
+
+                if (lambda_noncentred)
+                {
+                    // This row slice of the block, as a prior of its own: the
+                    // rows are drawn one at a time and the prior of the
+                    // loadings before the sample is block diagonal across them,
+                    // which is also what lets the row ordinates below be summed
+                    // into the ordinate of the whole block.
+                    RandomWalkPrior row_prior;
+                    row_prior.omega_v = input.lambda_prior.omega_v.subvec(pos, last);
+                    row_prior.initial_state.mu =
+                        input.lambda_prior.initial_state.mu.subvec(pos, last);
+                    row_prior.initial_state.v_inv =
+                        input.lambda_prior.initial_state.v_inv.submat(pos, pos, last, last);
+
+                    const arma::mat u_precision_i = u_precision.col(i);
+                    arma::vec row_init = lambda_init.subvec(pos, last);
+                    arma::vec row_omega = lambda_omega.subvec(pos, last);
+                    arma::mat row_tilde, row_path;
+
+                    const core::NoncentredCoefficients row_nc = core::draw_noncentred_path(
+                        y_i, z_i, u_sigma_i, u_precision_i, row_prior, row_init, row_omega,
+                        row_tilde, row_path);
+
+                    lambda_path.rows(pos, last) = row_path;
+                    lambda_tilde.rows(pos, last) = row_tilde;
+                    lambda_init.subvec(pos, last) = row_init;
+                    lambda_omega.subvec(pos, last) = row_omega;
+                    lambda_sigma.subvec(pos, last) = arma::square(row_omega);
+                    lambda_nc.log_zero.subvec(pos, last) = row_nc.log_zero;
+                    lambda_nc.log_zero_joint += row_nc.log_zero_joint;
+                }
+                else
+                {
+                    // The loadings before the sample are integrated out of the prior
+                    // of the first period, whose covariance for this row is the
+                    // corresponding block of theirs; see initial_state_variance().
+                    lambda_path.rows(pos, last) =
+                        kalman_durbin_koopman_2002(
+                            y_i, z_i, u_sigma_i, sigma_i, arma::eye<arma::mat>(width, width),
+                            input.lambda_prior.initial_state.mu.subvec(pos, last),
+                            lambda_init_prior_v.submat(pos, pos, last, last) + sigma_i)
+                            .cols(0, tt - 1);
+                }
                 pos += width;
             }
 
-            draw_random_walk_state(lambda_sigma, lambda_init, lambda_path,
-                                   lambda_sigma_post_shape, input.lambda_prior.sigma.rate,
-                                   input.lambda_prior.initial_state);
+            if (!lambda_noncentred)
+            {
+                draw_random_walk_state(lambda_sigma, lambda_init, lambda_path,
+                                       lambda_sigma_post_shape, input.lambda_prior.sigma.rate,
+                                       input.lambda_prior.initial_state);
+            }
 
             fill_stacked_loadings(lambda_stack, lambda_path, k, n);
         }
@@ -258,9 +368,21 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
         {
             u.col(t) -= lambda_stack.rows(t * k, (t + 1) * k - 1) * factors.col(t);
         }
-        u_h = stochvol_ocsn_2007(arma::trans(u), u_h, u_h_sigma, u_h_init, u_h_offset);
-        draw_stochvol_state(u_h_sigma, u_h_init, u_h, u_h_sigma_post_shape, u_h_sigma_prior_rate,
-                            input.u_sigma_prior.state.initial_state);
+        if (u_h_noncentred)
+        {
+            // The same mixture, with the standardised log-volatility drawn and
+            // u_h_init and omega regressed on it; u_h is rebuilt from the three.
+            u_h_nc = core::draw_noncentred_log_volatility(arma::trans(u),
+                                                          input.u_sigma_prior.state, u_h_offset,
+                                                          u_h, u_h_init, u_h_omega, u_h_tilde);
+            u_h_sigma = arma::square(u_h_omega);
+        }
+        else
+        {
+            u_h = stochvol_ocsn_2007(arma::trans(u), u_h, u_h_sigma, u_h_init, u_h_offset);
+            draw_stochvol_state(u_h_sigma, u_h_init, u_h, u_h_sigma_post_shape,
+                                u_h_sigma_prior_rate, input.u_sigma_prior.state.initial_state);
+        }
 
         u_variance = arma::exp(u_h);
         u_precision = 1.0 / u_variance;
@@ -273,13 +395,27 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
         // before the sample. Those are as much a draw from N(0, V_t) as the rest,
         // so all tt of them inform the volatility.
         v = use_a ? transition_residuals_tvp(factors, a_stack, x_a, n) : factors;
-        v_h = stochvol_ocsn_2007(arma::trans(v), v_h, v_h_sigma, v_h_init, v_h_offset);
-        draw_stochvol_state(v_h_sigma, v_h_init, v_h, v_h_sigma_post_shape, v_h_sigma_prior_rate,
-                            input.v_sigma_prior.state.initial_state);
+        if (v_h_noncentred)
+        {
+            v_h_nc = core::draw_noncentred_log_volatility(arma::trans(v),
+                                                          input.v_sigma_prior.state, v_h_offset,
+                                                          v_h, v_h_init, v_h_omega, v_h_tilde);
+            v_h_sigma = arma::square(v_h_omega);
+        }
+        else
+        {
+            v_h = stochvol_ocsn_2007(arma::trans(v), v_h, v_h_sigma, v_h_init, v_h_offset);
+            draw_stochvol_state(v_h_sigma, v_h_init, v_h, v_h_sigma_post_shape,
+                                v_h_sigma_prior_rate, input.v_sigma_prior.state.initial_state);
+        }
 
         v_variance = arma::exp(v_h);
         v_precision = 1.0 / v_variance;
         fill_stacked_diagonal(v_stack, v_variance);
+        if (a_noncentred)
+        {
+            fill_stacked_diagonal(v_precision_stack, v_precision);
+        }
 
         // Block 5: Draw the transition path ----
         //
@@ -298,13 +434,26 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
             fill_transition_design(z_a, x_a, n);
 
             // With the state before the sample integrated out, as for the loadings.
-            a_path = kalman_durbin_koopman_2002(factors, z_a, v_stack, arma::diagmat(a_sigma),
-                                                a_B, input.a_prior.initial_state.mu,
-                                                a_init_prior_v + arma::diagmat(a_sigma))
-                         .cols(0, tt - 1);
+            if (a_noncentred)
+            {
+                // The standardised path, then the transition before the sample
+                // and omega jointly, then the signs. The factor innovation
+                // covariance moves with the sample here, so both stacks carry
+                // one block per period.
+                a_nc = core::draw_noncentred_path(factors, z_a, v_stack, v_precision_stack,
+                                                  input.a_prior, a_init, a_omega, a_tilde, a_path);
+                a_sigma = arma::square(a_omega);
+            }
+            else
+            {
+                a_path = kalman_durbin_koopman_2002(factors, z_a, v_stack, arma::diagmat(a_sigma),
+                                                    a_B, input.a_prior.initial_state.mu,
+                                                    a_init_prior_v + arma::diagmat(a_sigma))
+                             .cols(0, tt - 1);
 
-            draw_random_walk_state(a_sigma, a_init, a_path, a_sigma_post_shape,
-                                   input.a_prior.sigma.rate, input.a_prior.initial_state);
+                draw_random_walk_state(a_sigma, a_init, a_path, a_sigma_post_shape,
+                                       input.a_prior.sigma.rate, input.a_prior.initial_state);
+            }
 
             fill_stacked_transition(a_stack, a_path, n, p);
         }
@@ -332,15 +481,36 @@ DfmTvpStochvolDraws DfmTvpStochvolSampler::draw_coefficients(const DfmTvpStochvo
             out.v_sigma_inv.col(draw_pos) = arma::vectorise(arma::trans(v_precision));
             out.u_h_sigma.col(draw_pos) = u_h_sigma;
             out.v_h_sigma.col(draw_pos) = v_h_sigma;
+            if (u_h_noncentred)
+            {
+                core::store_noncentred(out.u_h_noncentred, static_cast<arma::uword>(draw_pos),
+                                       u_h_omega, u_h_nc);
+            }
+            if (v_h_noncentred)
+            {
+                core::store_noncentred(out.v_h_noncentred, static_cast<arma::uword>(draw_pos),
+                                       v_h_omega, v_h_nc);
+            }
 
             if (use_lambda)
             {
                 out.lambda_sigma.col(draw_pos) = lambda_sigma;
+                if (lambda_noncentred)
+                {
+                    core::store_noncentred(out.lambda_noncentred,
+                                           static_cast<arma::uword>(draw_pos), lambda_omega,
+                                           lambda_nc);
+                }
             }
             if (use_a)
             {
                 out.a.col(draw_pos) = arma::vectorise(a_path);
                 out.a_sigma.col(draw_pos) = a_sigma;
+                if (a_noncentred)
+                {
+                    core::store_noncentred(out.a_noncentred, static_cast<arma::uword>(draw_pos),
+                                           a_omega, a_nc);
+                }
             }
         }
     }

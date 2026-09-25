@@ -8,6 +8,7 @@
 #include "core/models/forecast_states.h"
 #include "core/models/factor_score.h"
 #include "core/models/model_support.h"
+#include "core/models/noncentred_support.h"
 
 #include <algorithm>
 #include <cmath>
@@ -62,6 +63,14 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     // equation to.
     const bool use_lambda = n_lambda > 0;
 
+    // Which random walks are drawn non-centred: each block for itself, by
+    // whether its prior names omega_v. See core/models/noncentred_support.h.
+    // The factors are not among them: they are the model's states, not
+    // coefficients whose movement is in question, and their innovation
+    // precision is drawn from its own gamma prior.
+    const bool lambda_noncentred = use_lambda && input.lambda_prior.noncentred();
+    const bool a_noncentred = use_a && input.a_prior.noncentred();
+
     DfmTvpGammaDraws out;
     out.lambda = arma::mat(static_cast<arma::uword>(k) * n * tt, iterations);
     out.factors = arma::mat(static_cast<arma::uword>(n) * tt, iterations);
@@ -74,6 +83,13 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     arma::mat lambda_path;
     arma::vec lambda_sigma, lambda_init, lambda_sigma_post_shape;
     arma::mat lambda_init_prior_v;
+
+    // Non-centred: the signed standard deviations, the standardised path and
+    // the ordinates at zero. The loadings are drawn row by row, so the row
+    // results are assembled into one block below.
+    arma::vec lambda_omega;
+    arma::mat lambda_tilde;
+    core::NoncentredCoefficients lambda_nc;
     if (use_lambda)
     {
         lambda_path = input.initial.lambda;
@@ -83,6 +99,16 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
         lambda_sigma_post_shape = input.lambda_prior.sigma.shape + tt * 0.5;
         out.lambda_sigma = arma::mat(n_lambda, iterations);
         fill_stacked_loadings(lambda_stack, lambda_path, k, n);
+
+        if (lambda_noncentred)
+        {
+            // The chain starts on the positive branch; the sign switch reaches
+            // the other within a draw.
+            lambda_omega = arma::sqrt(lambda_sigma);
+            core::allocate_noncentred(out.lambda_noncentred,
+                                      static_cast<arma::uword>(n_lambda),
+                                      static_cast<arma::uword>(iterations));
+        }
     }
 
     // The factor transition: a path of vec([A_1 .. A_p]), the SUR design it is
@@ -90,6 +116,10 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     arma::mat a_path, a_stack, a_B, x_a, z_a;
     arma::vec a_sigma, a_init, a_sigma_post_shape;
     arma::mat a_init_prior_v;
+
+    arma::vec a_omega;
+    arma::mat a_tilde;
+    core::NoncentredCoefficients a_nc;
     if (use_a)
     {
         a_path = input.initial.a;
@@ -111,6 +141,13 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
 
         out.a = arma::mat(static_cast<arma::uword>(n_a) * tt, iterations);
         out.a_sigma = arma::mat(n_a, iterations);
+
+        if (a_noncentred)
+        {
+            a_omega = arma::sqrt(a_sigma);
+            core::allocate_noncentred(out.a_noncentred, static_cast<arma::uword>(n_a),
+                                      static_cast<arma::uword>(iterations));
+        }
     }
     else
     {
@@ -172,6 +209,12 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
         if (use_lambda)
         {
             int pos = 0;
+            if (lambda_noncentred)
+            {
+                lambda_tilde.set_size(n_lambda, tt);
+                lambda_nc.log_zero.set_size(n_lambda);
+                lambda_nc.log_zero_joint = 0.0;
+            }
             for (int i = 1; i < k; i++)
             {
                 const int width = lambda_row_width(i, n);
@@ -182,25 +225,61 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
                 const arma::mat u_sigma_i(1, 1, arma::fill::value(1.0 / u_sigma_inv(i)));
                 const arma::mat sigma_i =
                     arma::diagmat(lambda_sigma.subvec(pos, pos + width - 1));
-
-                // The loadings before the sample are integrated out of the prior
-                // of the first period, whose covariance for this row is the
-                // corresponding block of theirs; see initial_state_variance().
                 const arma::uword last = static_cast<arma::uword>(pos + width - 1);
-                lambda_path.rows(pos, last) =
-                    kalman_durbin_koopman_2002(y_i, z_i, u_sigma_i, sigma_i,
-                                               arma::eye<arma::mat>(width, width),
-                                               input.lambda_prior.initial_state.mu.subvec(pos, last),
-                                               lambda_init_prior_v.submat(pos, pos, last, last) +
-                                                   sigma_i)
-                        .cols(0, tt - 1);
+
+                if (lambda_noncentred)
+                {
+                    // This row slice of the block, as a prior of its own: the
+                    // rows are drawn one at a time and the prior of the
+                    // loadings before the sample is block diagonal across them,
+                    // which is also what lets the row ordinates below be summed
+                    // into the ordinate of the whole block.
+                    RandomWalkPrior row_prior;
+                    row_prior.omega_v = input.lambda_prior.omega_v.subvec(pos, last);
+                    row_prior.initial_state.mu =
+                        input.lambda_prior.initial_state.mu.subvec(pos, last);
+                    row_prior.initial_state.v_inv =
+                        input.lambda_prior.initial_state.v_inv.submat(pos, pos, last, last);
+
+                    const arma::mat u_sigma_inv_i(1, 1, arma::fill::value(u_sigma_inv(i)));
+                    arma::vec row_init = lambda_init.subvec(pos, last);
+                    arma::vec row_omega = lambda_omega.subvec(pos, last);
+                    arma::mat row_tilde, row_path;
+
+                    const core::NoncentredCoefficients row_nc = core::draw_noncentred_path(
+                        y_i, z_i, u_sigma_i, u_sigma_inv_i, row_prior, row_init, row_omega,
+                        row_tilde, row_path);
+
+                    lambda_path.rows(pos, last) = row_path;
+                    lambda_tilde.rows(pos, last) = row_tilde;
+                    lambda_init.subvec(pos, last) = row_init;
+                    lambda_omega.subvec(pos, last) = row_omega;
+                    lambda_sigma.subvec(pos, last) = arma::square(row_omega);
+                    lambda_nc.log_zero.subvec(pos, last) = row_nc.log_zero;
+                    lambda_nc.log_zero_joint += row_nc.log_zero_joint;
+                }
+                else
+                {
+                    // The loadings before the sample are integrated out of the prior
+                    // of the first period, whose covariance for this row is the
+                    // corresponding block of theirs; see initial_state_variance().
+                    lambda_path.rows(pos, last) =
+                        kalman_durbin_koopman_2002(
+                            y_i, z_i, u_sigma_i, sigma_i, arma::eye<arma::mat>(width, width),
+                            input.lambda_prior.initial_state.mu.subvec(pos, last),
+                            lambda_init_prior_v.submat(pos, pos, last, last) + sigma_i)
+                            .cols(0, tt - 1);
+                }
                 pos += width;
             }
 
-            // Draw the loadings before the sample and the state variance
-            draw_random_walk_state(lambda_sigma, lambda_init, lambda_path,
-                                   lambda_sigma_post_shape, input.lambda_prior.sigma.rate,
-                                   input.lambda_prior.initial_state);
+            if (!lambda_noncentred)
+            {
+                // Draw the loadings before the sample and the state variance
+                draw_random_walk_state(lambda_sigma, lambda_init, lambda_path,
+                                       lambda_sigma_post_shape, input.lambda_prior.sigma.rate,
+                                       input.lambda_prior.initial_state);
+            }
 
             fill_stacked_loadings(lambda_stack, lambda_path, k, n);
         }
@@ -236,14 +315,28 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
             // factor path was drawn under at the top of the iteration -- the
             // same conditioning DfmNormalGamma's transition block uses.
             // With the state before the sample integrated out, as for the loadings.
-            a_path = kalman_durbin_koopman_2002(factors, z_a, arma::diagmat(1.0 / v_sigma_inv),
-                                                arma::diagmat(a_sigma), a_B,
-                                                input.a_prior.initial_state.mu,
-                                                a_init_prior_v + arma::diagmat(a_sigma))
-                         .cols(0, tt - 1);
+            if (a_noncentred)
+            {
+                // The standardised path, then the transition before the sample
+                // and omega jointly, then the signs. One n x n precision serves
+                // every period, which draw_noncentred_path() takes as well as
+                // one block per period.
+                a_nc = core::draw_noncentred_path(factors, z_a, arma::diagmat(1.0 / v_sigma_inv),
+                                                  arma::diagmat(v_sigma_inv), input.a_prior, a_init,
+                                                  a_omega, a_tilde, a_path);
+                a_sigma = arma::square(a_omega);
+            }
+            else
+            {
+                a_path = kalman_durbin_koopman_2002(factors, z_a, arma::diagmat(1.0 / v_sigma_inv),
+                                                    arma::diagmat(a_sigma), a_B,
+                                                    input.a_prior.initial_state.mu,
+                                                    a_init_prior_v + arma::diagmat(a_sigma))
+                             .cols(0, tt - 1);
 
-            draw_random_walk_state(a_sigma, a_init, a_path, a_sigma_post_shape,
-                                   input.a_prior.sigma.rate, input.a_prior.initial_state);
+                draw_random_walk_state(a_sigma, a_init, a_path, a_sigma_post_shape,
+                                       input.a_prior.sigma.rate, input.a_prior.initial_state);
+            }
 
             fill_stacked_transition(a_stack, a_path, n, p);
         }
@@ -270,11 +363,22 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
             if (use_lambda)
             {
                 out.lambda_sigma.col(draw_pos) = lambda_sigma;
+                if (lambda_noncentred)
+                {
+                    core::store_noncentred(out.lambda_noncentred,
+                                           static_cast<arma::uword>(draw_pos), lambda_omega,
+                                           lambda_nc);
+                }
             }
             if (use_a)
             {
                 out.a.col(draw_pos) = arma::vectorise(a_path);
                 out.a_sigma.col(draw_pos) = a_sigma;
+                if (a_noncentred)
+                {
+                    core::store_noncentred(out.a_noncentred, static_cast<arma::uword>(draw_pos),
+                                           a_omega, a_nc);
+                }
             }
         }
     }
