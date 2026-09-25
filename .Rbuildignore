@@ -20,4 +20,4 @@
 ^src/.*\.dll$
 ^src/.*\.dylib$
 ^[.]claude-plugin$
-^inst/agents/[.]claude-plugin$
+^inst/agents$

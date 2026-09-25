@@ -149,10 +149,6 @@
 * `n_ahead` of `add_posterior_forecasts()`, `irf()` and `fevd()` must be a whole
   number. `n_ahead = 2.7` was accepted and quietly behaved as 2.
 
-* `add_predictive_loglik()` is documented in `inst/agents/`, which had never
-  mentioned it, with a runnable example that the agent documentation test
-  executes -- including that the test sample is passed in the data's own units.
-
 * `release-version.yaml` no longer truncates a tag at the first dash. An R
   version number may use `-` as a separator, so `v0.2-5` would have been checked
   as `0.2`; only a recognised pre-release suffix is stripped now.
