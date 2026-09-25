@@ -312,22 +312,6 @@ generator, which Armadillo's RNG is wired to. `add_initial_values()` stores the
 seed it draws with in `model$model$seed`, taken from that generator, so the
 `set.seed()` at the top reproduces the draws; `add_seed()` replaces the seed.
 
-## With an AI coding assistant
-
-`inst/agents/` holds documentation written for coding assistants: how the
-identification depends on the column order of `x`, how loadings, factors and
-forecasts are laid out in the draws, and complete examples that the test suite
-runs. The installed package carries it at
-`system.file("agents", package = "dfmtools")`, matching its version. In Claude
-Code it installs as a plugin:
-
-```
-/plugin marketplace add franzmohr/dfmtools
-/plugin install dfmtools@dfmtools
-```
-
-Other assistants can be pointed at `inst/agents/AGENTS.md`.
-
 ## Getting help
 
 * Bugs and feature requests: [issues](https://github.com/franzmohr/dfmtools/issues)
