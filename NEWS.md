@@ -509,23 +509,6 @@
     The vendored set is still the same 32 files, so `inst/COPYRIGHTS` is
     unchanged.
 
-* **Documentation for coding assistants, in `inst/agents/`.** It has an
-  `AGENTS.md`, and a skill covering the things a factor model gets wrong without
-  an error:
-  - the column order of `x` as the identification, and why a DFM and a FAVAR fix
-    different blocks;
-  - the mirror mode, and `normalize_x`;
-  - how loadings, factor paths and forecasts are laid out in the draws;
-  - `vinv` against bvartools' `v_i`;
-  - `y` in a FAVAR being state rather than regressors.
-
-  It includes complete examples of a DFM, a TVP-SV DFM and a FAVAR with an
-  impulse response. The installed package carries it at
-  `system.file("agents", package = "dfmtools")`, matching its version, and the
-  repository is a Claude Code plugin marketplace.
-  `tests/testthat/test-agent-docs.R` runs every R example in it. No function
-  changes, so draws are unchanged.
-
 * **Vendored BayesTS core refreshed.** **Draws are unchanged**, for all four
   dynamic factor models -- verified here rather than taken on trust: the four
   samplers were fingerprinted from a pinned seed before and after the refresh,
