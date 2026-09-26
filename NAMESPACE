@@ -13,6 +13,8 @@ S3method(add_priors,dfmodel)
 S3method(add_priors,favarmodel)
 S3method(add_seed,dfmodel)
 S3method(add_seed,favarmodel)
+S3method(expected_model_size,dfmodel)
+S3method(expected_model_size,favarmodel)
 S3method(fevd,favarmodel)
 S3method(irf,favarmodel)
 export(create_dfmodel)
@@ -27,6 +29,7 @@ importFrom(bvartools,
   add_predictive_loglik,
   add_priors,
   add_seed,
+  expected_model_size,
   fevd,
   irf
 )

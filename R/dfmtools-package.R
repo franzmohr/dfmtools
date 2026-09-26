@@ -14,6 +14,7 @@
 #' @importFrom bvartools add_seed
 #' @importFrom bvartools irf
 #' @importFrom bvartools fevd
+#' @importFrom bvartools expected_model_size
 ## usethis namespace: end
 NULL
 
