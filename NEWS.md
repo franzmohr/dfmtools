@@ -1,5 +1,16 @@
 # dfmtools 0.1.0
 
+* **`expected_model_size()` says how large a factor model will be before it is
+  estimated.** The generic belongs to bvartools, and the methods for a
+  'dfmodel' and a 'favarmodel' size every block of the posterior from the
+  specification alone, as the methods there do for a VAR. The factors are
+  drawn for every period, and time-varying parameters and stochastic
+  volatility multiply the loadings, the transition and the error precisions by
+  the number of periods as well: a one-factor model of `bem_dfmdata` with
+  drifting loadings needs 1.8 GB at 5000 draws. `add_posterior_coefficients()`
+  warns before it starts when the model will exceed
+  `options(bvartools.size_warning)`, as it does for the models of bvartools.
+
 * The vendored BayesTS core is refreshed to upstream `d92e581`. Its samplers
   now refuse a NaN or an infinity in the data, the priors, the initial values
   and the realised values a forecast is scored against, and name the input
