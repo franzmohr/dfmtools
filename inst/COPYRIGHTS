@@ -35,6 +35,8 @@ BSD 3-Clause portion
     inst/include/bayests/spec.h
     src/core/algorithms/chan_jeliazkov_2009.cpp
     src/core/algorithms/chan_jeliazkov_2009.h
+    src/core/algorithms/constrained_var_path.cpp
+    src/core/algorithms/constrained_var_path.h
     src/core/algorithms/kalman_durbin_koopman_2002.cpp
     src/core/algorithms/kalman_durbin_koopman_2002.h
     src/core/algorithms/stochvol_mixture.h
@@ -44,6 +46,8 @@ BSD 3-Clause portion
     src/core/algorithms/wishart.cpp
     src/core/algorithms/wishart.h
     src/core/inputs.cpp
+    src/core/models/completion_support.h
+    src/core/models/constraint_support.h
     src/core/models/dfm_normal_gamma.cpp
     src/core/models/dfm_normal_stochvol.cpp
     src/core/models/dfm_support.h
@@ -56,6 +60,8 @@ BSD 3-Clause portion
     src/core/models/model_support.h
     src/core/models/noncentred_support.h
     src/core/models/predictive_score.h
+    src/core/models/shrinkage_support.h
+    src/core/models/steady_state_support.h
     src/core/spec.cpp
 
     That is not the whole of the BayesTS core, only what the four dynamic
