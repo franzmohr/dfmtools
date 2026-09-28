@@ -66,7 +66,41 @@ call that forgets is told which elements are missing:
   innovations.}
   \item{\code{rate}}{a numeric of the prior rate parameter of that variance. The smaller it is,
   the more tightly the coefficients are held to a constant.}
+  \item{\code{omega_v}}{a positive numeric, in place of \code{shape} and \code{rate}: the
+  variance of the normal prior on the signed standard deviation of the state innovations. See
+  'The non-centred prior' below.}
 }
+}
+\section{The non-centred prior}{
+
+
+A random walk \eqn{x_t = x_{t-1} + v_t}, \eqn{v_t \sim N(0, \sigma)}, is the same model as
+\eqn{x_t = x_0 + \omega \tilde{x}_t} with \eqn{\tilde{x}_t} a standard random walk and
+\eqn{\omega = \pm\sqrt{\sigma}}, and \code{omega_v} is the variance of the normal prior
+\eqn{\omega \sim N(0, V_\omega)} on that signed standard deviation. It replaces \code{shape}
+and \code{rate} rather than joining them -- one random walk takes one prior on how far it moves
+-- and a group that gives both is refused. The implied prior on the variance itself is
+\eqn{\mathrm{Gamma}(1/2, 1 / (2 V_\omega))}, which puts more mass near zero than the inverse
+gamma does, so a block that does not move is held at rest more readily.
+
+What it buys is a test. \eqn{\omega = 0} is a constant coefficient and an interior point of
+this prior's support, where a variance of zero is the boundary of the gamma's, so the
+Savage-Dickey density ratio of Chan (2018) is available:
+\code{\link[=time_variation_test.dfmodel]{time_variation_test}} reads it off the draws and
+reports a Bayes factor per state and per block.
+
+It is available for the random walks of the two samplers that draw them that way, and for no
+other block: \code{lambda} and \code{a} of a model created with \code{tvp = TRUE}, and, for one
+created with \code{tvp = TRUE} and \code{error = "sv"}, the log-volatility groups \code{u} and
+\code{v} as well. The four are independent -- a model may take it for its loadings and leave
+the transition on the gamma prior. A model with \code{error = "sv"} and constant coefficients
+has drifting log-volatilities but no non-centred draw for them, so \code{omega_v} is refused
+there as everywhere else it would not be read.
+
+The stochastic volatility groups keep their remaining elements under this prior:
+\code{state_variance} is still the starting value of the variance of the log-volatility
+innovations, and \code{mu}, \code{v_i} and \code{offset} are still read. Only \code{shape} and
+\code{rate} are replaced.
 
 The two specifications are independent of one another: a model created with \code{tvp = TRUE}
 and \code{error = "sv"} takes the state equation above for \code{lambda} and \code{a} and the
@@ -99,10 +133,14 @@ stochastic volatility priors of its VAR and VEC models, so that the two families
   \item{\code{state_variance}}{a numeric of the initial draw for the variance of the
   log-volatilities. A starting value rather than a prior; it is kept here because that is where
   \code{bvartools} keeps it.}
+  \item{\code{omega_v}}{a positive numeric, in place of \code{shape} and \code{rate}: the
+  variance of the normal prior on the signed standard deviation of the log-volatility
+  innovations. See 'The non-centred prior' below.}
   \item{\code{offset}}{a numeric of the constant added before taking the log of the squared
   errors, which keeps that logarithm finite when a residual lands on zero.}
 }
 }
+
 \examples{
 
 # Load data
@@ -140,6 +178,14 @@ model_tvp <- add_priors(model_tvp,
                         a = list(vinv = .01, shape = 3, rate = .01),
                         u = list(shape = 5, rate = 4),
                         v = list(shape = 5, rate = 4))
+
+# The same with the non-centred prior on both random walks, which
+# time_variation_test() can test for time variation afterwards
+model_nc <- add_priors(model_tvp,
+                       lambda = list(vinv = .01, omega_v = .1),
+                       a = list(vinv = .01, omega_v = .1),
+                       u = list(shape = 5, rate = 4),
+                       v = list(shape = 5, rate = 4))
 
 }
 \references{

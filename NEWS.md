@@ -11,6 +11,29 @@
   warns before it starts when the model will exceed
   `options(bvartools.size_warning)`, as it does for the models of bvartools.
 
+* `add_priors()` takes the non-centred prior `omega_v` for every random walk a
+  model with `tvp = TRUE` or `error = "sv"` has: the loadings, the factor
+  transition and the log-volatilities of both error terms. It replaces `shape`
+  and `rate` for the block it is given on, and puts a normal prior on the signed
+  standard deviation of the state innovations rather than an inverse gamma on
+  their variance, following Frühwirth-Schnatter and Wagner (2010). The four
+  blocks are independent, so a model may take it for some and keep the gamma
+  prior for the others.
+
+* New method `time_variation_test()` for `dfmodel` objects, which reports the
+  Savage-Dickey Bayes factors of Chan (2018) for time variation, one per state
+  and one per block, for whichever blocks were estimated under `omega_v`. It is
+  the `bvartools` generic, so the tables of a factor model and of a VAR read
+  alike.
+
+* The vendored BayesTS core is refreshed to upstream `d5ca82c`, which is where
+  the two above come from. The sampler files of `DfmTvpGamma` and
+  `DfmTvpStochvol` moved for the new parameterisation and a new file,
+  `noncentred_support.h`, arrived with it; the core also gained a refusal for
+  `/model/n_iid`, a VAR restriction a factor model does not offer. *Draws are
+  unchanged* for a model that does not set `omega_v`: upstream fingerprints all
+  120 of its existing fixtures identically across the commit.
+
 * The vendored BayesTS core is refreshed to upstream `d92e581`. Its samplers
   now refuse a NaN or an infinity in the data, the priors, the initial values
   and the realised values a forecast is scored against, and name the input

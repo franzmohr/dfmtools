@@ -17,6 +17,7 @@ S3method(expected_model_size,dfmodel)
 S3method(expected_model_size,favarmodel)
 S3method(fevd,favarmodel)
 S3method(irf,favarmodel)
+S3method(time_variation_test,dfmodel)
 export(create_dfmodel)
 export(create_favarmodel)
 import(methods)
@@ -31,6 +32,7 @@ importFrom(bvartools,
   add_seed,
   expected_model_size,
   fevd,
-  irf
+  irf,
+  time_variation_test
 )
 useDynLib(dfmtools, .registration = TRUE)

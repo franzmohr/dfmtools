@@ -21,3 +21,7 @@
 ^src/.*\.dylib$
 ^[.]claude-plugin$
 ^inst/agents$
+## Instructions for coding assistants, beside .claude above. Untracked here, so
+## only a local check of the working copy sees it -- which is where it was
+## reported as a non-standard file at the top level.
+^CLAUDE\.md$

@@ -15,6 +15,7 @@
 #' @importFrom bvartools irf
 #' @importFrom bvartools fevd
 #' @importFrom bvartools expected_model_size
+#' @importFrom bvartools time_variation_test
 ## usethis namespace: end
 NULL
 

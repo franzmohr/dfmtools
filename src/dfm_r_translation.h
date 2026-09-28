@@ -85,6 +85,27 @@ inline arma::mat permute_free_loadings_both(const arma::mat &value, const arma::
   return value;
 }
 
+/// The way back: draws the core made in its own ordering, one row per free
+/// loading, put on R's. `order` is the same permutation as above, applied to
+/// the destination rather than the source -- `r.rows(order) = core` -- because
+/// element `i` of it is where the core's `i`-th free loading belongs in R.
+///
+/// Every per-loading output of a time-varying model goes through this on the
+/// way out: the state variance of the loading random walks and, under the
+/// non-centred prior, its signed standard deviation and the ordinate at zero
+/// beside it. A row left in the core's order would line up with neither the
+/// prior the caller supplied nor `lower.tri()`, and nothing downstream could
+/// tell.
+inline arma::mat unpermute_free_loadings_rows(const arma::mat &value, const arma::uvec &order)
+{
+  if (value.n_rows != order.n_elem) {
+    return value;
+  }
+  arma::mat out(value.n_rows, value.n_cols);
+  out.rows(order) = value;
+  return out;
+}
+
 } // namespace dfmtools
 
 #endif // DFMTOOLS_DFM_R_TRANSLATION_H
