@@ -1,8 +1,9 @@
 # dfmtools 0.1.0
 
-* The vendored BayesTS core moves to `afeb326`, which adds mixed-frequency and
-  missing-data estimation and new prior options, among them the normal-gamma
-  prior with a fixed or a drawn theta, to the VAR models. None of it
+* The vendored BayesTS core moves to `2f9f010`, which adds mixed-frequency and
+  missing-data estimation, also beside i.i.d. variables, and new prior options,
+  among them the normal-gamma prior with a fixed or a drawn theta, to the VAR
+  models. None of it
   applies to a factor model, and the draws of every model are unchanged.
 
 * **`expected_model_size()` says how large a factor model will be before it is
