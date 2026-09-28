@@ -1,5 +1,9 @@
 # dfmtools 0.1.0
 
+* The vendored BayesTS core moves to `638355a`, which adds mixed-frequency and
+  missing-data estimation and new prior options to the VAR models. None of it
+  applies to a factor model, and the draws of every model are unchanged.
+
 * **`expected_model_size()` says how large a factor model will be before it is
   estimated.** The generic belongs to bvartools, and the methods for a
   'dfmodel' and a 'favarmodel' size every block of the posterior from the

@@ -7,7 +7,10 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS `d5ca82c`**, upstream `main` after the 0.3.0 release
+The copy is **BayesTS `638355a`**, the tip of upstream's `mf-constraints`
+branch, which had not been merged into upstream `main` when it was vendored --
+refresh again from `main` once it has, and correct this paragraph if the commit
+names moved -- after the 0.3.0 release
 (tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
 none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
 and the SSVS refusals (`fa6dd89`, `f2abd4e`, `a85abe2` -- `priors.h`,
@@ -33,7 +36,15 @@ which is new here, `dfm_tvp_gamma.cpp`, `dfm_tvp_stochvol.cpp`, `priors.h`,
 existed to widen what a factor model can be asked for rather than only what it
 refuses; and `/model/n_iid`, an equation carrying no coefficients, which is a
 VAR feature whose refusal every `validate()` calls (`3425586` -- `spec.h`,
-`inputs.cpp`, `model_support.h`). The refreshes before sat at `d92e581`,
+`inputs.cpp`, `model_support.h`); and, past `d5ca82c`, panels not observed whole
+and three options of a VAR's prior (`567aa57` to `638355a` -- `data.h`,
+`inputs.h`, `priors.h`, `results.h`, `spec.h`, `spec.cpp`, `inputs.cpp`, and
+new here `constraint_support.h`, `completion_support.h`, `shrinkage_support.h`,
+`steady_state_support.h` and `constrained_var_path.{h,cpp}`, which the
+`validate()`s in `inputs.cpp` now reach). Every factor model refuses the
+constraint datasets and none reads the prior options, so nothing of it reaches
+a factor model's draws; upstream verified the draws unchanged over 145
+fixtures, the factor models' among them. The refreshes before sat at `d5ca82c`, `d92e581`,
 `f8b42a1`, `94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
 so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
