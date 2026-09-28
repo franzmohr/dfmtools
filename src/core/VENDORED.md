@@ -7,9 +7,10 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS `89b0495`**, the tip of upstream's `normal-gamma-shrinkage`
-branch, which sits on `mf-constraints`; neither had been merged into upstream
-`main` when it was vendored -- refresh again from `main` once they have, and correct this paragraph if the commit
+The copy is **BayesTS `afeb326`**, the tip of upstream's `normal-gamma-theta`
+branch, which sits on `normal-gamma-shrinkage` and that on `mf-constraints`;
+none had been merged into upstream `main` when it was vendored -- refresh again
+from `main` once they have, and correct this paragraph if the commit
 names moved -- after the 0.3.0 release
 (tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
 none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
@@ -37,7 +38,7 @@ existed to widen what a factor model can be asked for rather than only what it
 refuses; and `/model/n_iid`, an equation carrying no coefficients, which is a
 VAR feature whose refusal every `validate()` calls (`3425586` -- `spec.h`,
 `inputs.cpp`, `model_support.h`); and, past `d5ca82c`, panels not observed whole
-and four options of a VAR's prior (`567aa57` to `89b0495` -- `data.h`,
+and four options of a VAR's prior (`567aa57` to `afeb326` -- `data.h`,
 `inputs.h`, `priors.h`, `results.h`, `spec.h`, `spec.cpp`, `inputs.cpp`, and
 new here `constraint_support.h`, `completion_support.h`, `shrinkage_support.h`,
 `steady_state_support.h`, `constrained_var_path.{h,cpp}` and
@@ -45,7 +46,7 @@ new here `constraint_support.h`, `completion_support.h`, `shrinkage_support.h`,
 `validate()`s in `inputs.cpp` now reach). Every factor model refuses the
 constraint datasets and none reads the prior options, so nothing of it reaches
 a factor model's draws; upstream verified the draws unchanged over 145
-fixtures and then 148, the factor models' among them. The refreshes before sat at `638355a`, `d5ca82c`, `d92e581`,
+fixtures, then 148 and 151, the factor models' among them. The refreshes before sat at `89b0495`, `638355a`, `d5ca82c`, `d92e581`,
 `f8b42a1`, `94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
 so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release
