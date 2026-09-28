@@ -8,10 +8,9 @@ prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
 The copy is **BayesTS `696dc7d`**, the tip of upstream's `structural-qvar`
-branch, off `main` at `03956c5`, into which every branch vendored before it
-has been merged with its commits unchanged; it had not been merged when it was
-vendored -- refresh again from `main` once it has, and correct this paragraph
-if the commit names moved -- after the 0.3.0 release
+branch, off `main` at `03956c5` and merged into it as `82ac49c`, like every
+branch vendored before it, with its commits unchanged -- so the files here are
+those of upstream `main` -- after the 0.3.0 release
 (tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
 none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
 and the SSVS refusals (`fa6dd89`, `f2abd4e`, `a85abe2` -- `priors.h`,
