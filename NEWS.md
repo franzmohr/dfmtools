@@ -1,7 +1,8 @@
 # dfmtools 0.1.0
 
-* The vendored BayesTS core moves to `638355a`, which adds mixed-frequency and
-  missing-data estimation and new prior options to the VAR models. None of it
+* The vendored BayesTS core moves to `89b0495`, which adds mixed-frequency and
+  missing-data estimation and new prior options, among them the normal-gamma
+  prior, to the VAR models. None of it
   applies to a factor model, and the draws of every model are unchanged.
 
 * `add_priors()` takes the non-centred prior `omega_v` for every random walk a
