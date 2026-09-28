@@ -25,7 +25,7 @@ forecast error is decomposed, among the \eqn{k} panel series followed by the
 
 \item{n_ahead}{an integer of the horizon. Defaults to 5.}
 
-\item{type}{the identification, \code{"oir"} or \code{"gir"}. See
+\item{type}{the identification, \code{"oir"}, \code{"gir"} or \code{"sign"}. See
 \code{\link{irf.favarmodel}}.}
 
 \item{order}{the Cholesky ordering, as a character or integer permutation of

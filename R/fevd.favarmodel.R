@@ -10,7 +10,7 @@
 #' forecast error is decomposed, among the \eqn{k} panel series followed by the
 #' \eqn{n_{obs}} observed ones.
 #' @param n_ahead an integer of the horizon. Defaults to 5.
-#' @param type the identification, \code{"oir"} or \code{"gir"}. See
+#' @param type the identification, \code{"oir"}, \code{"gir"} or \code{"sign"}. See
 #' \code{\link{irf.favarmodel}}.
 #' @param order the Cholesky ordering, as a character or integer permutation of
 #' the state. Only meaningful for \code{type = "oir"}.
@@ -94,8 +94,8 @@ fevd.favarmodel <- function(x, response = NULL, n_ahead = 5, type = "oir",
          "add_posterior_coefficients first.")
   }
   .check_whole_number(n_ahead, "n_ahead", 0)
-  if (!type %in% c("oir", "gir")) {
-    stop("Argument 'type' must be one of \"oir\" or \"gir\". A decomposition ",
+  if (!type %in% c("oir", "gir", "sign")) {
+    stop("Argument 'type' must be one of \"oir\", \"gir\" or \"sign\". A decomposition ",
          "of type \"feir\" is not defined: unorthogonalised innovations have ",
          "no separate variances to apportion.")
   }
@@ -124,6 +124,7 @@ fevd.favarmodel <- function(x, response = NULL, n_ahead = 5, type = "oir",
   }
 
   order <- .favar_order(order, state_names, ns)
+  rotations <- .favar_rotations(object, type, ns)
 
   # Draws ----
   v_sigma_inv <- object[["posterior"]][["v_sigma_inv"]][["coeffs"]]
@@ -178,7 +179,9 @@ fevd.favarmodel <- function(x, response = NULL, n_ahead = 5, type = "oir",
     # The denominator is the true forecast error variance and does not depend on
     # which decomposition is reported, so any factor of Q serves for it.
     root <- .favar_impact_matrix(q, "oir", seq_len(ns), ns)
-    impact <- if (type == "oir") {
+    impact <- if (type == "sign") {
+      .favar_sign_impact(q, rotations[i, ], ns)
+    } else if (type == "oir") {
       .favar_impact_matrix(q, "oir", order, ns)
     } else {
       .favar_impact_matrix(q, "gir", order, ns)

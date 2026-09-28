@@ -176,3 +176,34 @@
 
   return(order)
 }
+
+#' The rotations of a sign and zero restricted identification
+#'
+#' @param object an object of class \code{'favarmodel'}.
+#' @param type the identification asked for.
+#' @param ns the width of the state.
+#'
+#' @return The draws of the rotation, one row per draw, or \code{NULL} for any
+#' type but \code{"sign"}.
+#'
+#' @noRd
+.favar_rotations <- function(object, type, ns) {
+
+  if (type != "sign") {
+    return(NULL)
+  }
+
+  rotations <- object[["posterior"]][["q"]][["coeffs"]]
+  if (is.null(rotations)) {
+    stop("Type \"sign\" needs the rotations of add_sign_zero_restrictions(), which ",
+         "this model does not contain.")
+  }
+  rotations <- as.matrix(rotations)
+  if (ncol(rotations) != ns * ns ||
+      nrow(rotations) != NROW(object[["posterior"]][["v_sigma_inv"]][["coeffs"]])) {
+    stop("The rotations in posterior$q do not match the draws of the state ",
+         "covariance. Were the draws changed after add_sign_zero_restrictions()?")
+  }
+
+  return(rotations)
+}
