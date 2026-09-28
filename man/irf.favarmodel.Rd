@@ -42,7 +42,8 @@ give the mirrored response.}
 \item{type}{the identification. \code{"oir"}, the default, orthogonalises the
 state innovations with the Cholesky factor of \eqn{Q}; \code{"gir"} gives the
 generalised response of Pesaran and Shin, which needs no ordering;
-\code{"feir"} leaves the innovations alone. See 'Details'.}
+\code{"feir"} leaves the innovations alone; \code{"sign"} uses the rotations
+of \code{\link{add_sign_zero_restrictions.favarmodel}}. See 'Details'.}
 
 \item{order}{the Cholesky ordering, as a character or integer permutation of
 the state. Defaults to the state's own order, factors before observed
@@ -105,7 +106,10 @@ rather than a structural claim. It answers a different question from
 \code{"oir"} rather than answering the same one without an assumption, and
 the two coincide only for the element ordered first. Under \code{"feir"} the
 innovations are left alone, \eqn{P = I}, which is a reduced-form response and
-not a structural one at all.
+not a structural one at all. Under \code{"sign"}, \eqn{P} is the Cholesky
+factor of \eqn{Q} rotated by the draw's rotation from
+\code{\link{add_sign_zero_restrictions.favarmodel}}, and the impulse names
+the shock named after that state element there.
 
 Note what \code{"gir"} does to the slow-moving restriction of
 \code{\link{add_priors.favarmodel}}. That restriction zeroes a slow series'

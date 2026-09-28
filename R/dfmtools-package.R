@@ -14,6 +14,7 @@
 #' @importFrom bvartools add_seed
 #' @importFrom bvartools irf
 #' @importFrom bvartools fevd
+#' @importFrom bvartools add_sign_zero_restrictions
 #' @importFrom bvartools expected_model_size
 #' @importFrom bvartools time_variation_test
 ## usethis namespace: end

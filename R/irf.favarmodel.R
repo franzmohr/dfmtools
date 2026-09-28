@@ -20,7 +20,8 @@
 #' @param type the identification. \code{"oir"}, the default, orthogonalises the
 #' state innovations with the Cholesky factor of \eqn{Q}; \code{"gir"} gives the
 #' generalised response of Pesaran and Shin, which needs no ordering;
-#' \code{"feir"} leaves the innovations alone. See 'Details'.
+#' \code{"feir"} leaves the innovations alone; \code{"sign"} uses the rotations
+#' of \code{\link{add_sign_zero_restrictions.favarmodel}}. See 'Details'.
 #' @param order the Cholesky ordering, as a character or integer permutation of
 #' the state. Defaults to the state's own order, factors before observed
 #' variables. Only meaningful for \code{type = "oir"}.
@@ -68,7 +69,10 @@
 #' \code{"oir"} rather than answering the same one without an assumption, and
 #' the two coincide only for the element ordered first. Under \code{"feir"} the
 #' innovations are left alone, \eqn{P = I}, which is a reduced-form response and
-#' not a structural one at all.
+#' not a structural one at all. Under \code{"sign"}, \eqn{P} is the Cholesky
+#' factor of \eqn{Q} rotated by the draw's rotation from
+#' \code{\link{add_sign_zero_restrictions.favarmodel}}, and the impulse names
+#' the shock named after that state element there.
 #'
 #' Note what \code{"gir"} does to the slow-moving restriction of
 #' \code{\link{add_priors.favarmodel}}. That restriction zeroes a slow series'
@@ -188,8 +192,8 @@ irf.favarmodel <- function(x, impulse = NULL, response = NULL, n_ahead = 5,
   }
 
   # Identification ----
-  if (!type %in% c("oir", "gir", "feir")) {
-    stop("Argument 'type' must be one of \"oir\", \"gir\" or \"feir\".")
+  if (!type %in% c("oir", "gir", "feir", "sign")) {
+    stop("Argument 'type' must be one of \"oir\", \"gir\", \"feir\" or \"sign\".")
   }
   if (!is.null(order) && type != "oir") {
     stop("Argument 'order' is only meaningful for type \"oir\". A generalised ",
@@ -197,6 +201,7 @@ irf.favarmodel <- function(x, impulse = NULL, response = NULL, n_ahead = 5,
          "does not orthogonalise it.")
   }
   order <- .favar_order(order, state_names, ns)
+  rotations <- .favar_rotations(object, type, ns)
 
   # Draws ----
   v_sigma_inv <- object[["posterior"]][["v_sigma_inv"]][["coeffs"]]
@@ -232,7 +237,12 @@ irf.favarmodel <- function(x, impulse = NULL, response = NULL, n_ahead = 5,
 
   for (i in seq_len(draws)) {
 
-    impact <- .favar_impact_matrix(.favar_q(v_sigma_inv, i, ns), type, order, ns)
+    q_i <- .favar_q(v_sigma_inv, i, ns)
+    impact <- if (type == "sign") {
+      .favar_sign_impact(q_i, rotations[i, ], ns)
+    } else {
+      .favar_impact_matrix(q_i, type, order, ns)
+    }
     a_i <- if (p > 0) matrix(a[i, ], ns, ns * p) else NULL
 
     s <- .favar_impact_path(impact[, impulse] * shock, a_i, ns, p, n_ahead)

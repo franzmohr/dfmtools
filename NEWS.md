@@ -1,5 +1,21 @@
 # dfmtools 0.1.0
 
+* **Factor augmented VARs can be identified by sign and zero restrictions.**
+  - **The function.** `add_sign_zero_restrictions()` has a method for a
+    `'favarmodel'`. It rotates the shocks of the state equation with the
+    algorithm of Arias, Rubio-Ramírez and Waggoner (2018), through
+    bvartools' `arias_rubio_ramirez_waggoner_2018()`, and resamples the
+    posterior by the importance weights. It takes `max_tries`, as
+    bvartools' method does.
+  - **Using the rotations.** `irf()` and `fevd()` read the rotations under
+    `type = "sign"`.
+  - **What can be restricted.** Restrictions are on elements of the state:
+    the factors, each named after the panel series that identifies it, and
+    the observed variables. The other panel series respond through
+    draw-specific loadings, which the algorithm cannot restrict, and are
+    refused.
+  - **Dependency.** dfmtools now needs bvartools 1.0.0.
+
 * The vendored BayesTS core moves to `696dc7d`, which adds mixed-frequency and
   missing-data estimation, also beside i.i.d. variables, new prior options,
   among them the normal-gamma prior with a fixed or a drawn theta, and the
