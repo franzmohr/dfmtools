@@ -39,7 +39,7 @@ parameters and stochastic volatility multiply the loadings, the transition
 or the error precisions by the number of periods as well}, which is how a
 model of a large panel comes to need gigabytes.
 
-Forecast draws are counted once \code{\link{add_posterior_forecasts}} has set
+Forecast draws are counted once \code{\link[bvartools]{add_posterior_forecasts}} has set
 a horizon, which it does itself. The size is what the object will hold in
 memory; see \code{\link[bvartools]{expected_model_size}} for what that means
 for the disk space of a file and for the warning
