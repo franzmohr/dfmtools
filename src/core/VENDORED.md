@@ -8,11 +8,9 @@ prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
 The copy is **BayesTS `065ed77`**, the tip of upstream's
-`factor-deterministic-terms` branch, off `main` at `82ac49c`. Unlike every
-branch vendored before it, that one is **not merged into upstream `main` yet**,
-so until it is, the files here are those of the branch rather than of `main`; a
-refresh after the merge, with the branch's commits unchanged, moves nothing.
-The branch adds deterministic terms to all five factor models (`c2c49ea` --
+`factor-deterministic-terms` branch, off `main` at `82ac49c` and merged into it
+as `6fa1c75`, like every branch vendored before it, with its commits unchanged
+-- so the files here are those of upstream `main`. The branch adds deterministic terms to all five factor models (`c2c49ea` --
 `inputs.h`, `results.h`, `spec.h`, the five sampler headers, `inputs.cpp`,
 `dfm_support.h`, `favar_support.h`, `factor_score.h` and the five models'
 sources; `065ed77`, two comments): a constant, a trend or seasonal dummies in
