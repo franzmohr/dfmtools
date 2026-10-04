@@ -244,6 +244,8 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
     }
   }
   attributes[["rclass"]] <- class(object)
+  # The package bvartools loads to read the file back with the methods below.
+  attributes[["rpackage"]] <- "dfmtools"
   tree_model <- c(nested, list(".attributes" = attributes))
 
   # Data ----
@@ -338,6 +340,7 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
     model_class <- class(tree)
   }
   attributes[["rclass"]] <- NULL
+  attributes[["rpackage"]] <- NULL
 
   # Specification ----
   model <- list()

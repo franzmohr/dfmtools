@@ -111,6 +111,7 @@ test_that("the file holds the sampler's names and ordering", {
 
   expect_identical(spec[["k"]], 4L)
   expect_identical(spec[["n_factors"]], 2L)
+  expect_identical(spec[["rpackage"]], "dfmtools")
   # BayesTS would read these as a VAR's exogenous variables and deterministic
   # terms.
   expect_false(any(c("m", "n") %in% names(spec)))
@@ -162,6 +163,7 @@ test_that("a file of the command line, without an R class, is read as a dfmodel"
   object <- fitted_models()[["fitted"]][["DfmNormalGamma"]]
   tree <- .factor_model_tree(object)
   tree[["model"]][[".attributes"]][["rclass"]] <- NULL
+  tree[["model"]][[".attributes"]][["rpackage"]] <- NULL
   path <- tempfile(fileext = ".h5")
   bvartools::write_bayests_tree(tree, filename = path)
 
