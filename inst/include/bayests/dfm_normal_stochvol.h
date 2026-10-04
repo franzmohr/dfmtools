@@ -14,7 +14,7 @@ namespace bayests
 /// Dynamic factor model with constant loadings, a constant factor transition and
 /// stochastic volatility in both error terms.
 ///
-///     x_t = Lambda f_t + u_t,                  u_t ~ N(0, U_t),  U_t diagonal,
+///     x_t = Lambda f_t + C d_t + u_t,          u_t ~ N(0, U_t),  U_t diagonal,
 ///     f_t = sum_{j=1..p} A_j f_{t-j} + v_t,    v_t ~ N(0, V_t),  V_t diagonal,
 ///
 /// with U_t = diag(exp(h^u_t)), V_t = diag(exp(h^v_t)) and every element of both
@@ -71,10 +71,11 @@ public:
 
     /// Simulates one forecast path of the observed series per posterior draw.
     ///
-    /// As in DfmNormalGamma, no out-of-sample regressor matrix is needed: the
-    /// path is the transition run forward from the last p drawn factors, with an
-    /// innovation drawn at each step, and the observed series read off the
-    /// loadings. `spec.h` is the horizon.
+    /// As in DfmNormalGamma, the path is the transition run forward from the
+    /// last p drawn factors, with an innovation drawn at each step, and the
+    /// observed series read off the loadings, plus C d_{T+i} from
+    /// `input.forecast.x` where the model has deterministic terms. `spec.h` is
+    /// the horizon.
     ///
     /// Both volatilities start from their terminal value. Under
     /// ForecastStates::simulate, the default, each log-volatility then takes one

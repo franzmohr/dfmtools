@@ -18,8 +18,8 @@
 #' or the error precisions by the number of periods as well}, which is how a
 #' model of a large panel comes to need gigabytes.
 #'
-#' Forecast draws are counted once \code{\link[bvartools]{add_posterior_forecasts}} has set
-#' a horizon, which it does itself. The size is what the object will hold in
+#' Forecast draws are counted once \code{\link{add_forecast_input.dfmodel}} has set a horizon,
+#' and the coefficients of deterministic terms where the model has them. The size is what the object will hold in
 #' memory; see \code{\link[bvartools]{expected_model_size}} for what that means
 #' for the disk space of a file and for the warning
 #' \code{\link[bvartools]{add_posterior_coefficients}} gives before it starts.
@@ -50,6 +50,8 @@ expected_model_size.dfmodel <- function(object, ...) {
   tvp <- isTRUE(model[["tvp"]])
   periods <- if (tvp) tt else 1
   coef <- "add_posterior_coefficients"
+  # Deterministic terms, whose coefficients do not drift.
+  n_det <- length(model[["deterministic"]])
 
   # The loadings are the whole M x N matrix, identifying block included, and a
   # random walk only for the free ones beneath it.
@@ -63,6 +65,7 @@ expected_model_size.dfmodel <- function(object, ...) {
     if (sv) list("posterior$u_sigma_inv$sigma", coef, m),
     list("posterior$v_sigma_inv$coeffs", coef, n * (if (sv) tt else 1)),
     if (sv) list("posterior$v_sigma_inv$sigma", coef, n),
+    if (n_det > 0) list("posterior$c$coeffs", coef, m * n_det),
     list("posterior$loglik", "add_posterior_loglik", tt),
     if (!is.null(model[["h"]])) list("posterior$forecast$forecasts", "add_posterior_forecasts",
                                      m * model[["h"]]))

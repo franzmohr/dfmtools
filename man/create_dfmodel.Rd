@@ -13,7 +13,9 @@ create_dfmodel(
   tvp = FALSE,
   iterations = 20000,
   burnin = 2000,
-  thin = 1
+  thin = 1,
+  deterministic = "none",
+  seasonal = FALSE
 )
 }
 \arguments{
@@ -44,13 +46,25 @@ moments, forecasts etc.}
 the burn-in the sampler keeps the last of every \code{thin} draws, so it runs
 \code{burnin + iterations * thin} draws and still keeps \code{iterations}, and
 the draws that are not kept are never held in memory.}
+
+\item{deterministic}{a character specifying which deterministic terms enter the
+measurement equation. Available values are \code{"none"} (default), \code{"const"} for an
+intercept, \code{"trend"} for a linear trend, and \code{"both"} for an intercept with a
+linear trend. See 'Details'.}
+
+\item{seasonal}{logical. If \code{TRUE}, seasonal dummy variables are generated as
+additional deterministic terms. The amount of dummies depends on the frequency of the
+time-series object provided in \code{x}. Requires \code{deterministic} to be \code{"const"}
+or \code{"both"}. Defaults to \code{FALSE}.}
 }
 \value{
 An object of class \code{'dfmodel'}, which contains the following elements:
 \item{data}{A list of data objects, which can be used for posterior simulation. Element
 \code{x} is a time-series object of normalised observable variables, i.e. each column has
-zero mean and unity variance.}
-\item{model}{A list of model specifications.}
+zero mean and unity variance. Element \code{deterministic}, a time-series object with one
+column per deterministic term, is there for a model that has them.}
+\item{model}{A list of model specifications. Element \code{deterministic} names the
+deterministic terms.}
 }
 \description{
 Produces the input for the estimation of a dynamic factor model (DFM).
@@ -58,11 +72,13 @@ Produces the input for the estimation of a dynamic factor model (DFM).
 \details{
 The function produces the variable matrices of dynamic factor
 models (DFM) with measurement equation
-\deqn{x_t = \lambda f_t + u_t,}
+\deqn{x_t = \lambda f_t + C d_t + u_t,}
 where
 \eqn{x_t} is an \eqn{M \times 1} vector of observed variables,
 \eqn{f_t} is an \eqn{N \times 1} vector of unobserved factors and
 \eqn{\lambda} is the corresponding \eqn{M \times N} matrix of factor loadings.
+\eqn{d_t} is a vector of deterministic terms with coefficient matrix \eqn{C}; the term
+drops out of a model without them.
 \eqn{u_t} is an \eqn{M \times 1} error term with \eqn{u_t \sim N(0, U)}.
 
 The transition equation is
@@ -73,6 +89,24 @@ where
 
 If integer vectors are provided as arguments \code{p} or \code{n}, the function will
 produce a distinct model for all possible combinations of those specifications.
+
+Deterministic terms are generated as in \code{\link[bvartools]{create_bvarmodel}}: a
+constant named \code{"const"}, a linear trend \code{"trend"} that is one in the first period,
+and seasonal dummies \code{"season.1"} onwards, where \code{"season.i"} is one in the
+\eqn{i}-th period of the year and the last period of the year is left out. They enter the
+measurement equation rather than the transition, so the factors are deviations from them:
+a seasonal pattern or a trend in the panel is then not something the factors have to carry.
+Their coefficients \eqn{C} are constant, also in a model with \code{tvp = TRUE}.
+
+The constant and the trend are identified, but not by much. A persistent factor can carry
+part of a level or a trend for a small price in its own transition, so those columns of
+\eqn{C} trade off against the level of the factors, and the sampler moves along that
+direction slowly. \code{\link{add_initial_values.dfmodel}} therefore starts \eqn{C} at its
+least squares estimate rather than at a draw from its prior, and a longer burn-in than a
+model without deterministic terms needs is advisable. With \code{normalize_x = TRUE} every
+series has mean zero already, so a constant is close to zero, but it is still what seasonal
+dummies are measured against. A forecast needs the terms over its horizon, which
+\code{\link{add_forecast_input.dfmodel}} supplies.
 
 Only the product \eqn{\lambda f_t} is identified, so the leading \eqn{N \times N} block of
 \eqn{\lambda} is fixed unit lower triangular -- ones on the diagonal, zeros above -- which pins
@@ -138,6 +172,11 @@ model_tvp <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, tvp = TRUE,
 # Both at once
 model_tvp_sv <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1, error = "sv", tvp = TRUE,
                                iterations = 5000, burnin = 1000)
+
+# A constant and seasonal dummies in the measurement equation
+model_det <- create_dfmodel(x = bem_dfmdata, p = 1, n = 1,
+                            deterministic = "const", seasonal = TRUE,
+                            iterations = 5000, burnin = 1000)
 
 }
 \references{

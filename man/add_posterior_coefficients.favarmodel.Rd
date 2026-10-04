@@ -23,7 +23,10 @@ progress. Defaults to \code{FALSE}; see
 \item{...}{not used.}
 }
 \value{
-The model object with the result attached under \code{posterior}.
+The model object with the result attached under \code{posterior}. A
+model with deterministic terms has elements \code{c}, the panel's coefficients
+on them, and \code{c_obs}, those of the observed variables, each column by
+column with its columns named \code{"<series>.<term>"}.
 }
 \description{
 Runs the Gibbs sampler and attaches the posterior draws.

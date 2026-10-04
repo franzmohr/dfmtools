@@ -565,6 +565,108 @@ inline arma::mat transition_residuals_tvp(const arma::mat &factors, const arma::
     return v;
 }
 
+/// The deterministic terms of a factor model, n x tt -- one period per column,
+/// the orientation every path here is carried in. `train.x` holds them one
+/// period per row, so this is its transpose, formed once. Empty for a model
+/// without them.
+inline arma::mat deterministic_by_period(const TrainData &train)
+{
+    return arma::trans(train.x);
+}
+
+/// One draw of C, the k x n coefficients of the deterministic terms of the
+/// measurement
+///
+///     x_t = Lambda_t f_t + C d_t + u_t,
+///
+/// row by row. Given the factors and a diagonal U, the k rows are independent
+/// regressions of what the common component leaves, `resid` = x_t - Lambda_t
+/// f_t (k x tt), on the same n regressors `d_t` (n x tt), each weighted by its
+/// own precision. That is what makes the block cheap however many series there
+/// are: k solves of size n rather than one of size k n.
+///
+/// `precision` is the idiosyncratic precision, k x 1 where it holds in every
+/// period or k x tt where it moves, which is what serves the gamma and the
+/// stochastic volatility models from one function. `prior` is over vec(C),
+/// column by column, so row i's prior is the elements i, i + k, i + 2k, ...;
+/// validate_factor_deterministic() refuses a precision that couples rows.
+///
+/// The deterministic terms are coefficients that do not drift, in every factor
+/// model here, the time-varying ones included: their point is a mean the
+/// factors are deviations from, and a mean that moved would be a random walk
+/// competing with the factors for the same variation.
+inline void draw_measurement_deterministic(arma::mat &c_mat, const arma::mat &resid,
+                                           const arma::mat &d_t, const arma::mat &precision,
+                                           const NormalPrior &prior)
+{
+    const arma::uword k = resid.n_rows;
+    const arma::uword n = d_t.n_rows;
+    const bool moves = precision.n_cols > 1;
+
+    for (arma::uword i = 0; i < k; i++)
+    {
+        const arma::uvec idx = arma::regspace<arma::uvec>(i, k, i + k * (n - 1));
+        const arma::mat prior_vinv = prior.v_inv.submat(idx, idx);
+
+        arma::mat weighted = d_t;
+        if (moves)
+        {
+            weighted.each_row() %= precision.row(i);
+        }
+        else
+        {
+            weighted *= precision(i, 0);
+        }
+
+        const arma::mat post_v = prior_vinv + weighted * arma::trans(d_t);
+        const arma::vec rhs =
+            prior_vinv * prior.mu.elem(idx) + weighted * arma::trans(resid.row(i));
+        c_mat.row(i) = arma::trans(draw_normal_precision(post_v, rhs));
+    }
+}
+
+/// The k x n matrix C of the deterministic terms from its vec, or a k x 0 one
+/// for a model without them -- so that `c_mat * d` is a k x tt matrix of zeros
+/// that no sampler has to special-case.
+inline arma::mat deterministic_coefficients(const arma::vec &c, const arma::uword k,
+                                            const arma::uword n)
+{
+    return n > 0 ? arma::mat(arma::reshape(c, k, n)) : arma::mat(k, 0);
+}
+
+/// The deterministic terms over a forecast horizon, n x periods, for a model
+/// whose posterior is in `c_draws`. Empty for a model without them; otherwise
+/// checked against what the forecast or the score is about to read, so that a
+/// missing `/data/forecast/x` is named rather than read past the end of.
+inline arma::mat forecast_deterministic(const VarSpec &spec, const ForecastData &forecast,
+                                        const arma::mat &c_draws, const arma::uword rows,
+                                        const arma::uword periods)
+{
+    const arma::uword n = static_cast<arma::uword>(std::max(spec.n, 0));
+    if (n == 0)
+    {
+        return arma::mat();
+    }
+    if (forecast.x.n_cols != n || forecast.x.n_rows < periods)
+    {
+        throw std::invalid_argument(
+            "the model has " + std::to_string(n) + " deterministic terms, so /data/forecast/x "
+            "must give them for every one of the " + std::to_string(periods) +
+            " forecast periods, one row per period and one column per term; got " +
+            std::to_string(forecast.x.n_rows) + " x " + std::to_string(forecast.x.n_cols));
+    }
+    if (c_draws.n_rows != rows * n)
+    {
+        throw std::invalid_argument("posterior draws of the deterministic coefficients c are "
+                                    "missing or have the wrong number of rows");
+    }
+    if (periods == 0)
+    {
+        return arma::mat(n, 0);
+    }
+    return arma::trans(forecast.x.rows(0, periods - 1));
+}
+
 } // namespace bayests::core
 
 #endif // BAYESTS_CORE_MODELS_DFM_SUPPORT_H

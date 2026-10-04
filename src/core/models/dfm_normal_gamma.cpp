@@ -17,7 +17,11 @@ namespace bayests
 namespace
 {
 
+using core::deterministic_by_period;
+using core::deterministic_coefficients;
 using core::draw_diagonal_precision;
+using core::draw_measurement_deterministic;
+using core::forecast_deterministic;
 using core::draw_factor_path;
 using core::draw_normal_precision;
 using core::fill_lagged_factors;
@@ -41,16 +45,29 @@ DfmNormalGammaDraws DfmNormalGammaSampler::draw_coefficients(const DfmNormalGamm
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
-    const arma::mat x_t = response_by_period(input.train, k, tt);
+    const arma::mat x_raw = response_by_period(input.train, k, tt);
 
     const int n_a = input.spec.n_factor_a();
     const bool use_a = n_a > 0;
+
+    // Deterministic terms. The factors explain the data less them, so `x_t`
+    // is that difference throughout and is refreshed whenever C is drawn; for
+    // a model without them it is the data and nothing below touches it.
+    const arma::uword n_det = static_cast<arma::uword>(input.spec.n);
+    const bool use_c = n_det > 0;
+    const arma::mat d_t = deterministic_by_period(input.train);
+    arma::mat c_mat = deterministic_coefficients(input.initial.c, k, n_det);
+    arma::mat x_t = use_c ? arma::mat(x_raw - c_mat * d_t) : x_raw;
 
     DfmNormalGammaDraws out;
     out.lambda = arma::mat(k * n, iterations);
     out.factors = arma::mat(n * tt, iterations);
     out.u_sigma_inv = arma::mat(k, iterations);
     out.v_sigma_inv = arma::mat(n, iterations);
+    if (use_c)
+    {
+        out.c = arma::mat(k * n_det, iterations);
+    }
 
     // Loadings. The leading N x N block is the identification and is never
     // drawn: ones on the diagonal, zeros above, free below.
@@ -137,6 +154,14 @@ DfmNormalGammaDraws DfmNormalGammaSampler::draw_coefficients(const DfmNormalGamm
             pos += width;
         }
 
+        // Block 2b: Draw the deterministic terms, row by row ----
+        if (use_c)
+        {
+            draw_measurement_deterministic(c_mat, x_raw - lambda * factors, d_t, u_sigma_inv,
+                                           input.c_prior);
+            x_t = x_raw - c_mat * d_t;
+        }
+
         // Block 3: Draw the idiosyncratic precision ----
         u = x_t - lambda * factors;
         draw_diagonal_precision(u_sigma_inv, u, u_post_shape, u_prior_rate);
@@ -173,6 +198,10 @@ DfmNormalGammaDraws DfmNormalGammaSampler::draw_coefficients(const DfmNormalGamm
             out.factors.col(draw_pos) = arma::vectorise(factors);
             out.u_sigma_inv.col(draw_pos) = u_sigma_inv;
             out.v_sigma_inv.col(draw_pos) = v_sigma_inv;
+            if (use_c)
+            {
+                out.c.col(draw_pos) = arma::vectorise(c_mat);
+            }
             if (use_a)
             {
                 out.a.col(draw_pos) = a;
@@ -237,6 +266,11 @@ ForecastDraws DfmNormalGammaSampler::forecast(const DfmNormalGammaInput &input,
             " periods, got " + std::to_string(coefficients.factors.n_rows));
     }
 
+    // The deterministic terms of the horizon, n x h; empty without them.
+    const arma::mat d_h = forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                                                 static_cast<arma::uword>(k),
+                                                 static_cast<arma::uword>(h));
+
     const arma::uword draws = coefficients.iterations();
     arma::mat fcst(h * k, draws);
 
@@ -263,6 +297,9 @@ ForecastDraws DfmNormalGammaSampler::forecast(const DfmNormalGammaInput &input,
 
         const arma::mat a_mat =
             use_a ? arma::reshape(coefficients.a.col(draw), n, n * p) : arma::mat();
+        const arma::mat c_mat =
+            d_h.n_rows > 0 ? arma::mat(arma::reshape(coefficients.c.col(draw), k, d_h.n_rows))
+                           : arma::mat();
 
         for (int i = 0; i < h; i++)
         {
@@ -275,6 +312,10 @@ ForecastDraws DfmNormalGammaSampler::forecast(const DfmNormalGammaInput &input,
 
             fcst.submat(i * k, draw, (i + 1) * k - 1, draw) =
                 lambda * f + u_sd % arma::randn<arma::vec>(k);
+            if (d_h.n_rows > 0)
+            {
+                fcst.submat(i * k, draw, (i + 1) * k - 1, draw) += c_mat * d_h.col(i);
+            }
         }
     }
 
@@ -311,6 +352,14 @@ arma::mat DfmNormalGammaSampler::log_likelihood(const DfmNormalGammaInput &input
     const arma::mat x_t = response_by_period(input.train, k, tt);
     const arma::uword draws = coefficients.iterations();
 
+    const arma::uword n_det = static_cast<arma::uword>(std::max(input.spec.n, 0));
+    const arma::mat d_t = deterministic_by_period(input.train);
+    if (n_det > 0 && coefficients.c.n_rows != static_cast<arma::uword>(k) * n_det)
+    {
+        throw std::invalid_argument("posterior draws of the deterministic coefficients c are "
+                                    "missing");
+    }
+
     arma::mat loglik(draws, tt);
     const double part_a = -k * std::log(2 * arma::datum::pi) / 2;
 
@@ -323,7 +372,11 @@ arma::mat DfmNormalGammaSampler::log_likelihood(const DfmNormalGammaInput &input
         // U is diagonal, so the determinant term is a sum of logs and the
         // quadratic form is a weighted sum of squares -- no k x k anything.
         const double part_b = arma::accu(arma::log(u_sigma_inv)) / 2;
-        const arma::mat u = x_t - lambda * factors;
+        arma::mat u = x_t - lambda * factors;
+        if (n_det > 0)
+        {
+            u -= arma::reshape(coefficients.c.col(draw), k, n_det) * d_t;
+        }
 
         for (int i = 0; i < tt; i++)
         {
@@ -393,7 +446,12 @@ arma::mat DfmNormalGammaSampler::predictive_log_density(
         }
     };
 
-    return core::score_factor_forecast(input.spec, input.test.y, coefficients.iterations(), step);
+    const arma::mat d_h =
+        forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                               static_cast<arma::uword>(k), input.test.y.n_rows);
+    return core::score_factor_forecast(input.spec, input.test.y, coefficients.iterations(),
+                                       core::with_deterministic_offset(step, coefficients.c, d_h,
+                                                                      static_cast<arma::uword>(k)));
 }
 
 } // namespace bayests

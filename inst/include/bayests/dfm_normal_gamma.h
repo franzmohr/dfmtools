@@ -14,7 +14,7 @@ namespace bayests
 /// Dynamic factor model with a normal prior on the loadings and on the factor
 /// transition, and independent gamma priors on both error precisions.
 ///
-///     x_t = Lambda f_t + u_t,                  u_t ~ N(0, U),  U diagonal,
+///     x_t = Lambda f_t + C d_t + u_t,          u_t ~ N(0, U),  U diagonal,
 ///     f_t = sum_{j=1..p} A_j f_{t-j} + v_t,    v_t ~ N(0, V),  V diagonal,
 ///
 /// for M observed series and N unobserved factors, after Chan, Koop, Poirier and
@@ -59,11 +59,12 @@ public:
 
     /// Simulates one forecast path of the observed series per posterior draw.
     ///
-    /// Unlike every other forecast here, this one needs no out-of-sample
-    /// regressor matrix. A DFM has no regressors: the path is the transition run
-    /// forward from the last p drawn factors, with an innovation drawn at each
-    /// step, and the observed series read off the loadings. `spec.h` is the only
-    /// thing that says how far.
+    /// The factors are the model's regressors, so the path is the transition
+    /// run forward from the last p drawn factors, with an innovation drawn at
+    /// each step, and the observed series read off the loadings. `spec.h` says
+    /// how far; the one out-of-sample input is `input.forecast.x`, the
+    /// deterministic terms of the horizon, which a model with them adds as
+    /// C d_{T+i} and a model without them does not read.
     ///
     /// Requires `draws.factors`, and `draws.a` when the transition has an order.
     /// Throws std::invalid_argument if either is missing or if spec.h is zero.

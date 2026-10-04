@@ -65,6 +65,12 @@ two arguments are independent, so there are four algorithms rather than two, and
 carrying both is not redundant: a series whose loading fell looks a great deal
 like a series whose idiosyncratic variance rose.
 
+Deterministic terms enter the measurement equation, `x_t = λ f_t + C d_t + u_t`,
+with `create_dfmodel(deterministic = "const", seasonal = TRUE)` and the other
+specifications bvartools offers for a VAR: a constant, a linear trend, both, and
+seasonal dummies. The factors are then deviations from them, so a seasonal
+pattern or a trend in the panel is not something they have to carry.
+
 ## Installation
 
 `dfmtools` needs the development version of `bvartools`, which is ahead of the
@@ -198,14 +204,17 @@ legend("topleft", legend = c("Factor 1", "Factor 2"), bty = "n",
 
 ### Forecasts
 
-A dynamic factor model needs no out-of-sample regressors, so only the horizon has
-to be supplied. Each draw's path is the transition run forward from the last `p`
+The forecast takes the route it takes for a bvartools model:
+`add_forecast_input()` sets the horizon -- and the deterministic terms of the
+forecast periods, for a model that has any -- `add_posterior_forecasts()`
+simulates, and `predict()` collects the draws in the data's units. Each draw's path is the transition run forward from the last `p`
 drawn factors with an innovation at every step, and the observable variables are
 read off the loadings — both error terms drawn, so the result is from the
 posterior predictive distribution rather than a conditional mean.
 
 ```{r forecast}
-model <- add_posterior_forecasts(model, n_ahead = 8)
+model <- add_forecast_input(model, n_ahead = 8)
+model <- add_posterior_forecasts(model)
 
 dim(model$posterior$forecast$forecasts)
 ```

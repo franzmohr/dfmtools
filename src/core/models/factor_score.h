@@ -64,6 +64,11 @@ struct FactorPeriod
     arma::mat transition; ///< n x (n*p), [A_1 .. A_p]; empty where the factors have no dynamics.
     arma::vec v_var;      ///< n, the variances of the factor innovations.
     arma::vec u_var;      ///< k, the idiosyncratic variances.
+
+    /// k, the deterministic part of the measurement at this period, C d_i,
+    /// which the realised value is taken less of before it is compared with
+    /// the factors' prediction. Empty for a model without deterministic terms.
+    arma::vec offset;
 };
 
 /// The score of a factor model, draws x scored periods.
@@ -165,7 +170,11 @@ inline arma::mat score_factor_forecast(const VarSpec &spec, const arma::mat &rea
             variance = transition * variance * arma::trans(transition) + state_noise;
 
             // The one step ahead forecast of the observation, and its error.
-            const arma::vec innovation = arma::trans(realised.row(i)) - observation * state;
+            arma::vec innovation = arma::trans(realised.row(i)) - observation * state;
+            if (current.offset.n_elem > 0)
+            {
+                innovation -= current.offset;
+            }
             const arma::mat gain = variance * arma::trans(observation);
             arma::mat scale = observation * gain + arma::diagmat(current.u_var);
             scale = (scale + arma::trans(scale)) / 2;
@@ -222,6 +231,25 @@ inline arma::mat score_factor_forecast(const VarSpec &spec, const arma::mat &rea
     }
 
     return loglik;
+}
+
+/// A model's `step` with the deterministic part of the measurement added to it:
+/// `out.offset` is set to C d_i at every scored period, C being the draw's
+/// k x n coefficients in `c_draws` and d_i column i of `d_h`, the deterministic
+/// terms over the horizon (n x h). Returns `step` itself, unwrapped, when the
+/// model has none, so that a model without them is scored exactly as before.
+template <typename Step>
+inline auto with_deterministic_offset(Step step, const arma::mat &c_draws, const arma::mat &d_h,
+                                      const arma::uword k)
+{
+    return [step, &c_draws, &d_h, k](const arma::uword draw, const int i, FactorPeriod &out) mutable {
+        step(draw, i, out);
+        if (d_h.n_rows > 0)
+        {
+            const arma::mat c_mat = arma::reshape(c_draws.col(draw), k, d_h.n_rows);
+            out.offset = c_mat * d_h.col(static_cast<arma::uword>(i));
+        }
+    };
 }
 
 } // namespace bayests::core

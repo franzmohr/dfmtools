@@ -98,7 +98,7 @@ test_that("a scored test sample is put on the scale the model was estimated on",
     object <- add_initial_values(add_priors(object))
     set.seed(24)
     object <- add_posterior_coefficients(object)
-    add_posterior_forecasts(object, n_ahead = 3)
+    add_posterior_forecasts(add_forecast_input(object, n_ahead = 3))
   }
 
   scored <- add_predictive_loglik(fit(TRUE), test_sample = test)

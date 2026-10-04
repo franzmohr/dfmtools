@@ -3,8 +3,8 @@ test_that("add_posterior_forecasts returns h x M columns per draw", {
   prep <- prepared_dfm(iterations = 20, burnin = 10, tt = 40, m = 4, n = 2, p = 2)
 
   set.seed(21)
-  object <- add_posterior_forecasts(add_posterior_coefficients(prep$object),
-                                    n_ahead = 3)
+  object <- add_forecast_input(add_posterior_coefficients(prep$object), n_ahead = 3)
+  object <- add_posterior_forecasts(object)
 
   expect_s3_class(object, "dfmodel")
   expect_s3_class(object$posterior$forecast$forecasts, "mcmc")
@@ -33,7 +33,8 @@ test_that("the forecast columns are the variables within a horizon", {
   object <- add_initial_values(add_priors(object))
 
   set.seed(25)
-  object <- add_posterior_forecasts(add_posterior_coefficients(object), n_ahead = 4)
+  object <- add_forecast_input(add_posterior_coefficients(object), n_ahead = 4)
+  object <- add_posterior_forecasts(object)
 
   scale <- matrix(colMeans(abs(object$posterior$forecast$forecasts)), nrow = 3, ncol = 4)
 
@@ -53,10 +54,11 @@ test_that("forecasts are reproducible under set.seed", {
   drawn <- add_posterior_coefficients(prep$object)
 
   set.seed(23)
-  first <- add_posterior_forecasts(drawn, n_ahead = 4)$posterior$forecast$forecasts
+  drawn <- add_forecast_input(drawn, n_ahead = 4)
+  first <- add_posterior_forecasts(drawn)$posterior$forecast$forecasts
 
   set.seed(23)
-  second <- add_posterior_forecasts(drawn, n_ahead = 4)$posterior$forecast$forecasts
+  second <- add_posterior_forecasts(drawn)$posterior$forecast$forecasts
 
   expect_equal(first, second)
 })
@@ -65,24 +67,24 @@ test_that("add_posterior_forecasts rejects invalid input", {
 
   prep <- prepared_dfm(iterations = 20, burnin = 10, tt = 40, m = 4, n = 1, p = 1)
 
-  expect_error(add_posterior_forecasts(prep$object, n_ahead = 4),
+  expect_error(add_posterior_forecasts(add_forecast_input(prep$object, n_ahead = 4)),
                "does not contain posterior draws")
 
   set.seed(24)
   drawn <- add_posterior_coefficients(prep$object)
 
-  expect_error(add_posterior_forecasts(drawn, n_ahead = 0),
+  expect_error(add_posterior_forecasts(add_forecast_input(drawn, n_ahead = 0)),
                "'n_ahead' must be a single whole number of at least 1")
   # A horizon is a count, so a fraction of one is a mistake rather than a
   # number to truncate.
-  expect_error(add_posterior_forecasts(drawn, n_ahead = 2.7),
+  expect_error(add_posterior_forecasts(add_forecast_input(drawn, n_ahead = 2.7)),
                "'n_ahead' must be a single whole number")
 
   # The factor path cannot be recomputed from the parameters, so its absence is
   # an error rather than an extra filtering pass.
   without_factors <- drawn
   without_factors$posterior$factors <- NULL
-  expect_error(add_posterior_forecasts(without_factors, n_ahead = 4),
+  expect_error(add_posterior_forecasts(add_forecast_input(without_factors, n_ahead = 4)),
                "does not contain posterior draws of the factors")
 })
 
@@ -105,9 +107,10 @@ test_that("drifting states are simulated forward unless the forecast holds them"
     }
 
     set.seed(42)
-    simulated <- add_posterior_forecasts(drawn, n_ahead = 4)
+    simulated <- add_posterior_forecasts(add_forecast_input(drawn, n_ahead = 4))
     set.seed(42)
-    held <- add_posterior_forecasts(drawn, n_ahead = 4, forecast_states = "hold")
+    held <- add_posterior_forecasts(add_forecast_input(drawn, n_ahead = 4),
+                                    forecast_states = "hold")
 
     expect_true(all(is.finite(simulated$posterior$forecast$forecasts)))
     expect_identical(held$model$forecast_states, "hold")
@@ -121,6 +124,7 @@ test_that("drifting states are simulated forward unless the forecast holds them"
   set.seed(43)
   old <- add_posterior_coefficients(preps$sv$object)
   old$posterior$v_sigma_inv$sigma <- NULL
-  expect_error(add_posterior_forecasts(old, n_ahead = 4), "innovation variances")
-  expect_no_error(add_posterior_forecasts(old, n_ahead = 4, forecast_states = "hold"))
+  old <- add_forecast_input(old, n_ahead = 4)
+  expect_error(add_posterior_forecasts(old), "innovation variances")
+  expect_no_error(add_posterior_forecasts(old, forecast_states = "hold"))
 })
