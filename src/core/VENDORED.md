@@ -7,10 +7,20 @@ project is here -- the core deliberately links neither HDF5 nor HighFive,
 prints nothing and reads no files, which is what makes it embeddable in an R
 package at all.
 
-The copy is **BayesTS `696dc7d`**, the tip of upstream's `structural-qvar`
-branch, off `main` at `03956c5` and merged into it as `82ac49c`, like every
-branch vendored before it, with its commits unchanged -- so the files here are
-those of upstream `main` -- after the 0.3.0 release
+The copy is **BayesTS `065ed77`**, the tip of upstream's
+`factor-deterministic-terms` branch, off `main` at `82ac49c` and merged into it
+as `6fa1c75`, like every branch vendored before it, with its commits unchanged
+-- so the files here are those of upstream `main`. The branch adds deterministic terms to all five factor models (`c2c49ea` --
+`inputs.h`, `results.h`, `spec.h`, the five sampler headers, `inputs.cpp`,
+`dfm_support.h`, `favar_support.h`, `factor_score.h` and the five models'
+sources; `065ed77`, two comments): a constant, a trend or seasonal dummies in
+the measurement as `C d_t`, and a FAVAR's observed variables deviating from
+`C_obs d_t`. It is the second refresh to widen what a factor model can be asked
+for, and it does so without moving a draw of a model without deterministic
+terms: the new blocks consume no random numbers when `n` is zero, and upstream
+compared the fingerprints of all 155 fixtures before against after, none moved.
+Before that the copy was `696dc7d`, the tip of upstream's `structural-qvar`
+branch, merged into `main` as `82ac49c`, after the 0.3.0 release
 (tagged on `18a86c2`). Past `7d7c6ca` the files reached here moved for reasons
 none of which changes a factor model's draws: the `bvs` flat-prior diagnostic
 and the SSVS refusals (`fa6dd89`, `f2abd4e`, `a85abe2` -- `priors.h`,
@@ -49,7 +59,7 @@ quantiles on `VarNormalAld` whose numerics, `quantile_grid.h` and
 `var_normal_ald.cpp`, nothing here reaches. Every factor model refuses the
 constraint datasets and none reads the prior options, so nothing of it reaches
 a factor model's draws; upstream verified the draws unchanged over 145
-fixtures, then 148, 151, 153 and 154, the factor models' among them. The refreshes before sat at `2f9f010`, `afeb326`, `89b0495`, `638355a`, `d5ca82c`, `d92e581`,
+fixtures, then 148, 151, 153 and 154, the factor models' among them. The refreshes before sat at `696dc7d`, `2f9f010`, `afeb326`, `89b0495`, `638355a`, `d5ca82c`, `d92e581`,
 `f8b42a1`, `94f81de`, `cea124b`, `ffbd208` and `4a64082`. 0.3.0 is not archived yet,
 so there is no version DOI to name here; the concept DOI
 <https://doi.org/10.5281/zenodo.22722531> resolves to the newest release

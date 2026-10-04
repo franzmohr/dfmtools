@@ -119,7 +119,7 @@ test_that("the free loadings are found in the right places", {
 
 test_that("the forecast covers the observed block as well as the panel", {
   fit <- make_favar()
-  model <- add_posterior_forecasts(fit$model, n_ahead = 6)
+  model <- add_posterior_forecasts(add_forecast_input(fit$model, n_ahead = 6))
 
   expect_false(isTRUE(model$error))
   # Wider than the panel: each horizon carries k panel series followed by the

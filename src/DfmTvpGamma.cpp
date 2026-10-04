@@ -195,6 +195,11 @@ bayests::DfmTvpGammaInput read_input(const Rcpp::List &object) {
     input.initial.v_sigma_inv = diagonal_of(initial, "vinv");
   }
 
+  // Deterministic terms: data$deterministic, data$forecast$x, and the prior and
+  // starting value of their coefficients C.
+  read_deterministic_terms(object, input.spec, input.train, input.forecast);
+  read_normal_block(object, "c", input.c_prior, input.initial.c);
+
   return input;
 }
 
@@ -243,6 +248,10 @@ bayests::DfmTvpGammaDraws read_draws(const Rcpp::List &object,
   if (has(posterior, "v_sigma_inv")) {
     read_draws_if_present(Rcpp::List(posterior["v_sigma_inv"]), "coeffs", draws.v_sigma_inv);
   }
+
+  // C does not drift, so it is the same for the likelihood and for the
+  // forecast, and is read before the two part.
+  read_block_draws(posterior, "c", draws.c);
 
   if (!terminal) {
     return draws;
@@ -315,6 +324,8 @@ Rcpp::List write_draws(const bayests::DfmTvpGammaDraws &draws, const arma::uvec 
   if (draws.has_a()) {
     posteriors["a"] = with_noncentred(Rcpp::List(posteriors["a"]), draws.a_noncentred);
   }
+
+  posteriors = with_block_draws(posteriors, "c", draws.c);
 
   return posteriors;
 }

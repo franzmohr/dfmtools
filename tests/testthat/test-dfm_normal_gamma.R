@@ -115,7 +115,7 @@ test_that("a transition of order zero runs through the whole pipeline", {
 
   # A factor with no dynamics still has a forecast: it is white noise around
   # zero, and the measurement equation still maps it onto M variables.
-  object <- add_posterior_forecasts(object, n_ahead = 3)
+  object <- add_posterior_forecasts(add_forecast_input(object, n_ahead = 3))
   expect_equal(dim(object$posterior$forecast$forecasts), c(20L, 3L * 4L))
   expect_true(all(is.finite(object$posterior$forecast$forecasts)))
 

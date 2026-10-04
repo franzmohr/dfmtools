@@ -15,10 +15,12 @@ namespace bayests
 /// transition, independent gamma priors on the idiosyncratic precisions and a
 /// Wishart prior on the precision of the state innovations.
 ///
-///     x_t = Lambda_f f_t + Lambda_y y_t + e_t,   e_t ~ N(0, R),  R diagonal,
+///     x_t = Lambda_f f_t + Lambda_y y_t + C d_t + e_t,   e_t ~ N(0, R),  R diagonal,
 ///     s_t = sum_{j=1..p} Phi_j s_{t-j} + v_t,    v_t ~ N(0, Q),
 ///
-/// with s_t = (f_t', y_t')', for M observed series in the panel, N unobserved
+/// with s_t = (f_t', (y_t - C_obs d_t)')' -- the observed factors as deviations
+/// from their deterministic terms, which is y_t itself for a model without
+/// any -- for M observed series in the panel, N unobserved
 /// factors and Ky observed ones, after Bernanke, Boivin and Eliasz (2005). Five
 /// Gibbs blocks: the factor path, the loadings, the idiosyncratic precisions,
 /// the state innovation precision and the transition.
@@ -92,9 +94,11 @@ public:
 
     /// Simulates one forecast path per posterior draw.
     ///
-    /// As in a DFM this needs no out-of-sample regressor matrix: the path is the
-    /// transition run forward from the last p states, with an innovation drawn
-    /// at each step, and the panel read off the loadings. Unlike a DFM the last
+    /// As in a DFM the path is the transition run forward from the last p
+    /// states, with an innovation drawn at each step, and the panel read off the
+    /// loadings. With deterministic terms the path is in deviations: each
+    /// horizon's observed factors are their deviation plus C_obs d_{T+i}, and the
+    /// panel adds C d_{T+i}, both read from `input.forecast.x`. Unlike a DFM the last
     /// p states are half drawn and half data -- the observed factors come from
     /// `input.train.f_obs`, which is where the model's own history of them is.
     ///

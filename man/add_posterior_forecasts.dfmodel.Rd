@@ -4,13 +4,15 @@
 \alias{add_posterior_forecasts.dfmodel}
 \title{Forecasting Dynamic Factor Models}
 \usage{
-\method{add_posterior_forecasts}{dfmodel}(object, n_ahead = 10, forecast_states = NULL, ...)
+\method{add_posterior_forecasts}{dfmodel}(object, n_ahead = NULL, forecast_states = NULL, ...)
 }
 \arguments{
 \item{object}{an object of class 'dfmodel', usually, a result of a call to
-\code{\link{add_posterior_coefficients.dfmodel}}.}
+\code{\link{add_posterior_coefficients.dfmodel}} and \code{\link{add_forecast_input.dfmodel}}.}
 
-\item{n_ahead}{an integer of the forecast horizon.}
+\item{n_ahead}{deprecated. The forecast horizon is set by
+\code{\link{add_forecast_input.dfmodel}}, as for a bvartools model; given here, it is passed on
+to that function with a warning.}
 
 \item{forecast_states}{character, what a model whose loadings, transition or
 volatilities drift does with them over the forecast horizon. \code{"simulate"}
@@ -28,19 +30,24 @@ transition and volatilities is unaffected.}
 \value{
 An object of class 'dfmodel', with element \code{forecast} added to its
 \code{posterior}. It holds one row per draw and \eqn{h \times M} columns, the
-horizons stacked within a row in the variable order of the sample.
+horizons stacked within a row in the variable order of the sample, on the scale the model
+was estimated on. \code{\link[=predict.dfmodel]{predict}} returns them in the units of the data.
 }
 \description{
 Produces posterior draws of forecasts of the observable variables of a
 dynamic factor model.
 }
 \details{
-Unlike a VAR or a VEC, a dynamic factor model needs no out-of-sample
-regressors to forecast from: there are none in the model. Each draw's path is the
-transition equation run forward from the last \eqn{p} drawn factors,
+The forecast takes the route it takes for a bvartools model: the horizon and the
+out-of-sample data are set by \code{\link{add_forecast_input.dfmodel}}, this function simulates
+the forecasts, and \code{\link[=predict.dfmodel]{predict}} collects them.
+
+A dynamic factor model has no lagged variables among its regressors, so the only out-of-sample
+data it reads are its deterministic terms, where it has any. Each draw's path is the transition
+equation run forward from the last \eqn{p} drawn factors,
 \deqn{f_{T+h} = \sum_{j=1}^{p} A_j f_{T+h-j} + v_{T+h},}
 with an innovation drawn at every step, and the observable variables read off the
-loadings, \eqn{x_{T+h} = \lambda f_{T+h} + u_{T+h}}. Both error terms are drawn, so
+loadings, \eqn{x_{T+h} = \lambda f_{T+h} + C d_{T+h} + u_{T+h}}. Both error terms are drawn, so
 the result is a draw from the posterior predictive distribution rather than a
 conditional mean.
 
@@ -53,6 +60,10 @@ innovations: \code{sigma} of \code{lambda} and \code{a} where the coefficients d
 and of \code{u_sigma_inv} and \code{v_sigma_inv} under stochastic volatility. A
 stochastic volatility model fitted with an earlier version of the package lacks the
 latter two and stops with an error unless \code{forecast_states = "hold"}.
+
+Earlier versions set the horizon here, with \code{n_ahead}, and forecast ten periods ahead
+when it was not given. Both still work, through \code{\link{add_forecast_input.dfmodel}} and
+with a warning.
 }
 \examples{
 
@@ -72,8 +83,14 @@ model <- add_priors(model,
                     v = list(shape = 5, rate = 4))
 model <- add_initial_values(model)
 
-# Obtain posterior draws and forecasts
+# Obtain posterior draws
 model <- add_posterior_coefficients(model)
-model <- add_posterior_forecasts(model, n_ahead = 4)
+
+# Add the forecast horizon, then simulate the forecasts
+model <- add_forecast_input(model, n_ahead = 4)
+model <- add_posterior_forecasts(model)
+
+# Collect them
+pred <- predict(model)
 
 }

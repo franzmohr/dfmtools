@@ -1,3 +1,39 @@
+# dfmtools (development version)
+
+* **Deterministic terms in every factor model.**
+  - **The arguments.** `create_dfmodel()` and `create_favarmodel()` take
+    `deterministic` (`"none"`, the default, `"const"`, `"trend"` or `"both"`)
+    and `seasonal`, as bvartools' `create_bvarmodel()` does, and build the same
+    terms: `const`, `trend` and `season.1` onwards, in `data$deterministic`.
+    Until now a panel had to be demeaned and deseasonalised before it was
+    passed.
+  - **Where they enter.** In the measurement equation,
+    `x_t = lambda f_t + C d_t + u_t`, so the factors are deviations from them.
+    A FAVAR's observed variables deviate from `C_obs d_t` as well, and its
+    transition runs over the deviations. `C` does not drift under `tvp = TRUE`.
+  - **Priors, starting values and draws.** `add_priors()` takes `c` (and
+    `c_obs` for a FAVAR), `add_initial_values()` starts both at their least
+    squares values, and the draws are `posterior$c$coeffs` and
+    `posterior$c_obs$coeffs`, named `"<series>.<term>"`. The constant and the
+    trend trade off against the level of a persistent factor and mix slowly, so
+    such a model needs a longer burn-in.
+  - **The core.** The vendored BayesTS core moves to `065ed77`, which adds the
+    terms to all five samplers. The draws of a model without deterministic
+    terms are unchanged.
+
+* **Forecasts take bvartools' route.**
+  - **The steps.** `add_forecast_input()` sets the horizon and the
+    deterministic terms of the forecast periods, continuing them from the
+    sample or taking them as `deterministic = `; `prepare_forecast_input()`
+    returns them without adding them. `add_posterior_forecasts()` then
+    simulates, and the new `predict()` methods collect the draws as a
+    `'bvarprd'`, in the data's units, which bvartools' `plot()` draws.
+  - **Forecast errors.** `add_forecast_errors()` and `get_forecast_errors()`
+    have methods for both classes.
+  - **Deprecated.** `add_posterior_forecasts(model, n_ahead = h)`, and calling
+    it without a horizon, still work through `add_forecast_input()`, and warn.
+    The forecasts are the same.
+
 # dfmtools 0.1.0
 
 * **Factor augmented VARs can be identified by sign and zero restrictions.**

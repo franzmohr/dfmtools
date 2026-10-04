@@ -4,8 +4,10 @@
 #' dynamic factor model.
 #'
 #' @param object an object of class 'dfmodel', usually, a result of a call to
-#' \code{\link{add_posterior_coefficients.dfmodel}}.
-#' @param n_ahead an integer of the forecast horizon.
+#' \code{\link{add_posterior_coefficients.dfmodel}} and \code{\link{add_forecast_input.dfmodel}}.
+#' @param n_ahead deprecated. The forecast horizon is set by
+#' \code{\link{add_forecast_input.dfmodel}}, as for a bvartools model; given here, it is passed on
+#' to that function with a warning.
 #' @param forecast_states character, what a model whose loadings, transition or
 #' volatilities drift does with them over the forecast horizon. \code{"simulate"}
 #' carries each draw's random walks forward, one step per period -- the free loadings
@@ -18,12 +20,16 @@
 #' transition and volatilities is unaffected.
 #' @param ... further arguments passed to or from other methods.
 #'
-#' @details Unlike a VAR or a VEC, a dynamic factor model needs no out-of-sample
-#' regressors to forecast from: there are none in the model. Each draw's path is the
-#' transition equation run forward from the last \eqn{p} drawn factors,
+#' @details The forecast takes the route it takes for a bvartools model: the horizon and the
+#' out-of-sample data are set by \code{\link{add_forecast_input.dfmodel}}, this function simulates
+#' the forecasts, and \code{\link[=predict.dfmodel]{predict}} collects them.
+#'
+#' A dynamic factor model has no lagged variables among its regressors, so the only out-of-sample
+#' data it reads are its deterministic terms, where it has any. Each draw's path is the transition
+#' equation run forward from the last \eqn{p} drawn factors,
 #' \deqn{f_{T+h} = \sum_{j=1}^{p} A_j f_{T+h-j} + v_{T+h},}
 #' with an innovation drawn at every step, and the observable variables read off the
-#' loadings, \eqn{x_{T+h} = \lambda f_{T+h} + u_{T+h}}. Both error terms are drawn, so
+#' loadings, \eqn{x_{T+h} = \lambda f_{T+h} + C d_{T+h} + u_{T+h}}. Both error terms are drawn, so
 #' the result is a draw from the posterior predictive distribution rather than a
 #' conditional mean.
 #'
@@ -37,9 +43,14 @@
 #' stochastic volatility model fitted with an earlier version of the package lacks the
 #' latter two and stops with an error unless \code{forecast_states = "hold"}.
 #'
+#' Earlier versions set the horizon here, with \code{n_ahead}, and forecast ten periods ahead
+#' when it was not given. Both still work, through \code{\link{add_forecast_input.dfmodel}} and
+#' with a warning.
+#'
 #' @return An object of class 'dfmodel', with element \code{forecast} added to its
 #' \code{posterior}. It holds one row per draw and \eqn{h \times M} columns, the
-#' horizons stacked within a row in the variable order of the sample.
+#' horizons stacked within a row in the variable order of the sample, on the scale the model
+#' was estimated on. \code{\link[=predict.dfmodel]{predict}} returns them in the units of the data.
 #'
 #' @examples
 #'
@@ -59,12 +70,18 @@
 #'                     v = list(shape = 5, rate = 4))
 #' model <- add_initial_values(model)
 #'
-#' # Obtain posterior draws and forecasts
+#' # Obtain posterior draws
 #' model <- add_posterior_coefficients(model)
-#' model <- add_posterior_forecasts(model, n_ahead = 4)
+#'
+#' # Add the forecast horizon, then simulate the forecasts
+#' model <- add_forecast_input(model, n_ahead = 4)
+#' model <- add_posterior_forecasts(model)
+#'
+#' # Collect them
+#' pred <- predict(model)
 #'
 #' @export
-add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, forecast_states = NULL, ...){
+add_posterior_forecasts.dfmodel <- function(object, n_ahead = NULL, forecast_states = NULL, ...){
 
   if (!is.null(forecast_states)) {
     object[["model"]][["forecast_states"]] <- match.arg(forecast_states, c("simulate", "hold"))
@@ -76,13 +93,13 @@ add_posterior_forecasts.dfmodel <- function(object, n_ahead = 10, forecast_state
   if (is.null(object[["posterior"]][["factors"]][["coeffs"]])) {
     stop("Argument 'object' does not contain posterior draws of the factors, which a dynamic factor model forecasts from.")
   }
-  .check_whole_number(n_ahead, "n_ahead", 1)
 
   class_of_object <- class(object)
 
-  # The horizon is the whole of what the sampler needs; there is no forecast
-  # design matrix for a model without regressors.
-  object[["model"]][["h"]] <- as.integer(n_ahead)
+  # The horizon and the deterministic terms of the forecast periods, set by
+  # add_forecast_input() -- or here, the old way, with a warning.
+  object <- .legacy_forecast_horizon(object, n_ahead)
+  .check_forecast_input(object)
 
   algorithm <- object[["model"]][["algorithm"]]
   if (is.null(algorithm)) {

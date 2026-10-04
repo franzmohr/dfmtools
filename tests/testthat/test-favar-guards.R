@@ -21,7 +21,7 @@ test_that("an algorithm the methods do not know is refused by name", {
   wrong <- drawn
   wrong$model$algorithm <- "FavarSomethingElse"
 
-  expect_error(add_posterior_forecasts(wrong, n_ahead = 2), "not supported")
+  expect_error(add_posterior_forecasts(add_forecast_input(wrong, n_ahead = 2)), "not supported")
   expect_error(add_posterior_loglik(wrong), "not supported")
 
   # add_posterior_coefficients is the one step that carries on rather than
@@ -37,7 +37,8 @@ test_that("a model with no algorithm says which function should have set one", {
   without <- drawn
   without$model$algorithm <- NULL
 
-  expect_error(add_posterior_forecasts(without, n_ahead = 2), "create_favarmodel")
+  expect_error(add_posterior_forecasts(add_forecast_input(without, n_ahead = 2)),
+               "create_favarmodel")
   expect_error(add_posterior_loglik(without), "create_favarmodel")
   expect_true(suppressWarnings(add_posterior_coefficients(without))$error)
 })
@@ -50,7 +51,7 @@ test_that("the derived steps need the draws they are derived from", {
                       iterations = 20, burnin = 10)))
 
   expect_error(add_posterior_loglik(undrawn), "does not contain posterior draws")
-  expect_error(add_posterior_forecasts(undrawn, n_ahead = 2),
+  expect_error(add_posterior_forecasts(add_forecast_input(undrawn, n_ahead = 2)),
                "does not contain posterior draws")
 
   # The state path is a member of the posterior rather than something the
@@ -59,7 +60,7 @@ test_that("the derived steps need the draws they are derived from", {
   no_state <- drawn
   no_state$posterior$factors <- NULL
   expect_error(add_posterior_loglik(no_state), "posterior draws of the state")
-  expect_error(add_posterior_forecasts(no_state, n_ahead = 2),
+  expect_error(add_posterior_forecasts(add_forecast_input(no_state, n_ahead = 2)),
                "posterior draws of the factors")
 })
 

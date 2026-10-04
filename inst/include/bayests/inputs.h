@@ -500,19 +500,29 @@ struct DfmNormalGammaInitial
 
     /// n_factors; the diagonal of the factor innovation precision.
     arma::vec v_sigma_inv;
+    /// vec(C), k x n with n = VarSpec::n: the coefficients of the deterministic
+    /// terms of the measurement, column by column. Empty for a model without
+    /// deterministic terms.
+    arma::vec c;
+
 };
 
 /// Dynamic factor model with a normal prior on the loadings and on the factor
 /// transition, and independent gamma priors on both error precisions.
 ///
-///     x_t = Lambda f_t + u_t,                  u_t ~ N(0, U),  U diagonal,
+///     x_t = Lambda f_t + C d_t + u_t,          u_t ~ N(0, U),  U diagonal,
 ///     f_t = sum_{j=1..p} A_j f_{t-j} + v_t,    v_t ~ N(0, V),  V diagonal.
 ///
-/// `train.y` holds the observed series, tt x k, and is the only data the model
-/// takes -- a DFM has no regressors, so `z`, `x` and `w` are all unused. There is
-/// no ForecastData either: the forecast is a simulation of the transition
-/// forward from the last drawn factors, which needs no out-of-sample matrix.
-/// `spec.h` is the horizon.
+/// `train.y` holds the observed series, tt x k. The factors are the model's only
+/// regressors, so `z` and `w` are unused; `x` holds the `spec.n` deterministic
+/// terms d_t -- a constant, a trend, seasonal dummies -- tt x n, one period per
+/// row, and is empty for a model without them, whose C d_t term then drops out.
+/// The factors are deviations from C d_t, which is why the terms enter the
+/// measurement rather than the transition, and C does not drift in any of the
+/// four DFMs. The forecast is a simulation of the transition forward from the
+/// last drawn factors, so the only out-of-sample input it reads is
+/// `forecast.x`, the deterministic terms of the horizon, h x n; `spec.h` is the
+/// horizon. `c_prior` and `initial.c` are over vec(C), column by column.
 ///
 /// Two orderings have to be agreed with the host and are the only ones that are
 /// not implied by a dimension:
@@ -534,8 +544,16 @@ struct DfmNormalGammaInput
     VarSpec spec;
     TrainData train;
     TestData test; ///< `y` empty unless the file carries realised values.
+    /// `x` holds the deterministic terms of the forecast horizon, h x n with
+    /// n = VarSpec::n, one period per row. Empty for a model without them.
+    ForecastData forecast;
 
     NormalPrior lambda_prior;  ///< Over the free loadings, in the row-major order above.
+
+    /// Over vec(C), the k x n coefficients of the deterministic terms, column by
+    /// column. Unused when the model has none. Drawn row by row, so the
+    /// precision may not couple two rows of C.
+    NormalPrior c_prior;
     NormalPrior a_prior;       ///< Unused when the factors have no dynamics.
 
     GammaPrior u_sigma_prior;  ///< k independent priors on the idiosyncratic precisions.
@@ -590,12 +608,17 @@ struct DfmNormalStochvolInitial
 
     /// n_factors; variance of the factor-innovation log-volatility innovations.
     arma::vec v_h_sigma;
+    /// vec(C), k x n with n = VarSpec::n: the coefficients of the deterministic
+    /// terms of the measurement, column by column. Empty for a model without
+    /// deterministic terms.
+    arma::vec c;
+
 };
 
 /// Dynamic factor model with a normal prior on the loadings and on the factor
 /// transition, and stochastic volatility in both error terms.
 ///
-///     x_t = Lambda f_t + u_t,                  u_t ~ N(0, U_t),
+///     x_t = Lambda f_t + C d_t + u_t,          u_t ~ N(0, U_t),
 ///     f_t = sum_{j=1..p} A_j f_{t-j} + v_t,    v_t ~ N(0, V_t),
 ///
 /// with U_t = diag(exp(h^u_t)) and V_t = diag(exp(h^v_t)), and each element of
@@ -615,8 +638,9 @@ struct DfmNormalStochvolInitial
 /// otherwise flattest exactly when it should move most.
 ///
 /// Everything DfmNormalGammaInput says about the data and the two orderings
-/// holds here unchanged: `train.y` is the only data, there is no ForecastData,
-/// `spec.h` is the horizon, the free loadings run row by row, `a` is
+/// holds here unchanged: `train.y` is the data and `train.x` its deterministic
+/// terms, `forecast.x` theirs over the horizon, `spec.h` is the horizon, the
+/// free loadings run row by row, `a` is
 /// vec([A_1 .. A_p]) with the blocks side by side, and the factors before the
 /// sample are zero rather than drawn.
 struct DfmNormalStochvolInput
@@ -624,8 +648,16 @@ struct DfmNormalStochvolInput
     VarSpec spec;
     TrainData train;
     TestData test; ///< `y` empty unless the file carries realised values.
+    /// `x` holds the deterministic terms of the forecast horizon, h x n with
+    /// n = VarSpec::n, one period per row. Empty for a model without them.
+    ForecastData forecast;
 
     NormalPrior lambda_prior;  ///< Over the free loadings, in the row-major order above.
+
+    /// Over vec(C), the k x n coefficients of the deterministic terms, column by
+    /// column. Unused when the model has none. Drawn row by row, so the
+    /// precision may not couple two rows of C.
+    NormalPrior c_prior;
     NormalPrior a_prior;       ///< Unused when the factors have no dynamics.
 
     StochvolPrior u_sigma_prior;  ///< k idiosyncratic log-volatilities.
@@ -677,12 +709,17 @@ struct DfmTvpGammaInitial
 
     /// n_factors; the diagonal of the factor innovation precision.
     arma::vec v_sigma_inv;
+    /// vec(C), k x n with n = VarSpec::n: the coefficients of the deterministic
+    /// terms of the measurement, column by column. Empty for a model without
+    /// deterministic terms.
+    arma::vec c;
+
 };
 
 /// Dynamic factor model whose loadings and factor transition follow random
 /// walks, with independent gamma priors on both error precisions.
 ///
-///     x_t = Lambda_t f_t + u_t,                  u_t ~ N(0, U),  U diagonal,
+///     x_t = Lambda_t f_t + C d_t + u_t,          u_t ~ N(0, U),  U diagonal,
 ///     f_t = sum_{j=1..p} A_{j,t} f_{t-j} + v_t,  v_t ~ N(0, V),  V diagonal,
 ///
 /// with every free element of Lambda and every element of [A_1 .. A_p] a random
@@ -698,9 +735,9 @@ struct DfmTvpGammaInitial
 /// normalisation as much as about the exposure it is read as.
 ///
 /// Everything DfmNormalGammaInput says about the data holds here unchanged:
-/// `train.y` holds the observed series and is the only data the model takes,
-/// there is no ForecastData, `spec.h` is the horizon, the free loadings run row
-/// by row, `a` is vec([A_1 .. A_p]) with the blocks side by side, and the
+/// `train.y` holds the observed series and `train.x` their deterministic terms,
+/// `forecast.x` holds those over the horizon, `spec.h` is the horizon, the free
+/// loadings run row by row, `a` is vec([A_1 .. A_p]) with the blocks side by side, and the
 /// factors before the sample are zero rather than drawn.
 ///
 /// Del Negro, M., & Otrok, C. (2008). Dynamic factor models with time-varying
@@ -711,9 +748,17 @@ struct DfmTvpGammaInput
     VarSpec spec;
     TrainData train;
     TestData test; ///< `y` empty unless the file carries realised values.
+    /// `x` holds the deterministic terms of the forecast horizon, h x n with
+    /// n = VarSpec::n, one period per row. Empty for a model without them.
+    ForecastData forecast;
 
     /// The state equation of the free loadings, in the row-major order above.
     RandomWalkPrior lambda_prior;
+
+    /// Over vec(C), the k x n coefficients of the deterministic terms, column by
+    /// column. Unused when the model has none. Drawn row by row, so the
+    /// precision may not couple two rows of C.
+    NormalPrior c_prior;
 
     /// The state equation of the factor transition. Unused when the factors
     /// have no dynamics.
@@ -784,12 +829,17 @@ struct DfmTvpStochvolInitial
 
     /// n_factors; variance of the factor-innovation log-volatility innovations.
     arma::vec v_h_sigma;
+    /// vec(C), k x n with n = VarSpec::n: the coefficients of the deterministic
+    /// terms of the measurement, column by column. Empty for a model without
+    /// deterministic terms.
+    arma::vec c;
+
 };
 
 /// Dynamic factor model whose loadings and factor transition follow random walks
 /// and whose two error terms carry stochastic volatility.
 ///
-///     x_t = Lambda_t f_t + u_t,                  u_t ~ N(0, U_t),
+///     x_t = Lambda_t f_t + C d_t + u_t,          u_t ~ N(0, U_t),
 ///     f_t = sum_{j=1..p} A_{j,t} f_{t-j} + v_t,  v_t ~ N(0, V_t),
 ///
 /// with U_t = diag(exp(h^u_t)) and V_t = diag(exp(h^v_t)), and every free element
@@ -811,8 +861,9 @@ struct DfmTvpStochvolInitial
 /// the normalisation rather than a parameter.
 ///
 /// Everything DfmNormalGammaInput says about the data holds here unchanged:
-/// `train.y` is the only data, there is no ForecastData, `spec.h` is the horizon,
-/// the free loadings run row by row, `a` is vec([A_1 .. A_p]) with the blocks
+/// `train.y` is the data and `train.x` its deterministic terms, `forecast.x`
+/// theirs over the horizon, `spec.h` is the horizon, the free loadings run row by
+/// row, `a` is vec([A_1 .. A_p]) with the blocks
 /// side by side, and the factors before the sample are zero rather than drawn.
 ///
 /// Del Negro, M., & Otrok, C. (2008). Dynamic factor models with time-varying
@@ -823,9 +874,17 @@ struct DfmTvpStochvolInput
     VarSpec spec;
     TrainData train;
     TestData test; ///< `y` empty unless the file carries realised values.
+    /// `x` holds the deterministic terms of the forecast horizon, h x n with
+    /// n = VarSpec::n, one period per row. Empty for a model without them.
+    ForecastData forecast;
 
     /// The state equation of the free loadings, in the row-major order above.
     RandomWalkPrior lambda_prior;
+
+    /// Over vec(C), the k x n coefficients of the deterministic terms, column by
+    /// column. Unused when the model has none. Drawn row by row, so the
+    /// precision may not couple two rows of C.
+    NormalPrior c_prior;
 
     /// The state equation of the factor transition. Unused when the factors
     /// have no dynamics.
@@ -870,16 +929,27 @@ struct FavarNormalWishartInitial
     /// diagonal, and that is the difference from the DFM beside it: see
     /// FavarNormalWishartInput.
     arma::mat v_sigma_inv;
+    /// vec(C), k x n with n = VarSpec::n: the coefficients of the deterministic
+    /// terms of the measurement, column by column. Empty for a model without
+    /// deterministic terms.
+    arma::vec c;
+
+    /// vec(C_obs), n_obs_factors x n: the deterministic terms the observed
+    /// factors deviate from, column by column. Empty for a model without
+    /// deterministic terms.
+    arma::vec c_obs;
+
 };
 
 /// Factor augmented VAR with a normal prior on the loadings and on the state
 /// transition, independent gamma priors on the idiosyncratic precisions and a
 /// Wishart prior on the precision of the state innovations.
 ///
-///     x_t = Lambda_f f_t + Lambda_y y_t + e_t,   e_t ~ N(0, R),  R diagonal,
+///     x_t = Lambda_f f_t + Lambda_y y_t + C d_t + e_t,   e_t ~ N(0, R),  R diagonal,
 ///     s_t = sum_{j=1..p} Phi_j s_{t-j} + v_t,    v_t ~ N(0, Q),
 ///
-/// with s_t = (f_t', y_t')', for `k` observed series in the panel x_t,
+/// with s_t = (f_t', (y_t - C_obs d_t)')' -- y_t itself for a model without
+/// deterministic terms -- for `k` observed series in the panel x_t,
 /// `n_factors` unobserved factors f_t and `n_obs_factors` observed factors y_t,
 /// after Bernanke, Boivin and Eliasz (2005).
 ///
@@ -912,10 +982,20 @@ struct FavarNormalWishartInitial
 /// leaves.
 ///
 /// The data. `train.y` holds the panel, tt x k; `train.f_obs` holds the observed
-/// factors, tt x n_obs_factors, one period per row. `z`, `x` and `w` are unused
-/// -- a FAVAR has no regressors of the kind a VAR does. There is no ForecastData:
-/// the forecast is the transition run forward, which needs no out-of-sample
-/// matrix. `spec.h` is the horizon.
+/// factors, tt x n_obs_factors, one period per row. `z` and `w` are unused -- a
+/// FAVAR has no regressors of the kind a VAR does. `x` holds the `spec.n`
+/// deterministic terms d_t, tt x n, and is empty for a model without them. They
+/// enter twice:
+///
+///     x_t = Lambda_f f_t + Lambda_y y_t + C d_t + e_t,
+///     y_t = C_obs d_t + y~_t,   s~_t = (f_t', y~_t')' follows the VAR above,
+///
+/// so the panel is measured on the observed factors themselves and the state
+/// transition runs over their deviations from C_obs d_t. `c_prior` and
+/// `initial.c` are over vec(C), `c_obs_prior` and `initial.c_obs` over
+/// vec(C_obs), both column by column. The forecast is the transition run
+/// forward, so the only out-of-sample input it reads is `forecast.x`, the
+/// deterministic terms of the horizon, h x n. `spec.h` is the horizon.
 ///
 /// Two orderings have to be agreed with the host and are the only ones not
 /// implied by a dimension:
@@ -933,7 +1013,8 @@ struct FavarNormalWishartInitial
 /// States before the sample are zero, both blocks of them, which is what makes
 /// the first p transitions well defined -- the convention every DFM here
 /// follows. It is a statement about the data: the observed factors are expected
-/// in deviations, as a FAVAR's are anyway.
+/// in deviations -- from zero, or from C_obs d_t where the model has
+/// deterministic terms, which is what those are for.
 ///
 /// Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the effects of
 /// monetary policy: a factor-augmented vector autoregressive (FAVAR) approach.
@@ -943,8 +1024,19 @@ struct FavarNormalWishartInput
     VarSpec spec;
     TrainData train;
     TestData test; ///< `y` empty unless the file carries realised values.
+    /// `x` holds the deterministic terms of the forecast horizon, h x n with
+    /// n = VarSpec::n, one period per row. Empty for a model without them.
+    ForecastData forecast;
 
     NormalPrior lambda_prior;  ///< Over the free loadings, in the row-major order above.
+
+    /// Over vec(C), the k x n coefficients of the deterministic terms, column by
+    /// column. Unused when the model has none. Drawn row by row, so the
+    /// precision may not couple two rows of C.
+    NormalPrior c_prior;
+    /// Over vec(C_obs), n_obs_factors x n, column by column. Unused when the
+    /// model has no deterministic terms.
+    NormalPrior c_obs_prior;
     NormalPrior a_prior;       ///< Unused when the state has no dynamics.
 
     GammaPrior u_sigma_prior;    ///< k independent priors on the idiosyncratic precisions.

@@ -16,11 +16,18 @@
 #' @param v a named list of prior specifications for the error variance-covariance matrix of the
 #' transition equation. Which elements are required depends on argument \code{error} of
 #' \code{\link{create_dfmodel}}. See 'Details'.
+#' @param c a named list of prior specifications for the coefficients of the deterministic terms
+#' of the measurement equation. Only read for a model with deterministic terms, see
+#' \code{\link{create_dfmodel}}. For the default specification the diagonal elements of the
+#' inverse prior variance-covariance matrix are set to 0.01.
 #' @param ... further arguments passed to or from other methods.
 #'
 #' @details
 #' Argument \code{lambda} can only contain the element \code{vinv}, which is a numeric specifying the prior
 #' precision of the loading factors of the measurement equation. Default is 0.01.
+#'
+#' Argument \code{c} can only contain the element \code{vinv}, which is a numeric specifying the prior
+#' precision of the coefficients of the deterministic terms. Their prior mean is zero. Default is 0.01.
 #'
 #' Argument \code{a} can only contain the element \code{vinv}, which is a numeric specifying the prior
 #' precision of the coefficients of the transition equation. Default is 0.01.
@@ -180,6 +187,7 @@ add_priors.dfmodel <- function(object,
                                u = list(shape = 5, rate = 4),
                                a = list(vinv = 0.01),
                                v = list(shape = 5, rate = 4),
+                               c = list(vinv = 0.01),
                                ...){
 
   # Checks - Coefficient priors ----
@@ -217,6 +225,16 @@ add_priors.dfmodel <- function(object,
     .check_coefficient_prior(a, "a")
     object$priors$a <- list(mu = matrix(0, n_a),
                             vinv = diag(a$vinv, n_a))
+  }
+
+  # Priors for C ----
+  #
+  # Only for a model with deterministic terms, which is the only one that reads
+  # it; `c` is not looked at otherwise and need not be given. C does not drift
+  # in a model with tvp = TRUE either, so it takes no state equation below.
+  n_det <- length(object$model$deterministic)
+  if (n_det > 0) {
+    object$priors$c <- .deterministic_prior(c, m, n_det, "c")
   }
 
   # State equations ----

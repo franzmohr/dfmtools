@@ -23,7 +23,11 @@ using core::require_state_variances;
 using core::simulates_states;
 using core::step_random_walk;
 using core::accumulate_transition_moments;
+using core::deterministic_by_period;
+using core::deterministic_coefficients;
 using core::draw_factor_path;
+using core::draw_measurement_deterministic;
+using core::forecast_deterministic;
 using core::draw_normal_precision;
 using core::draw_stochvol_state;
 using core::fill_lagged_factors;
@@ -67,10 +71,17 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
-    const arma::mat x_t = response_by_period(input.train, k, tt);
+    const arma::mat x_raw = response_by_period(input.train, k, tt);
 
     const int n_a = input.spec.n_factor_a();
     const bool use_a = n_a > 0;
+
+    // Deterministic terms, as in DfmNormalGamma: `x_t` is the data less them.
+    const arma::uword n_det = static_cast<arma::uword>(input.spec.n);
+    const bool use_c = n_det > 0;
+    const arma::mat d_t = deterministic_by_period(input.train);
+    arma::mat c_mat = deterministic_coefficients(input.initial.c, k, n_det);
+    arma::mat x_t = use_c ? arma::mat(x_raw - c_mat * d_t) : x_raw;
 
     DfmNormalStochvolDraws out;
     out.lambda = arma::mat(k * n, iterations);
@@ -79,6 +90,10 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
     out.v_sigma_inv = arma::mat(n * tt, iterations);
     out.u_h_sigma = arma::mat(k, iterations);
     out.v_h_sigma = arma::mat(n, iterations);
+    if (use_c)
+    {
+        out.c = arma::mat(k * n_det, iterations);
+    }
 
     // Loadings. The leading N x N block is the identification and is never
     // drawn: ones on the diagonal, zeros above, free below.
@@ -193,6 +208,16 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
             pos += width;
         }
 
+        // Block 2b: Draw the deterministic terms, row by row ----
+        //
+        // Weighted by period, for the reason the loadings are.
+        if (use_c)
+        {
+            draw_measurement_deterministic(c_mat, x_raw - lambda * factors, d_t,
+                                           arma::trans(u_precision), input.c_prior);
+            x_t = x_raw - c_mat * d_t;
+        }
+
         // Block 3: Draw the idiosyncratic log-volatility ----
         //
         // The factored routine, which is the one test/unit_stochvol.cpp covers
@@ -259,6 +284,10 @@ DfmNormalStochvolDraws DfmNormalStochvolSampler::draw_coefficients(
             out.v_sigma_inv.col(draw_pos) = arma::vectorise(arma::trans(v_precision));
             out.u_h_sigma.col(draw_pos) = u_h_sigma;
             out.v_h_sigma.col(draw_pos) = v_h_sigma;
+            if (use_c)
+            {
+                out.c.col(draw_pos) = arma::vectorise(c_mat);
+            }
 
             if (use_a)
             {
@@ -346,6 +375,11 @@ ForecastDraws DfmNormalStochvolSampler::forecast(const DfmNormalStochvolInput &i
     // already forecast.
     arma::mat path(n, p + h);
 
+    // The deterministic terms of the horizon, n x h; empty without them.
+    const arma::mat d_h = forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                                                 static_cast<arma::uword>(k),
+                                                 static_cast<arma::uword>(h));
+
     // What a simulated forecast carries from one horizon to the next.
     arma::vec u_h, v_h, u_h_sigma, v_h_sigma;
 
@@ -381,6 +415,9 @@ ForecastDraws DfmNormalStochvolSampler::forecast(const DfmNormalStochvolInput &i
 
         const arma::mat a_mat =
             use_a ? arma::reshape(coefficients.a.col(draw), n, n * p) : arma::mat();
+        const arma::mat c_mat =
+            d_h.n_rows > 0 ? arma::mat(arma::reshape(coefficients.c.col(draw), k, d_h.n_rows))
+                           : arma::mat();
 
         for (int i = 0; i < h; i++)
         {
@@ -403,6 +440,10 @@ ForecastDraws DfmNormalStochvolSampler::forecast(const DfmNormalStochvolInput &i
 
             fcst.submat(i * k, draw, (i + 1) * k - 1, draw) =
                 lambda * f + u_sd % arma::randn<arma::vec>(k);
+            if (d_h.n_rows > 0)
+            {
+                fcst.submat(i * k, draw, (i + 1) * k - 1, draw) += c_mat * d_h.col(i);
+            }
         }
     }
 
@@ -439,6 +480,14 @@ arma::mat DfmNormalStochvolSampler::log_likelihood(const DfmNormalStochvolInput 
     const arma::mat x_t = response_by_period(input.train, k, tt);
     const arma::uword draws = coefficients.iterations();
 
+    const arma::uword n_det = static_cast<arma::uword>(std::max(input.spec.n, 0));
+    const arma::mat d_t = deterministic_by_period(input.train);
+    if (n_det > 0 && coefficients.c.n_rows != static_cast<arma::uword>(k) * n_det)
+    {
+        throw std::invalid_argument("posterior draws of the deterministic coefficients c are "
+                                    "missing");
+    }
+
     // Unlike the forecast, this needs the whole path: every period has its own
     // precision and every period contributes a column.
     if (coefficients.u_sigma_inv.n_rows != static_cast<arma::uword>(k * tt))
@@ -456,7 +505,11 @@ arma::mat DfmNormalStochvolSampler::log_likelihood(const DfmNormalStochvolInput 
     {
         const arma::mat lambda = arma::reshape(coefficients.lambda.col(draw), k, n);
         const arma::mat factors = arma::reshape(coefficients.factors.col(draw), n, tt);
-        const arma::mat u = x_t - lambda * factors;
+        arma::mat u = x_t - lambda * factors;
+        if (n_det > 0)
+        {
+            u -= arma::reshape(coefficients.c.col(draw), k, n_det) * d_t;
+        }
 
         // U_t is diagonal, so the determinant term is a sum of logs and the
         // quadratic form is a weighted sum of squares -- no k x k anything. The
@@ -564,7 +617,12 @@ arma::mat DfmNormalStochvolSampler::predictive_log_density(
         }
     };
 
-    return core::score_factor_forecast(input.spec, input.test.y, coefficients.iterations(), step);
+    const arma::mat d_h =
+        forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                               static_cast<arma::uword>(k), input.test.y.n_rows);
+    return core::score_factor_forecast(input.spec, input.test.y, coefficients.iterations(),
+                                       core::with_deterministic_offset(step, coefficients.c, d_h,
+                                                                      static_cast<arma::uword>(k)));
 }
 
 } // namespace bayests

@@ -113,7 +113,7 @@ add_predictive_loglik.dfmodel <- function(object, test_sample = NULL, ...) {
          "factor model is scored by filtering on from.")
   }
   if (is.null(object[["model"]][["h"]]) || object[["model"]][["h"]] < 1) {
-    stop("Argument 'object' has no forecast horizon. Use 'add_posterior_forecasts' first.")
+    stop("Argument 'object' has no forecast horizon. Use 'add_forecast_input' first.")
   }
 
   realised <- if (is.null(test_sample)) {
@@ -165,9 +165,15 @@ add_predictive_loglik.dfmodel <- function(object, test_sample = NULL, ...) {
 # Matched by time where both the sample and the test data carry one, and taken
 # from the top otherwise: a matrix of realised periods is the other way a
 # caller has of saying which periods these are.
-.align_test_series <- function(object, test_sample) {
+#
+# `width` is the number of columns the forecast has per period: the panel's for
+# a dynamic factor model, and the panel's and the observed variables' for a
+# factor augmented VAR, whose caller puts the panel columns on the model's scale
+# itself and so passes `normalise = FALSE`.
+.align_test_series <- function(object, test_sample, width = object[["model"]][["m"]],
+                               normalise = TRUE) {
 
-  m <- object[["model"]][["m"]]
+  m <- width
   h <- object[["model"]][["h"]]
   tsp_train <- stats::tsp(object[["data"]][["x"]])
   tsp_test <- stats::tsp(test_sample)
@@ -207,6 +213,9 @@ add_predictive_loglik.dfmodel <- function(object, test_sample = NULL, ...) {
 
   test_sample <- test_sample[seq_len(min(h, nrow(test_sample))), , drop = FALSE]
 
+  if (!normalise) {
+    return(test_sample)
+  }
   return(.normalise_like_train(object, test_sample))
 }
 

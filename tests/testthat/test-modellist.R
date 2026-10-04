@@ -52,7 +52,7 @@ test_that("forecasts and the log-likelihood dispatch over a modellist", {
 
   set.seed(62)
   object <- add_posterior_coefficients(object)
-  object <- add_posterior_forecasts(object, n_ahead = 3)
+  object <- add_posterior_forecasts(add_forecast_input(object, n_ahead = 3))
   object <- add_posterior_loglik(object)
 
   expect_s3_class(object, "modellist")

@@ -25,7 +25,11 @@ using core::simulates_states;
 using core::step_free_loadings;
 using core::step_random_walk;
 using core::draw_diagonal_precision;
+using core::deterministic_by_period;
+using core::deterministic_coefficients;
 using core::draw_factor_path;
+using core::draw_measurement_deterministic;
+using core::forecast_deterministic;
 using core::draw_normal_precision;
 using core::initial_state_variance;
 using core::draw_random_walk_state;
@@ -52,7 +56,15 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
-    const arma::mat x_t = response_by_period(input.train, k, tt);
+    const arma::mat x_raw = response_by_period(input.train, k, tt);
+
+    // Deterministic terms, as in DfmNormalGamma: `x_t` is the data less them.
+    // Their coefficients do not drift; see draw_measurement_deterministic().
+    const arma::uword n_det = static_cast<arma::uword>(input.spec.n);
+    const bool use_c = n_det > 0;
+    const arma::mat d_t = deterministic_by_period(input.train);
+    arma::mat c_mat = deterministic_coefficients(input.initial.c, k, n_det);
+    arma::mat x_t = use_c ? arma::mat(x_raw - c_mat * d_t) : x_raw;
 
     const int n_lambda = input.spec.n_lambda();
     const int n_a = input.spec.n_factor_a();
@@ -72,6 +84,10 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
     const bool a_noncentred = use_a && input.a_prior.noncentred();
 
     DfmTvpGammaDraws out;
+    if (use_c)
+    {
+        out.c = arma::mat(k * n_det, iterations);
+    }
     out.lambda = arma::mat(static_cast<arma::uword>(k) * n * tt, iterations);
     out.factors = arma::mat(static_cast<arma::uword>(n) * tt, iterations);
     out.u_sigma_inv = arma::mat(k, iterations);
@@ -284,6 +300,20 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
             fill_stacked_loadings(lambda_stack, lambda_path, k, n);
         }
 
+        // Block 2b: Draw the deterministic terms, row by row ----
+        //
+        // Against what this period's loadings leave of each series.
+        if (use_c)
+        {
+            arma::mat resid = x_raw;
+            for (int t = 0; t < tt; t++)
+            {
+                resid.col(t) -= lambda_stack.rows(t * k, (t + 1) * k - 1) * factors.col(t);
+            }
+            draw_measurement_deterministic(c_mat, resid, d_t, u_sigma_inv, input.c_prior);
+            x_t = x_raw - c_mat * d_t;
+        }
+
         // Block 3: Draw the idiosyncratic precision ----
         //
         // One measurement matrix per period, so the fitted values are formed
@@ -369,6 +399,10 @@ DfmTvpGammaDraws DfmTvpGammaSampler::draw_coefficients(const DfmTvpGammaInput &i
                                            static_cast<arma::uword>(draw_pos), lambda_omega,
                                            lambda_nc);
                 }
+            }
+            if (use_c)
+            {
+                out.c.col(draw_pos) = arma::vectorise(c_mat);
             }
             if (use_a)
             {
@@ -463,6 +497,11 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
     const arma::uword draws = coefficients.iterations();
     arma::mat fcst(h * k, draws);
 
+    // The deterministic terms of the horizon, n x h; empty without them.
+    const arma::mat d_h = forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                                                 static_cast<arma::uword>(k),
+                                                 static_cast<arma::uword>(h));
+
     // Whether each draw's loadings and transition are carried over the horizon
     // or held at the end of the sample: see core/models/forecast_states.h. The
     // two precisions are constant here.
@@ -509,6 +548,9 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
 
         arma::mat a_mat =
             use_a ? arma::reshape(coefficients.a.col(draw), n, n * p) : arma::mat();
+        const arma::mat c_mat =
+            d_h.n_rows > 0 ? arma::mat(arma::reshape(coefficients.c.col(draw), k, d_h.n_rows))
+                           : arma::mat();
 
         if (simulate)
         {
@@ -550,6 +592,10 @@ ForecastDraws DfmTvpGammaSampler::forecast(const DfmTvpGammaInput &input,
 
             fcst.submat(i * k, draw, (i + 1) * k - 1, draw) =
                 lambda * f + u_sd % arma::randn<arma::vec>(k);
+            if (d_h.n_rows > 0)
+            {
+                fcst.submat(i * k, draw, (i + 1) * k - 1, draw) += c_mat * d_h.col(i);
+            }
         }
     }
 
@@ -584,6 +630,14 @@ arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
 
     const int tt = static_cast<int>(input.train.periods(k));
     const arma::mat x_t = response_by_period(input.train, k, tt);
+
+    const arma::uword n_det = static_cast<arma::uword>(std::max(input.spec.n, 0));
+    const arma::mat d_t = deterministic_by_period(input.train);
+    if (n_det > 0 && coefficients.c.n_rows != static_cast<arma::uword>(k) * n_det)
+    {
+        throw std::invalid_argument("posterior draws of the deterministic coefficients c are "
+                                    "missing");
+    }
     const arma::uword draws = coefficients.iterations();
 
     // Every period under its own loadings, so the whole path is wanted here --
@@ -603,6 +657,8 @@ arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
 
     for (arma::uword draw = 0; draw < draws; draw++)
     {
+        const arma::mat c_mat =
+            n_det > 0 ? arma::mat(arma::reshape(coefficients.c.col(draw), k, n_det)) : arma::mat();
         const arma::mat factors = arma::reshape(coefficients.factors.col(draw), n, tt);
         const arma::vec u_sigma_inv = coefficients.u_sigma_inv.col(draw);
 
@@ -615,7 +671,11 @@ arma::mat DfmTvpGammaSampler::log_likelihood(const DfmTvpGammaInput &input,
         {
             const arma::mat lambda = arma::reshape(
                 coefficients.lambda.submat(i * width, draw, (i + 1) * width - 1, draw), k, n);
-            const arma::vec u = x_t.col(i) - lambda * factors.col(i);
+            arma::vec u = x_t.col(i) - lambda * factors.col(i);
+            if (n_det > 0)
+            {
+                u -= c_mat * d_t.col(i);
+            }
 
             const double part_c = -arma::dot(u_sigma_inv, arma::square(u)) / 2;
             loglik(draw, i) = part_a + part_b + part_c;
@@ -735,7 +795,12 @@ arma::mat DfmTvpGammaSampler::predictive_log_density(
         out.transition = p > 0 ? a_mat : arma::mat();
     };
 
-    return core::score_factor_forecast(input.spec, input.test.y, draws, step);
+    const arma::mat d_h =
+        forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                               static_cast<arma::uword>(k), input.test.y.n_rows);
+    return core::score_factor_forecast(input.spec, input.test.y, draws,
+                                       core::with_deterministic_offset(step, coefficients.c, d_h,
+                                                                      static_cast<arma::uword>(k)));
 }
 
 } // namespace bayests

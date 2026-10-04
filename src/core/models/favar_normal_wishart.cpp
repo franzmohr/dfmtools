@@ -19,6 +19,11 @@ namespace
 {
 
 using core::covariance_root;
+using core::deterministic_by_period;
+using core::deterministic_coefficients;
+using core::draw_measurement_deterministic;
+using core::draw_observed_deterministic;
+using core::forecast_deterministic;
 using core::draw_conditional_factor_path;
 using core::draw_diagonal_precision;
 using core::draw_normal_precision;
@@ -48,11 +53,27 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
     const int draws = input.spec.draws();
 
     const int tt = static_cast<int>(input.train.periods(k));
-    const arma::mat x_t = response_by_period(input.train, k, tt);
+    const arma::mat x_raw = response_by_period(input.train, k, tt);
 
     // The observed half of the state. Transposed once here rather than once per
     // draw: it is data and does not change over the chain.
-    const arma::mat obs = obs_factors_by_period(input.train);
+    const arma::mat obs_raw = obs_factors_by_period(input.train);
+
+    // Deterministic terms, in two places. The panel's enter the measurement,
+    // C d_t, as in a dynamic factor model, and `x_t` is the panel less them.
+    // The observed factors' are the mean C_obs d_t they deviate from, and the
+    // transition runs over the deviations: `obs` is the observed factors less
+    // their deterministic terms, and `state` is built from it. The measurement
+    // is written on the observed factors themselves, so it reads `state_raw`.
+    // Without deterministic terms both pairs are the data, the same matrices,
+    // and nothing below changes.
+    const arma::uword n_det = static_cast<arma::uword>(input.spec.n);
+    const bool use_c = n_det > 0;
+    const arma::mat d_t = deterministic_by_period(input.train);
+    arma::mat c_mat = deterministic_coefficients(input.initial.c, k, n_det);
+    arma::mat c_obs_mat = deterministic_coefficients(input.initial.c_obs, n_obs, n_det);
+    arma::mat x_t = use_c ? arma::mat(x_raw - c_mat * d_t) : x_raw;
+    arma::mat obs = use_c ? arma::mat(obs_raw - c_obs_mat * d_t) : obs_raw;
 
     const int n_a = input.spec.n_favar_a();
     const bool use_a = n_a > 0;
@@ -62,6 +83,11 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
     out.factors = arma::mat(n * tt, iterations);
     out.u_sigma_inv = arma::mat(k, iterations);
     out.v_sigma_inv = arma::mat(ns * ns, iterations);
+    if (use_c)
+    {
+        out.c = arma::mat(k * n_det, iterations);
+        out.c_obs = arma::mat(n_obs * n_det, iterations);
+    }
 
     // Loadings. The leading n x n block of the factor columns is unit lower
     // triangular and the observed columns of those rows are zero; neither is
@@ -111,7 +137,7 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
     arma::mat v_sigma_inv = input.initial.v_sigma_inv;
 
     const arma::mat state_identity = arma::eye<arma::mat>(ns, ns);
-    arma::mat factors, state, u, v;
+    arma::mat factors, state, state_raw, u, v;
 
     // Start simulation
     for (int draw = 0; draw < draws; draw++)
@@ -128,9 +154,20 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
         const arma::mat u_sigma = arma::diagmat(1.0 / u_sigma_inv);
         const arma::mat v_sigma = arma::solve(v_sigma_inv, state_identity);
 
-        factors = draw_conditional_factor_path(x_t, lambda, u_sigma, arma::symmatu(v_sigma),
+        //
+        // The path is drawn in the deviations the transition runs over, so the
+        // panel it is measured against is moved by what the loadings make of
+        // the observed factors' deterministic terms as well.
+        const arma::mat x_path =
+            use_c ? arma::mat(x_t - lambda.tail_cols(n_obs) * (c_obs_mat * d_t)) : x_t;
+        factors = draw_conditional_factor_path(x_path, lambda, u_sigma, arma::symmatu(v_sigma),
                                                a_mat, obs, ns, p_state);
         state = stacked_state(factors, obs);
+        if (use_c)
+        {
+            state_raw = stacked_state(factors, obs_raw);
+        }
+        const arma::mat &measured = use_c ? state_raw : state;
 
         // Block 2: Draw the loadings, equation by equation ----
         //
@@ -149,7 +186,7 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
                 continue;
             }
 
-            const arma::mat s_i = state.rows(0, width - 1);
+            const arma::mat s_i = measured.rows(0, width - 1);
             const arma::rowvec response = x_t.row(i);
 
             const arma::mat prior_vinv =
@@ -162,8 +199,16 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
             pos += width;
         }
 
+        // Block 2b: Draw the panel's deterministic terms, row by row ----
+        if (use_c)
+        {
+            draw_measurement_deterministic(c_mat, x_raw - lambda * state_raw, d_t, u_sigma_inv,
+                                           input.c_prior);
+            x_t = x_raw - c_mat * d_t;
+        }
+
         // Block 3: Draw the idiosyncratic precision ----
-        u = x_t - lambda * state;
+        u = x_t - lambda * measured;
         draw_diagonal_precision(u_sigma_inv, u, u_post_shape, u_prior_rate);
 
         // Block 4: Draw the state innovation precision ----
@@ -194,6 +239,16 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
             a_mat = arma::reshape(a, ns, ns * p);
         }
 
+        // Block 6: Draw the observed factors' deterministic terms ----
+        //
+        // Through the transition, jointly; see draw_observed_deterministic().
+        if (use_c)
+        {
+            c_obs_mat = draw_observed_deterministic(state_raw, d_t, a_mat, v_sigma_inv, ns, n_obs,
+                                                    p, input.c_obs_prior);
+            obs = obs_raw - c_obs_mat * d_t;
+        }
+
         // Store draws
         if (input.spec.keeps(draw))
         {
@@ -203,6 +258,11 @@ FavarNormalWishartSampler::draw_coefficients(const FavarNormalWishartInput &inpu
             out.factors.col(draw_pos) = arma::vectorise(factors);
             out.u_sigma_inv.col(draw_pos) = u_sigma_inv;
             out.v_sigma_inv.col(draw_pos) = arma::vectorise(v_sigma_inv);
+            if (use_c)
+            {
+                out.c.col(draw_pos) = arma::vectorise(c_mat);
+                out.c_obs.col(draw_pos) = arma::vectorise(c_obs_mat);
+            }
             if (use_a)
             {
                 out.a.col(draw_pos) = a;
@@ -283,6 +343,20 @@ ForecastDraws FavarNormalWishartSampler::forecast(const FavarNormalWishartInput 
                                     std::to_string(tt) + " periods");
     }
 
+    // The deterministic terms over the horizon, n x h, and over the sample, for
+    // the observed factors' deviations the transition starts from. Both empty
+    // without them.
+    const arma::mat d_h = forecast_deterministic(input.spec, input.forecast, coefficients.c,
+                                                 static_cast<arma::uword>(k),
+                                                 static_cast<arma::uword>(h));
+    const arma::mat d_t = deterministic_by_period(input.train);
+    if (d_h.n_rows > 0 &&
+        coefficients.c_obs.n_rows != static_cast<arma::uword>(n_obs) * d_h.n_rows)
+    {
+        throw std::invalid_argument("posterior draws of the observed factors' deterministic "
+                                    "coefficients c_obs are missing");
+    }
+
     const arma::uword draws = coefficients.iterations();
     const int width = k + n_obs;
     arma::mat fcst(h * width, draws);
@@ -304,11 +378,21 @@ ForecastDraws FavarNormalWishartSampler::forecast(const FavarNormalWishartInput 
         const arma::mat v_root =
             covariance_root(arma::reshape(coefficients.v_sigma_inv.col(draw), ns, ns));
 
+        const bool use_c = d_h.n_rows > 0;
+        const arma::mat c_mat =
+            use_c ? arma::mat(arma::reshape(coefficients.c.col(draw), k, d_h.n_rows)) : arma::mat();
+        const arma::mat c_obs_mat =
+            use_c ? arma::mat(arma::reshape(coefficients.c_obs.col(draw), n_obs, d_h.n_rows))
+                  : arma::mat();
+
         if (p > 0)
         {
             const arma::mat drawn = arma::reshape(coefficients.factors.col(draw), n, tt);
             path.submat(0, 0, n - 1, p - 1) = drawn.tail_cols(p);
-            path.submat(n, 0, ns - 1, p - 1) = obs.tail_cols(p);
+            // The transition runs over the deviations, so it starts from them.
+            path.submat(n, 0, ns - 1, p - 1) =
+                use_c ? arma::mat(obs.tail_cols(p) - c_obs_mat * d_t.tail_cols(p))
+                      : arma::mat(obs.tail_cols(p));
         }
 
         const arma::mat a_mat =
@@ -326,9 +410,22 @@ ForecastDraws FavarNormalWishartSampler::forecast(const FavarNormalWishartInput 
             // The panel first, then the observed factors of the same horizon.
             // They are part of the state and so are forecast rather than
             // measured, which is why they are not read off the loadings.
+            //
+            // With deterministic terms the path is in deviations: the observed
+            // factors are their deviation plus their mean, and the panel is
+            // measured on the observed factors themselves plus its own.
+            arma::vec measured = s;
+            if (use_c)
+            {
+                measured.tail(n_obs) += c_obs_mat * d_h.col(i);
+            }
             fcst.submat(i * width, draw, i * width + k - 1, draw) =
-                lambda * s + u_sd % arma::randn<arma::vec>(k);
-            fcst.submat(i * width + k, draw, (i + 1) * width - 1, draw) = s.tail(n_obs);
+                lambda * measured + u_sd % arma::randn<arma::vec>(k);
+            if (use_c)
+            {
+                fcst.submat(i * width, draw, i * width + k - 1, draw) += c_mat * d_h.col(i);
+            }
+            fcst.submat(i * width + k, draw, (i + 1) * width - 1, draw) = measured.tail(n_obs);
         }
     }
 
@@ -368,6 +465,14 @@ FavarNormalWishartSampler::log_likelihood(const FavarNormalWishartInput &input,
     const arma::mat obs = core::obs_factors_by_period(input.train);
     const arma::uword draws = coefficients.iterations();
 
+    const arma::uword n_det = static_cast<arma::uword>(std::max(input.spec.n, 0));
+    const arma::mat d_t = deterministic_by_period(input.train);
+    if (n_det > 0 && coefficients.c.n_rows != static_cast<arma::uword>(k) * n_det)
+    {
+        throw std::invalid_argument("posterior draws of the deterministic coefficients c are "
+                                    "missing");
+    }
+
     arma::mat loglik(draws, tt);
     const double part_a = -k * std::log(2 * arma::datum::pi) / 2;
 
@@ -386,7 +491,11 @@ FavarNormalWishartSampler::log_likelihood(const FavarNormalWishartInput &input,
         // R is diagonal, so the determinant term is a sum of logs and the
         // quadratic form is a weighted sum of squares -- no k x k anything.
         const double part_b = arma::accu(arma::log(u_sigma_inv)) / 2;
-        const arma::mat u = x_t - lambda * state;
+        arma::mat u = x_t - lambda * state;
+        if (n_det > 0)
+        {
+            u -= arma::reshape(coefficients.c.col(draw), k, n_det) * d_t;
+        }
 
         for (int i = 0; i < tt; i++)
         {

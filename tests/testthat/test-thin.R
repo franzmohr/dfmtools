@@ -69,7 +69,8 @@ test_that("a thinned dynamic factor chain is every thin-th draw of the unthinned
 
   # The forecast takes its labels from the model as the coefficients do.
   set.seed(1)
-  forecast <- add_posterior_forecasts(thinned, n_ahead = 2)$posterior$forecast$forecasts
+  thinned <- add_forecast_input(thinned, n_ahead = 2)
+  forecast <- add_posterior_forecasts(thinned)$posterior$forecast$forecasts
   expect_equal(attr(forecast, "mcpar"), c(3, 30, 3))
 })
 

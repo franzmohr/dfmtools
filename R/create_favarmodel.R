@@ -19,19 +19,29 @@
 #' the burn-in the sampler keeps the last of every \code{thin} draws, so it runs
 #' \code{burnin + iterations * thin} draws and still keeps \code{iterations}, and
 #' the draws that are not kept are never held in memory.
+#' @param deterministic a character specifying which deterministic terms enter the
+#' model. Available values are \code{"none"} (default), \code{"const"} for an intercept,
+#' \code{"trend"} for a linear trend, and \code{"both"} for an intercept with a linear trend.
+#' See 'Details'.
+#' @param seasonal logical. If \code{TRUE}, seasonal dummy variables are generated as
+#' additional deterministic terms. The amount of dummies depends on the frequency of
+#' \code{x}. Requires \code{deterministic} to be \code{"const"} or \code{"both"}. Defaults to
+#' \code{FALSE}.
 #'
 #' @details The function produces the variable matrices of a factor augmented
 #' VAR with measurement equation
-#' \deqn{x_t = \lambda_f f_t + \lambda_y y_t + e_t,}
+#' \deqn{x_t = \lambda_f f_t + \lambda_y y_t + C d_t + e_t,}
 #' where \eqn{x_t} is a \eqn{k \times 1} vector of observed panel series,
 #' \eqn{f_t} an \eqn{n \times 1} vector of unobserved factors and \eqn{y_t} the
-#' observed variables that also enter the state. \eqn{e_t} is a \eqn{k \times 1}
-#' error term with \eqn{e_t \sim N(0, R)} and \eqn{R} diagonal.
+#' observed variables that also enter the state. \eqn{d_t} is a vector of
+#' deterministic terms, which drops out of a model without them. \eqn{e_t} is a
+#' \eqn{k \times 1} error term with \eqn{e_t \sim N(0, R)} and \eqn{R} diagonal.
 #'
 #' The transition equation is a VAR in the whole state
-#' \eqn{s_t = (f_t', y_t')'},
+#' \eqn{s_t = (f_t', (y_t - C_{obs} d_t)')'},
 #' \deqn{s_t = \sum_{i = 1}^{p} \Phi_i s_{t - i} + v_t,}
-#' with \eqn{v_t \sim N(0, Q)} and \eqn{Q} unrestricted.
+#' with \eqn{v_t \sim N(0, Q)} and \eqn{Q} unrestricted. Without deterministic
+#' terms the observed block of the state is \eqn{y_t} itself.
 #'
 #' \strong{The observed block is part of the state, not a set of regressors.} It
 #' appears on the left of the transition equation as well as the right, and the
@@ -60,6 +70,17 @@
 #' with one implied by the raw data unless the normalisation is undone, or
 #' \code{normalize_x = FALSE} is used.
 #'
+#' Deterministic terms are generated as by \code{\link{create_dfmodel}}, and as
+#' \code{\link[bvartools]{create_bvarmodel}} generates them. They enter twice. The
+#' panel carries them in its measurement equation, as in a dynamic factor model.
+#' The observed variables are the mean \eqn{C_{obs} d_t} plus a deviation, and
+#' the transition runs over the deviations: a VAR in variables with a mean of
+#' their own, which is what an intercept in a VAR stands for, and the factors
+#' respond to a deviation of the policy rate rather than to its level. The panel
+#' is measured on the observed variables themselves, so \eqn{C_{obs}} does not
+#' appear in the measurement equation and impulse responses, which are
+#' deviations, are unaffected by either block.
+#'
 #' If integer vectors are provided as arguments \code{p} or \code{n}, the
 #' function produces a distinct model for all combinations of those
 #' specifications.
@@ -67,8 +88,11 @@
 #' @return An object of class \code{'favarmodel'}, which contains the following
 #' elements:
 #' \item{data}{A list of data objects. Element \code{x} is the normalised panel
-#' and element \code{y} the observed factors.}
-#' \item{model}{A list of model specifications.}
+#' and element \code{y} the observed factors. Element \code{deterministic}, a
+#' time-series object with one column per deterministic term, is there for a
+#' model that has them.}
+#' \item{model}{A list of model specifications. Element \code{deterministic}
+#' names the deterministic terms.}
 #'
 #' @examples
 #'
@@ -82,6 +106,11 @@
 #' model <- create_favarmodel(x = panel, y = observed, p = 1, n = 1,
 #'                            iterations = 5000, burnin = 1000)
 #'
+#' # With an intercept, which the observed variable and the panel each get
+#' model_det <- create_favarmodel(x = panel, y = observed, p = 1, n = 1,
+#'                                deterministic = "const",
+#'                                iterations = 5000, burnin = 1000)
+#'
 #' @references
 #'
 #' Bernanke, B. S., Boivin, J., & Eliasz, P. (2005). Measuring the effects of
@@ -90,7 +119,8 @@
 #'
 #' @export
 create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
-                              iterations = 20000, burnin = 2000, thin = 1) {
+                              iterations = 20000, burnin = 2000, thin = 1,
+                              deterministic = "none", seasonal = FALSE) {
 
   # Input checks ----
   if (!"ts" %in% class(x)) {
@@ -117,8 +147,13 @@ create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
          "leading n series identify the factors and carry no free loading, so ",
          "there would be nothing left to estimate.")
   }
+  .check_deterministic_spec(deterministic, seasonal)
 
   # Data preparation ----
+
+  # Deterministic terms over the periods of the sample, NULL for a model
+  # without any.
+  det <- .deterministic_terms(x, deterministic, seasonal)
   if (normalize_x) {
     x <- scale(x)
   }
@@ -132,6 +167,7 @@ create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
   model$n <- 0
   model$n_obs <- n_obs
   model$p <- 0
+  model$deterministic <- colnames(det)
   # The sampler add_posterior_coefficients dispatches on. Named rather than
   # derived at the point of use, so that the model object says which sampler
   # produced it.
@@ -148,7 +184,9 @@ create_favarmodel <- function(x, y, p = 2, n = 1, normalize_x = TRUE,
       model_i$n <- j
       model_i$p <- i
 
-      result_i <- list("data" = list("x" = x, "y" = y),
+      data_i <- list("x" = x, "y" = y)
+      data_i$deterministic <- det
+      result_i <- list("data" = data_i,
                        "model" = model_i)
 
       class(result_i) <- append("favarmodel", class(result_i))

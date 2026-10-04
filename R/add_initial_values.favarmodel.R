@@ -76,6 +76,16 @@ add_initial_values.favarmodel <- function(object, method = "prior", ...) {
   object[["initial"]][["vinv"]] <-
     object[["priors"]][["v"]][["df"]] * object[["priors"]][["v"]][["scale"]]
 
+  # The coefficients of the deterministic terms, at their least squares values:
+  # the panel's and the observed variables' each on the terms. Not at a prior
+  # draw, for the reason .deterministic_initial() gives, and drawing nothing,
+  # so a model without them starts where it always did.
+  det <- object[["data"]][["deterministic"]]
+  if (!is.null(det)) {
+    object[["initial"]][["c"]] <- .deterministic_initial(object[["data"]][["x"]], det)
+    object[["initial"]][["c_obs"]] <- .deterministic_initial(object[["data"]][["y"]], det)
+  }
+
   # The seed of the posterior simulation, unless the model has one already. It is
   # drawn from R's generator, so set.seed() before this call makes it
   # reproducible, and add_seed() replaces it afterwards.
