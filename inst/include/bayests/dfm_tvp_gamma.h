@@ -14,7 +14,7 @@ namespace bayests
 /// Dynamic factor model whose loadings and factor transition follow random
 /// walks, with independent gamma priors on both error precisions.
 ///
-///     x_t = Lambda_t f_t + u_t,                  u_t ~ N(0, U),  U diagonal,
+///     x_t = Lambda_t f_t + C d_t + u_t,          u_t ~ N(0, U),  U diagonal,
 ///     f_t = sum_{j=1..p} A_{j,t} f_{t-j} + v_t,  v_t ~ N(0, V),  V diagonal,
 ///
 /// DfmNormalGamma with its two coefficient blocks turned into state paths and
@@ -89,10 +89,10 @@ public:
     /// -- the free loadings only, the identifying block staying fixed. Under
     /// ForecastStates::hold they stay where the sample ends.
     ///
-    /// As in DfmNormalGamma, this needs no out-of-sample regressor matrix. A DFM
-    /// has no regressors: the path is the transition run forward from the last p
-    /// drawn factors, with an innovation drawn at each step, and the observed
-    /// series read off the loadings.
+    /// As in DfmNormalGamma, the path is the transition run forward from the
+    /// last p drawn factors, with an innovation drawn at each step, and the
+    /// observed series read off the loadings, plus C d_{T+i} from
+    /// `input.forecast.x` where the model has deterministic terms.
     ///
     /// Requires `draws.factors`, and `draws.a` when the transition has an order.
     /// Throws std::invalid_argument if either is missing or if spec.h is zero.

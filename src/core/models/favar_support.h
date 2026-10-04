@@ -123,6 +123,62 @@ inline arma::mat stacked_state(const arma::mat &factors, const arma::mat &obs)
     return arma::join_vert(factors, obs);
 }
 
+/// One draw of C_obs, the n_obs x n deterministic terms the observed factors
+/// deviate from:
+///
+///     y_t = C_obs d_t + y~_t,    s~_t = (f_t', y~_t')',
+///     s~_t = sum_{j=1..p} Phi_j s~_{t-j} + v_t,    v_t ~ N(0, Q).
+///
+/// The transition runs over the deviations, which is why C_obs is drawn
+/// through it and not row by row: with `state_raw` = (f_t', y_t')' and r_t
+/// its transition residual, computed with states before the sample at zero
+/// exactly as the deviations are,
+///
+///     v_t = r_t - (E C_obs d_t - sum_{j: t-j >= 0} Phi_j E C_obs d_{t-j}),
+///
+/// E selecting the observed rows of the state. That is linear in vec(C_obs),
+/// with design X_t = d_t' kron E - sum_j d_{t-j}' kron Phi_j E, so given the
+/// factors, the transition and Q it is a GLS regression with a normal
+/// posterior: precision prior + sum_t X_t' Q^-1 X_t. Q is full, so the rows of
+/// C_obs are drawn jointly -- n_obs n coefficients, a small block.
+///
+/// The measurement does not enter. It is written on the observed factors
+/// themselves, x_t = Lambda_f f_t + Lambda_y y_t + C d_t + e_t, so C_obs
+/// appears nowhere in it and its conditional is the transition's alone.
+inline arma::mat draw_observed_deterministic(const arma::mat &state_raw, const arma::mat &d_t,
+                                             const arma::mat &a_mat, const arma::mat &q_inv,
+                                             const int ns, const int n_obs, const int p,
+                                             const NormalPrior &prior)
+{
+    const arma::uword tt = state_raw.n_cols;
+    const arma::uword n_det = d_t.n_rows;
+    const arma::uword obs_first = static_cast<arma::uword>(ns - n_obs);
+
+    const arma::mat r = transition_residuals(state_raw, a_mat, ns, p);
+
+    arma::mat select(ns, n_obs, arma::fill::zeros);
+    select.tail_rows(n_obs) = arma::eye<arma::mat>(n_obs, n_obs);
+
+    arma::mat post_v = prior.v_inv;
+    arma::vec rhs = prior.v_inv * prior.mu;
+    for (arma::uword t = 0; t < tt; t++)
+    {
+        arma::mat x = arma::kron(arma::trans(d_t.col(t)), select);
+        for (int j = 1; j <= p && static_cast<arma::uword>(j) <= t; j++)
+        {
+            const arma::uword first = static_cast<arma::uword>((j - 1) * ns) + obs_first;
+            x -= arma::kron(arma::trans(d_t.col(t - j)),
+                            a_mat.cols(first, first + static_cast<arma::uword>(n_obs) - 1));
+        }
+        const arma::mat xq = arma::trans(x) * q_inv;
+        post_v += xq * x;
+        rhs += xq * r.col(t);
+    }
+
+    return arma::reshape(draw_normal_precision(post_v, rhs),
+                         static_cast<arma::uword>(n_obs), n_det);
+}
+
 } // namespace bayests::core
 
 #endif // BAYESTS_CORE_MODELS_FAVAR_SUPPORT_H
