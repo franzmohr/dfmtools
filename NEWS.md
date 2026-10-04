@@ -47,7 +47,9 @@
   - **Translation.** The file follows BayesTS's layout, not the R object's:
     - `m` and `n` become `k` and `n_factors`. BayesTS would read `m` and `n`
       as a VAR's exogenous variables and deterministic terms.
-    - The panel becomes `/data/train/y`.
+    - The panel becomes `/data/train/y`. The deterministic terms become
+      `/data/train/x`, with their number as `/model/n`, and the terms over
+      the horizon become `/data/forecast/x`.
     - `u` and `v` become `/priors/u_sigma` and `/priors/v_sigma`.
     - The free loadings are put in the sampler's order, row by row. This uses
       the samplers' own permutation, so a model read back gives the same draws

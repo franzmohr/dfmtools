@@ -200,3 +200,46 @@ test_that("factor models and a VAR go through a folder in one modellist", {
   expect_identical(back[[3]][["model"]][["p"]], 2L)
   expect_same_model(back[[3]], dfms[[2]])
 })
+
+test_that("deterministic terms are written where BayesTS reads them", {
+  x <- sim_dfm(tt = 40, m = 4, n = 2)$x
+  model <- create_dfmodel(x, p = 1, n = 2, deterministic = "both", seasonal = TRUE,
+                          iterations = 20, burnin = 10)
+  model <- add_initial_values(add_priors(model))
+  model <- add_forecast_input(model, n_ahead = 3)
+
+  path <- tempfile(fileext = ".h5")
+  write_to_hdf5(model, filename = path)
+  tree <- bvartools::read_bayests_tree(path)
+  spec <- tree[["model"]][[".attributes"]]
+
+  # n is the number of terms in a file, which the core checks against the
+  # columns of /data/train/x; the factors are n_factors.
+  expect_identical(spec[["n"]], 5L)
+  expect_identical(spec[["n_factors"]], 2L)
+  expect_equal(unclass(tree[["data"]][["train"]][["x"]]),
+               unclass(model[["data"]][["deterministic"]]), ignore_attr = TRUE)
+  expect_equal(tree[["data"]][["forecast"]][["x"]], model[["data"]][["forecast"]][["x"]],
+               ignore_attr = TRUE)
+  expect_true(all(c("mu", "v_inv") %in% names(tree[["priors"]][["c"]])))
+
+  back <- bvartools::read_model_from_hdf5(path)
+  expect_same_model(back, model)
+  expect_identical(back[["model"]][["n"]], 2L)
+
+  original <- add_posterior_coefficients(model)
+  restored <- add_posterior_coefficients(back)
+  expect_equal(unclass(restored[["posterior"]][["c"]][["coeffs"]]),
+               unclass(original[["posterior"]][["c"]][["coeffs"]]))
+  expect_same_model(round_trip(original), original)
+})
+
+test_that("a FAVAR's deterministic terms come back, the observed variables' included", {
+  sim <- make_favar_sample(tt = 80)
+  model <- create_favarmodel(x = sim$x, y = sim$yts, p = 1, n = 1,
+                             deterministic = "const", iterations = 40, burnin = 20)
+  model <- add_posterior_coefficients(add_initial_values(add_priors(model)))
+
+  expect_false(is.null(model[["posterior"]][["c_obs"]]))
+  expect_same_model(round_trip(model), model)
+})

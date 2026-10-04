@@ -55,6 +55,10 @@ not the one of the R object, and the writer translates:
   \item the panel \code{data$x} is \code{/data/train/y}, what the horizon
   realised, \code{data$test$x}, is \code{/data/test/y}, and the observed
   variables of a FAVAR, \code{data$y}, are \code{/data/train/f_obs};
+  \item the deterministic terms, \code{data$deterministic}, are
+  \code{/data/train/x}, and over the horizon \code{data$forecast$x} is
+  \code{/data/forecast/x}. \strong{Their number is \code{/model/n}}, which
+  BayesTS checks against the columns of \code{/data/train/x};
   \item the priors \code{u} and \code{v} are \code{/priors/u_sigma} and
   \code{/priors/v_sigma}, the starting precisions \code{uinv} and
   \code{vinv} are \code{/initial/u_sigma_inv} and \code{/initial/v_sigma_inv}

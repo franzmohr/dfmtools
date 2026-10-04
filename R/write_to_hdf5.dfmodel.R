@@ -29,6 +29,10 @@
 #'   \item the panel \code{data$x} is \code{/data/train/y}, what the horizon
 #'   realised, \code{data$test$x}, is \code{/data/test/y}, and the observed
 #'   variables of a FAVAR, \code{data$y}, are \code{/data/train/f_obs};
+#'   \item the deterministic terms, \code{data$deterministic}, are
+#'   \code{/data/train/x}, and over the horizon \code{data$forecast$x} is
+#'   \code{/data/forecast/x}. \strong{Their number is \code{/model/n}}, which
+#'   BayesTS checks against the columns of \code{/data/train/x};
 #'   \item the priors \code{u} and \code{v} are \code{/priors/u_sigma} and
 #'   \code{/priors/v_sigma}, the starting precisions \code{uinv} and
 #'   \code{vinv} are \code{/initial/u_sigma_inv} and \code{/initial/v_sigma_inv}
@@ -105,6 +109,12 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
 # R name is written only under the file's name, which is the point: m and n
 # mean something else to BayesTS.
 .factor_spec_names <- c("m" = "k", "n" = "n_factors", "n_obs" = "n_obs_factors")
+
+# The prior groups of a normal block, whose precision R calls vinv and BayesTS
+# v_inv: the loadings, the transition, and the coefficients of the
+# deterministic terms in the measurement equation and, for a FAVAR, in the
+# observed variables'.
+.normal_blocks <- c("lambda", "a", "c", "c_obs")
 
 # The elements of the specification BayesTS reads as integers.
 .factor_spec_counts <- c("k", "n_factors", "n_obs_factors", "p", "iterations",
@@ -243,6 +253,12 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
       attributes[[name]] <- value
     }
   }
+  # The number of deterministic terms, which is what BayesTS calls n. The core
+  # takes it from the columns of the terms when it is called from R, but reads
+  # it from /model/n in a file, and refuses /data/train/x when they disagree.
+  if (!is.null(object[["data"]][["deterministic"]])) {
+    attributes[["n"]] <- ncol(object[["data"]][["deterministic"]])
+  }
   attributes[["rclass"]] <- class(object)
   # The package bvartools loads to read the file back with the methods below.
   attributes[["rpackage"]] <- "dfmtools"
@@ -251,10 +267,18 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
   # Data ----
   data <- object[["data"]]
   scaling <- lapply(.scaling_names, function(i) attr(data[["x"]], i))
+  # The deterministic terms are the regressors of the measurement equation,
+  # /data/train/x, and over the horizon /data/forecast/x. What the horizon
+  # realised is /data/test/y for the panel and, for a FAVAR, /data/test/f_obs
+  # for its observed variables, which BayesTS does not read.
   tree_data <- list(
-    "train" = list("y" = data[["x"]], "f_obs" = data[["y"]]),
+    "train" = list("y" = data[["x"]], "f_obs" = data[["y"]],
+                   "x" = data[["deterministic"]]),
+    "forecast" = data[["forecast"]],
     "scaling" = if (!all(vapply(scaling, is.null, logical(1)))) scaling,
-    "test" = if (!is.null(data[["test"]][["x"]])) list("y" = data[["test"]][["x"]])
+    "test" = if (!is.null(data[["test"]][["x"]]) || !is.null(data[["test"]][["y"]])) {
+      list("y" = data[["test"]][["x"]], "f_obs" = data[["test"]][["y"]])
+    }
   )
 
   # Priors ----
@@ -265,8 +289,13 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
     for (i in names(priors)) {
       block <- priors[[i]]
       name <- switch(i, "u" = "u_sigma", "v" = "v_sigma", i)
-      if (i %in% c("lambda", "a")) {
+      if (i %in% .normal_blocks) {
         names(block)[names(block) == "vinv"] <- "v_inv"
+      }
+      # BayesTS reads a block's prior only where it finds a mean. The bindings
+      # imply a zero one.
+      if (i %in% c("c", "c_obs") && is.null(block[["mu"]]) && !is.null(block[["v_inv"]])) {
+        block[["mu"]] <- matrix(0, nrow(block[["v_inv"]]))
       }
       if (i == "lambda" && !tr[["favar"]]) {
         if (is.null(block[["mu"]]) && !is.null(order)) {
@@ -344,6 +373,11 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
 
   # Specification ----
   model <- list()
+  # m and n of the file are BayesTS's: no exogenous variables, and the number
+  # of deterministic terms, which the terms themselves say. The model's own
+  # come from k and n_factors.
+  attributes[["m"]] <- NULL
+  attributes[["n"]] <- NULL
   for (i in names(attributes)) {
     name <- names(.factor_spec_names)[.factor_spec_names == i]
     model[[if (length(name) == 1) name else i]] <- attributes[[i]]
@@ -375,8 +409,22 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
   if (!is.null(train[["f_obs"]])) {
     data[["y"]] <- train[["f_obs"]]
   }
-  if (!is.null(tree[["data"]][["test"]][["y"]])) {
-    data[["test"]] <- list("x" = tree[["data"]][["test"]][["y"]])
+  if (!is.null(train[["x"]])) {
+    data[["deterministic"]] <- train[["x"]]
+  }
+  if (!is.null(tree[["data"]][["forecast"]])) {
+    data[["forecast"]] <- tree[["data"]][["forecast"]]
+    # Named after the terms, as add_forecast_input() names them; a dataset
+    # without series attributes keeps no names.
+    if (!is.null(data[["forecast"]][["x"]]) &&
+        ncol(data[["forecast"]][["x"]]) == length(model[["deterministic"]])) {
+      colnames(data[["forecast"]][["x"]]) <- model[["deterministic"]]
+    }
+  }
+  test <- tree[["data"]][["test"]]
+  if (!is.null(test)) {
+    data[["test"]] <- list("x" = test[["y"]], "y" = test[["f_obs"]])
+    data[["test"]] <- data[["test"]][!vapply(data[["test"]], is.null, logical(1))]
   }
 
   result <- list("data" = data, "model" = model)
@@ -394,7 +442,7 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
           block[[j]] <- .to_r_order(block[[j]], order)
         }
       }
-      if (i %in% c("lambda", "a")) {
+      if (i %in% .normal_blocks) {
         names(block)[names(block) == "v_inv"] <- "vinv"
       }
       priors[[i]] <- block
@@ -438,6 +486,18 @@ from_bayests_tree.favarmodel <- function(tree, ...) {
     for (j in c("sigma", "omega", "omega_log_zero")) {
       posterior[["lambda"]][[j]] <- .permute_loadings(posterior[["lambda"]][[j]],
                                                       order, columns = TRUE, back = TRUE)
+    }
+  }
+  # The coefficients of the deterministic terms, named "<series>.<term>" as
+  # add_posterior_coefficients() names them. Draws keep no names in a file.
+  for (i in c("c", "c_obs")) {
+    draws <- posterior[[i]][["coeffs"]]
+    series <- colnames(data[[if (i == "c") "x" else "y"]])
+    if (!is.null(draws) && !is.null(model[["deterministic"]])) {
+      labels <- .deterministic_draw_names(series, model[["deterministic"]])
+      if (length(labels) == ncol(draws)) {
+        colnames(posterior[[i]][["coeffs"]]) <- labels
+      }
     }
   }
   if (!is.null(posterior)) {
