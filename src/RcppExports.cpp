@@ -220,6 +220,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// lambda_row_major_order_r
+Rcpp::IntegerVector lambda_row_major_order_r(const int m, const int n);
+RcppExport SEXP _dfmtools_lambda_row_major_order_r(SEXP mSEXP, SEXP nSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< const int >::type n(nSEXP);
+    rcpp_result_gen = Rcpp::wrap(lambda_row_major_order_r(m, n));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_DfmNormalGammaCoefficients", (DL_FUNC) &_dfmtools_DfmNormalGammaCoefficients, 1},
@@ -241,6 +253,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dfmtools_FavarNormalWishartCoefficients", (DL_FUNC) &_dfmtools_FavarNormalWishartCoefficients, 1},
     {"_dfmtools_FavarNormalWishartForecasts", (DL_FUNC) &_dfmtools_FavarNormalWishartForecasts, 1},
     {"_dfmtools_FavarNormalWishartLogLik", (DL_FUNC) &_dfmtools_FavarNormalWishartLogLik, 1},
+    {"_dfmtools_lambda_row_major_order_r", (DL_FUNC) &_dfmtools_lambda_row_major_order_r, 2},
     {NULL, NULL, 0}
 };
 

@@ -77,3 +77,7 @@
     .Call(`_dfmtools_FavarNormalWishartLogLik`, object)
 }
 
+.lambda_row_major_order <- function(m, n) {
+    .Call(`_dfmtools_lambda_row_major_order_r`, m, n)
+}
+

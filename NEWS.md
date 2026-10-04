@@ -1,5 +1,28 @@
 # dfmtools 0.1.0
 
+* **Factor models can be written to BayesTS model files and read back.**
+  `write_to_hdf5()` has methods for a `'dfmodel'` and a `'favarmodel'`. The
+  file can be estimated, forecast and scored by the BayesTS command line, with
+  bvartools' `bayests_files()` for instance. bvartools'
+  `read_model_from_hdf5()` returns the model it was written from. A
+  `'modellist'` holding factor models beside VARs and VECs is written and read
+  back with bvartools' folder functions, in its order and with every class
+  intact.
+  - **Translation.** The file follows BayesTS's layout, not the R object's:
+    - `m` and `n` become `k` and `n_factors`. BayesTS would read `m` and `n`
+      as a VAR's exogenous variables and deterministic terms.
+    - The panel becomes `/data/train/y`.
+    - `u` and `v` become `/priors/u_sigma` and `/priors/v_sigma`.
+    - The free loadings are put in the sampler's order, row by row. This uses
+      the samplers' own permutation, so a model read back gives the same draws
+      as the original, under a prior that is not the same in both orders.
+  - **Normalisation.** The panel's centres and scales are kept, so a model
+    read back can still be interpreted on the scale of its data.
+  - **Resampled draws.** The draws that `add_sign_zero_restrictions()` keeps
+    no longer gain coda's placeholder column names `var1`, `var2`, ….
+  - **Dependency.** This needs a bvartools that exports
+    `write_bayests_tree()` and `from_bayests_tree()`.
+
 * **Factor augmented VARs can be identified by sign and zero restrictions.**
   - **The function.** `add_sign_zero_restrictions()` has a method for a
     `'favarmodel'`. It rotates the shocks of the state equation with the

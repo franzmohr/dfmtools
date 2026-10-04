@@ -17,6 +17,8 @@
 #' @importFrom bvartools add_sign_zero_restrictions
 #' @importFrom bvartools expected_model_size
 #' @importFrom bvartools time_variation_test
+#' @importFrom bvartools write_to_hdf5
+#' @importFrom bvartools from_bayests_tree
 ## usethis namespace: end
 NULL
 
