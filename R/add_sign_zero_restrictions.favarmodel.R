@@ -211,7 +211,11 @@ add_sign_zero_restrictions.favarmodel <- function(object, restrictions, draws = 
 .favar_resample <- function(posterior, index, store) {
   take <- function(x) {
     if ((is.matrix(x) || coda::is.mcmc(x)) && NROW(x) == store) {
-      return(coda::mcmc(as.matrix(x)[index, , drop = FALSE], start = 1,
+      # Not as.matrix(), which names the columns of an unnamed chain "var1",
+      # "var2", ... -- names no other draw has, and that a model file does not
+      # keep.
+      draws <- matrix(unclass(x), nrow = NROW(x), dimnames = dimnames(x))
+      return(coda::mcmc(draws[index, , drop = FALSE], start = 1,
                         end = length(index), thin = 1))
     }
     x

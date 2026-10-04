@@ -21,6 +21,8 @@ S3method(add_sign_zero_restrictions,favarmodel)
 S3method(expected_model_size,dfmodel)
 S3method(expected_model_size,favarmodel)
 S3method(fevd,favarmodel)
+S3method(from_bayests_tree,dfmodel)
+S3method(from_bayests_tree,favarmodel)
 S3method(get_forecast_errors,dfmodel)
 S3method(get_forecast_errors,favarmodel)
 S3method(irf,favarmodel)
@@ -29,6 +31,8 @@ S3method(predict,favarmodel)
 S3method(prepare_forecast_input,dfmodel)
 S3method(prepare_forecast_input,favarmodel)
 S3method(time_variation_test,dfmodel)
+S3method(write_to_hdf5,dfmodel)
+S3method(write_to_hdf5,favarmodel)
 export(create_dfmodel)
 export(create_favarmodel)
 import(methods)
@@ -46,10 +50,12 @@ importFrom(bvartools,
   add_sign_zero_restrictions,
   expected_model_size,
   fevd,
+  from_bayests_tree,
   get_forecast_errors,
   irf,
   prepare_forecast_input,
-  time_variation_test
+  time_variation_test,
+  write_to_hdf5
 )
 importFrom(stats,predict)
 useDynLib(dfmtools, .registration = TRUE)
