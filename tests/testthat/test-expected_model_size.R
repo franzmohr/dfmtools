@@ -36,7 +36,7 @@ expect_size_matches <- function(object, label) {
   before <- expected_model_size(object)
   set.seed(1)
   fitted <- add_posterior_loglik(add_posterior_coefficients(object))
-  fitted <- add_posterior_forecasts(fitted, n_ahead = 3)
+  fitted <- add_posterior_forecasts(add_forecast_input(fitted, n_ahead = 3))
   after <- expected_model_size(fitted)
 
   expect_identical(predicted_dims(after), posterior_dims(fitted), info = label)

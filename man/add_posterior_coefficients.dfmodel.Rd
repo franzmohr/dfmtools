@@ -40,6 +40,10 @@ path period by period with all \eqn{N} factors of a period together, so
 \code{t(matrix(draw, n, tt))} recovers a \eqn{T \times N} path. \code{a} holds the
 transition coefficients as the \eqn{N \times Np} matrix \eqn{[A_1, \dots, A_p]}
 column by column.
+
+A model with deterministic terms has element \code{c} as well, the \eqn{M \times D}
+coefficient matrix \eqn{C} of the measurement equation column by column, its columns named
+\code{"<series>.<term>"}.
 }
 \description{
 Forwards model input to posterior simulation functions for dynamic factor models.

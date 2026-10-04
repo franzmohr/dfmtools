@@ -11,6 +11,8 @@
   u = list(shape = 5, rate = 4),
   v = list(df = NULL, scale = NULL),
   slow = NULL,
+  c = list(vinv = 0.01),
+  c_obs = list(vinv = 0.01),
   ...
 )
 }
@@ -36,6 +38,14 @@ full matrix; see 'Details'.}
 the period, as a character or integer vector, or a named list with elements
 \code{series} and \code{vinv}. Defaults to \code{NULL}, no restriction. See
 'Details'.}
+
+\item{c}{a named list of prior specifications for the coefficients of the
+panel's deterministic terms, with element \code{vinv}, the prior precision.
+Their prior mean is zero. Only read for a model with deterministic terms, see
+\code{\link{create_favarmodel}}. Defaults to 0.01.}
+
+\item{c_obs}{the same for the deterministic terms of the observed variables,
+the mean the observed block of the state deviates from. Defaults to 0.01.}
 
 \item{...}{not used.}
 }

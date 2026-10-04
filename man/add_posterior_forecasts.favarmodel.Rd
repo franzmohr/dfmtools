@@ -4,13 +4,17 @@
 \alias{add_posterior_forecasts.favarmodel}
 \title{Forecast a Factor Augmented VAR}
 \usage{
-\method{add_posterior_forecasts}{favarmodel}(object, n_ahead = 10, ...)
+\method{add_posterior_forecasts}{favarmodel}(object, n_ahead = NULL, ...)
 }
 \arguments{
 \item{object}{an object of class \code{'favarmodel'} containing posterior
-draws.}
+draws, usually the result of a call to
+\code{\link{add_posterior_coefficients.favarmodel}} and
+\code{\link{add_forecast_input.favarmodel}}.}
 
-\item{n_ahead}{an integer of the forecast horizon. Defaults to 10.}
+\item{n_ahead}{deprecated. The forecast horizon is set by
+\code{\link{add_forecast_input.favarmodel}}, as for a bvartools model; given
+here, it is passed on to that function with a warning.}
 
 \item{...}{not used.}
 }
@@ -27,11 +31,19 @@ being \eqn{h \times k}.
 Simulates one forecast path per posterior draw.
 }
 \details{
-There is no forecast design matrix to supply, because a factor
-augmented VAR has no regressors. Each draw's path is the transition run
-forward from the last \eqn{p} states,
+The forecast takes the route it takes for a bvartools model: the
+horizon and the out-of-sample data are set by
+\code{\link{add_forecast_input.favarmodel}}, this function simulates the
+forecasts, and \code{\link[=predict.favarmodel]{predict}} collects them.
+
+A factor augmented VAR has no lagged variables among its regressors, so the
+only out-of-sample data it reads are its deterministic terms, where it has
+any. Each draw's path is the transition run forward from the last \eqn{p}
+states,
 \deqn{s_{T+h} = \sum_{j=1}^{p} \Phi_j s_{T+h-j} + v_{T+h},}
-with an innovation drawn at every step, and the panel read off the loadings.
+with an innovation drawn at every step, the observed variables their
+deviation plus \eqn{C_{obs} d_{T+h}}, and the panel read off the loadings
+plus \eqn{C d_{T+h}}.
 
 The horizon covers the \emph{whole} state, observed block included. That is
 the difference from a dynamic factor model's forecast and it is the point of
@@ -46,8 +58,12 @@ The state path is therefore required, and is what
 There is no \code{add_predictive_loglik} method for this class, so a
 forecast made here is not scored against what its horizon realised the way
 \code{\link{add_predictive_loglik.dfmodel}} scores a dynamic factor model's;
-see there for why. The draws returned here are what a score would be computed
-from.
+see there for why. \code{\link{add_forecast_errors.favarmodel}} compares the
+draws with what was realised.
+
+Earlier versions set the horizon here, with \code{n_ahead}, and forecast ten
+periods ahead when it was not given. Both still work, through
+\code{\link{add_forecast_input.favarmodel}} and with a warning.
 }
 \examples{
 
@@ -64,7 +80,8 @@ model <- add_priors(model)
 model <- add_initial_values(model)
 model <- add_posterior_coefficients(model)
 
-model <- add_posterior_forecasts(model, n_ahead = 4)
+model <- add_forecast_input(model, n_ahead = 4)
+model <- add_posterior_forecasts(model)
 dim(model$posterior$forecast$forecasts)
 
 }

@@ -213,7 +213,7 @@ test_that("forecasts and the log likelihood take their own slice of the path", {
   sim <- prepared$sim
 
   object <- add_posterior_coefficients(prepared$object)
-  object <- add_posterior_forecasts(object, n_ahead = 5)
+  object <- add_posterior_forecasts(add_forecast_input(object, n_ahead = 5))
   object <- add_posterior_loglik(object)
 
   # The forecast holds the coefficients at their last in-sample period, so the
@@ -231,7 +231,7 @@ test_that("forecasts and the log likelihood take their own slice of the path", {
   # rather than derivable from it.
   without <- object
   without$posterior$factors <- NULL
-  expect_error(add_posterior_forecasts(without, n_ahead = 5), "factors")
+  expect_error(add_posterior_forecasts(add_forecast_input(without, n_ahead = 5)), "factors")
   expect_error(add_posterior_loglik(without), "factors")
 })
 

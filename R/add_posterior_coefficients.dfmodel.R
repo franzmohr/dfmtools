@@ -79,6 +79,10 @@
 #' transition coefficients as the \eqn{N \times Np} matrix \eqn{[A_1, \dots, A_p]}
 #' column by column.
 #'
+#' A model with deterministic terms has element \code{c} as well, the \eqn{M \times D}
+#' coefficient matrix \eqn{C} of the measurement equation column by column, its columns named
+#' \code{"<series>.<term>"}.
+#'
 #' @references
 #'
 #' Chan, J., Koop, G., Poirier, D. J., & Tobias J. L. (2019). \emph{Bayesian econometric methods}
@@ -150,7 +154,15 @@ add_posterior_coefficients.dfmodel <- function(object, posterior_function = NULL
         # the random walk innovations -- one number per coefficient where the
         # coefficients drift, one per series or factor under stochastic
         # volatility -- and it is a chain like any other.
-        for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv")) {
+        # The coefficients of the deterministic terms, one column per series
+        # and term, named "<series>.<term>" in the order vec(C) puts them.
+        if (!is.null(object[["posterior"]][["c"]][["coeffs"]])) {
+          colnames(object[["posterior"]][["c"]][["coeffs"]]) <-
+            .deterministic_draw_names(colnames(object[["data"]][["x"]]),
+                                      object[["model"]][["deterministic"]])
+        }
+
+        for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv", "c")) {
           for (j in c("coeffs", "sigma")) {
             if (!is.null(object[["posterior"]][[i]][[j]])) {
               object[["posterior"]][[i]][[j]] <- .mcmc_draws(object[["model"]], object[["posterior"]][[i]][[j]])

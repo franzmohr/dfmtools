@@ -34,7 +34,7 @@ scored_setup <- function(n_ahead = 3, tvp = FALSE, error = "gamma",
   object <- add_initial_values(object)
   set.seed(24)
   object <- add_posterior_coefficients(object)
-  object <- add_posterior_forecasts(object, n_ahead = n_ahead)
+  object <- add_posterior_forecasts(add_forecast_input(object, n_ahead = n_ahead))
 
   list(object = object, test = test, sim = sim)
 }

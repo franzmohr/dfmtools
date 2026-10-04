@@ -125,6 +125,11 @@ bayests::DfmNormalGammaInput read_input(const Rcpp::List &object) {
     input.initial.v_sigma_inv = diagonal_of(initial, "vinv");
   }
 
+  // Deterministic terms: data$deterministic, data$forecast$x, and the prior and
+  // starting value of their coefficients C.
+  read_deterministic_terms(object, input.spec, input.train, input.forecast);
+  read_normal_block(object, "c", input.c_prior, input.initial.c);
+
   return input;
 }
 
@@ -156,6 +161,8 @@ bayests::DfmNormalGammaDraws read_draws(const Rcpp::List &object) {
     read_draws_if_present(Rcpp::List(posterior["v_sigma_inv"]), "coeffs", draws.v_sigma_inv);
   }
 
+  read_block_draws(posterior, "c", draws.c);
+
   return draws;
 }
 
@@ -180,6 +187,8 @@ Rcpp::List write_draws(const bayests::DfmNormalGammaDraws &draws) {
   if (draws.has_a()) {
     posteriors["a"] = Rcpp::List::create(Rcpp::Named("coeffs") = draws_to_r(draws.a));
   }
+
+  posteriors = with_block_draws(posteriors, "c", draws.c);
 
   return posteriors;
 }

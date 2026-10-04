@@ -45,7 +45,10 @@
 #' them is nearly always the call rather than the chain, so they report it and
 #' stop.
 #'
-#' @return The model object with the result attached under \code{posterior}.
+#' @return The model object with the result attached under \code{posterior}. A
+#' model with deterministic terms has elements \code{c}, the panel's coefficients
+#' on them, and \code{c_obs}, those of the observed variables, each column by
+#' column with its columns named \code{"<series>.<term>"}.
 #'
 #' @examples
 #'
@@ -103,7 +106,18 @@ add_posterior_coefficients.favarmodel <- function(object, posterior_function = N
 
     # Every block is a chain like any other, so every one becomes an mcmc
     # object -- the convention the dynamic factor models here already set.
-    for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv")) {
+    # The coefficients of the deterministic terms, named "<series>.<term>" in
+    # the order vec() puts them: the panel's under `c`, the observed
+    # variables' under `c_obs`.
+    terms <- object[["model"]][["deterministic"]]
+    if (!is.null(object[["posterior"]][["c"]][["coeffs"]])) {
+      colnames(object[["posterior"]][["c"]][["coeffs"]]) <-
+        .deterministic_draw_names(colnames(object[["data"]][["x"]]), terms)
+      colnames(object[["posterior"]][["c_obs"]][["coeffs"]]) <-
+        .deterministic_draw_names(colnames(object[["data"]][["y"]]), terms)
+    }
+
+    for (i in c("lambda", "factors", "a", "u_sigma_inv", "v_sigma_inv", "c", "c_obs")) {
       if (!is.null(object[["posterior"]][[i]][["coeffs"]])) {
         object[["posterior"]][[i]][["coeffs"]] <-
           .mcmc_draws(object[["model"]], object[["posterior"]][[i]][["coeffs"]])

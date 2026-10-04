@@ -5,6 +5,7 @@
 
 #include <RcppArmadillo.h>
 
+#include "bayests/data.h"
 #include "bayests/priors.h"
 #include "bayests/results.h"
 #include "bayests/spec.h"
@@ -115,6 +116,69 @@ inline bayests::GammaPrior read_gamma_prior(const Rcpp::List &group)
   read_vec_if_present(group, "shape", prior.shape);
   read_vec_if_present(group, "rate", prior.rate);
   return prior;
+}
+
+/// The deterministic terms of a factor model: `data$deterministic`, one row per
+/// period and one column per term, which create_dfmodel() and
+/// create_favarmodel() build, and `data$forecast$x`, the same terms over the
+/// horizon, which add_forecast_input() adds. Their count is the core's `n`, so
+/// a model without them -- no `data$deterministic` -- has none, and nothing
+/// below reads the other two.
+inline void read_deterministic_terms(const Rcpp::List &object, bayests::VarSpec &spec,
+                                     bayests::TrainData &train, bayests::ForecastData &forecast)
+{
+  if (!has(object, "data")) {
+    return;
+  }
+  const Rcpp::List data = object["data"];
+  read_mat_if_present(data, "deterministic", train.x);
+  spec.n = static_cast<int>(train.x.n_cols);
+  if (has(data, "forecast")) {
+    const Rcpp::List horizon = data["forecast"];
+    read_mat_if_present(horizon, "x", forecast.x);
+  }
+}
+
+/// A normal coefficient block's prior at `priors$<name>` -- `mu` and `vinv`, the
+/// R spelling of the core's `v_inv` -- and its starting value at
+/// `initial$<name>`, each where present. An absent mean is zero.
+inline void read_normal_block(const Rcpp::List &object, const char *name,
+                              bayests::NormalPrior &prior, arma::vec &initial)
+{
+  if (has(object, "priors")) {
+    const Rcpp::List priors = object["priors"];
+    if (has(priors, name)) {
+      const Rcpp::List group = priors[name];
+      read_mat_if_present(group, "vinv", prior.v_inv);
+      read_vec_if_present(group, "mu", prior.mu);
+      if (prior.mu.is_empty()) {
+        prior.mu = arma::vec(prior.v_inv.n_rows, arma::fill::zeros);
+      }
+    }
+  }
+  if (has(object, "initial")) {
+    const Rcpp::List start = object["initial"];
+    read_vec_if_present(start, name, initial);
+  }
+}
+
+/// `posterior$<name>$coeffs`, where present, as the core keeps draws.
+inline void read_block_draws(const Rcpp::List &posterior, const char *name, arma::mat &out)
+{
+  if (has(posterior, name)) {
+    read_draws_if_present(Rcpp::List(posterior[name]), "coeffs", out);
+  }
+}
+
+/// The posterior list with `draws` added under `name` as a `coeffs` block, or
+/// unchanged where there are none -- which is every model without
+/// deterministic terms.
+inline Rcpp::List with_block_draws(Rcpp::List posteriors, const char *name, const arma::mat &draws)
+{
+  if (draws.n_elem > 0) {
+    posteriors.push_back(Rcpp::List::create(Rcpp::Named("coeffs") = draws_to_r(draws)), name);
+  }
+  return posteriors;
 }
 
 /// The forecast group of the posterior, with `value` under `name`.

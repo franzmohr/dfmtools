@@ -18,6 +18,12 @@
 #' the period, as a character or integer vector, or a named list with elements
 #' \code{series} and \code{vinv}. Defaults to \code{NULL}, no restriction. See
 #' 'Details'.
+#' @param c a named list of prior specifications for the coefficients of the
+#' panel's deterministic terms, with element \code{vinv}, the prior precision.
+#' Their prior mean is zero. Only read for a model with deterministic terms, see
+#' \code{\link{create_favarmodel}}. Defaults to 0.01.
+#' @param c_obs the same for the deterministic terms of the observed variables,
+#' the mean the observed block of the state deviates from. Defaults to 0.01.
 #' @param ... not used.
 #'
 #' @details The idiosyncratic precisions get independent gamma priors, one per
@@ -84,6 +90,8 @@ add_priors.favarmodel <- function(object,
                                   u = list(shape = 5, rate = 4),
                                   v = list(df = NULL, scale = NULL),
                                   slow = NULL,
+                                  c = list(vinv = 0.01),
+                                  c_obs = list(vinv = 0.01),
                                   ...) {
 
   m <- object[["model"]][["m"]]
@@ -151,6 +159,14 @@ add_priors.favarmodel <- function(object,
     .check_coefficient_prior(a, "a")
     object[["priors"]][["a"]] <- list(mu = matrix(0, n_a),
                                       vinv = diag(a[["vinv"]], n_a))
+  }
+
+  # Deterministic terms: C for the panel, as in a dynamic factor model, and
+  # C_obs for the observed block. Neither is looked at for a model without them.
+  n_det <- length(object[["model"]][["deterministic"]])
+  if (n_det > 0) {
+    object[["priors"]][["c"]] <- .deterministic_prior(c, m, n_det, "c")
+    object[["priors"]][["c_obs"]] <- .deterministic_prior(c_obs, n_obs, n_det, "c_obs")
   }
 
   # One gamma per panel series, built by the same function that builds a

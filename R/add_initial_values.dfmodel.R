@@ -39,6 +39,12 @@
 #' Such a panel is worth reordering rather than starting from, so the function says so and falls
 #' back to the prior draw.
 #'
+#' The coefficients of deterministic terms, where the model has them, start at their least squares
+#' estimate under either method, and the principal components are taken of what those terms leave
+#' of the panel. A persistent factor can carry part of a level or a trend for a small price, so the
+#' constant and the trend trade off against the level of the factors along a direction the sampler
+#' moves slowly; a chain started at a prior draw would spend a long burn-in walking back from it.
+#'
 #' What this removes is the cause rather than the possibility. A start on the right side of the
 #' likelihood is not a guarantee on a sample too short or too weakly correlated to hold the chain
 #' there, and on a four-series panel of sixty quarters the mirror is still reached occasionally.
@@ -117,12 +123,27 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
 
   tvp <- isTRUE(object$model$tvp)
 
+  # C, the coefficients of the deterministic terms, at their least squares
+  # values under either method -- see .deterministic_initial() for why not at a
+  # prior draw. The principal components below are then taken of what the
+  # deterministic terms leave of the panel, which is what the factors have to
+  # explain. Draws nothing, so a model without deterministic terms starts where
+  # it always did.
+  x_common <- object$data$x
+  c_start <- NULL
+  if (!is.null(object$data$deterministic)) {
+    c_start <- .deterministic_initial(object$data$x, object$data$deterministic)
+    x_common <- unclass(as.matrix(object$data$x)) -
+      unclass(as.matrix(object$data$deterministic)) %*%
+      t(matrix(c_start, nrow = object$model$m))
+  }
+
   # lambda, the block whose starting value decides which mode the sampler
   # ends up in rather than only how long it takes to get there.
   n_lambda <- nrow(object$priors$lambda$vinv)
   lambda <- NULL
   if (method == "pca") {
-    lambda <- .dfm_pca_initial(object$data$x, object$model$n, n_lambda)
+    lambda <- .dfm_pca_initial(x_common, object$model$n, n_lambda)
   }
   if (is.null(lambda)) {
     lambda <- .dfm_normal_initial(0, object$priors$lambda$vinv, n_lambda)
@@ -184,6 +205,8 @@ add_initial_values.dfmodel <- function(object, method = "pca", ...){
                nrow = n_a, ncol = 1)
     }
   }
+
+  object$initial$c <- c_start
 
   # The seed of the posterior simulation, unless the model has one already. It is
   # drawn from R's generator, so set.seed() before this call makes it

@@ -81,14 +81,14 @@ test_that("a list of dynamic factor models is simulated on two workers", {
 
   # Forecasts are not seeded per model; they draw from streams of the workers
   # that set.seed() fixes.
+  parallel <- add_forecast_input(parallel, n_ahead = 2)
   set.seed(5)
-  first <- add_posterior_forecasts(parallel, n_ahead = 2, cores = 2)
+  first <- add_posterior_forecasts(parallel, cores = 2)
   set.seed(5)
-  second <- add_posterior_forecasts(parallel, n_ahead = 2, cores = 2)
+  second <- add_posterior_forecasts(parallel, cores = 2)
   expect_identical(posteriors(first, "forecast"), posteriors(second, "forecast"))
   expect_identical(lapply(posteriors(first, "forecast"), dim),
-                   lapply(posteriors(add_posterior_forecasts(parallel, n_ahead = 2),
-                                     "forecast"), dim))
+                   lapply(posteriors(add_posterior_forecasts(parallel), "forecast"), dim))
 })
 
 test_that("a list of factor augmented VARs is simulated on two workers", {

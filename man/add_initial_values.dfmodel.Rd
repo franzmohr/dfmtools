@@ -49,6 +49,12 @@ at, and it fails where the first \eqn{N} series hardly load on the leading compo
 Such a panel is worth reordering rather than starting from, so the function says so and falls
 back to the prior draw.
 
+The coefficients of deterministic terms, where the model has them, start at their least squares
+estimate under either method, and the principal components are taken of what those terms leave
+of the panel. A persistent factor can carry part of a level or a trend for a small price, so the
+constant and the trend trade off against the level of the factors along a direction the sampler
+moves slowly; a chain started at a prior draw would spend a long burn-in walking back from it.
+
 What this removes is the cause rather than the possibility. A start on the right side of the
 likelihood is not a guarantee on a sample too short or too weakly correlated to hold the chain
 there, and on a four-series panel of sixty quarters the mirror is still reached occasionally.

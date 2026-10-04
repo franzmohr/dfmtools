@@ -3,15 +3,27 @@
 #' Simulates one forecast path per posterior draw.
 #'
 #' @param object an object of class \code{'favarmodel'} containing posterior
-#' draws.
-#' @param n_ahead an integer of the forecast horizon. Defaults to 10.
+#' draws, usually the result of a call to
+#' \code{\link{add_posterior_coefficients.favarmodel}} and
+#' \code{\link{add_forecast_input.favarmodel}}.
+#' @param n_ahead deprecated. The forecast horizon is set by
+#' \code{\link{add_forecast_input.favarmodel}}, as for a bvartools model; given
+#' here, it is passed on to that function with a warning.
 #' @param ... not used.
 #'
-#' @details There is no forecast design matrix to supply, because a factor
-#' augmented VAR has no regressors. Each draw's path is the transition run
-#' forward from the last \eqn{p} states,
+#' @details The forecast takes the route it takes for a bvartools model: the
+#' horizon and the out-of-sample data are set by
+#' \code{\link{add_forecast_input.favarmodel}}, this function simulates the
+#' forecasts, and \code{\link[=predict.favarmodel]{predict}} collects them.
+#'
+#' A factor augmented VAR has no lagged variables among its regressors, so the
+#' only out-of-sample data it reads are its deterministic terms, where it has
+#' any. Each draw's path is the transition run forward from the last \eqn{p}
+#' states,
 #' \deqn{s_{T+h} = \sum_{j=1}^{p} \Phi_j s_{T+h-j} + v_{T+h},}
-#' with an innovation drawn at every step, and the panel read off the loadings.
+#' with an innovation drawn at every step, the observed variables their
+#' deviation plus \eqn{C_{obs} d_{T+h}}, and the panel read off the loadings
+#' plus \eqn{C d_{T+h}}.
 #'
 #' The horizon covers the \emph{whole} state, observed block included. That is
 #' the difference from a dynamic factor model's forecast and it is the point of
@@ -26,8 +38,12 @@
 #' There is no \code{add_predictive_loglik} method for this class, so a
 #' forecast made here is not scored against what its horizon realised the way
 #' \code{\link{add_predictive_loglik.dfmodel}} scores a dynamic factor model's;
-#' see there for why. The draws returned here are what a score would be computed
-#' from.
+#' see there for why. \code{\link{add_forecast_errors.favarmodel}} compares the
+#' draws with what was realised.
+#'
+#' Earlier versions set the horizon here, with \code{n_ahead}, and forecast ten
+#' periods ahead when it was not given. Both still work, through
+#' \code{\link{add_forecast_input.favarmodel}} and with a warning.
 #'
 #' @return The model object with element \code{forecast} added to its
 #' \code{posterior}. It holds one row per draw and
@@ -52,11 +68,12 @@
 #' model <- add_initial_values(model)
 #' model <- add_posterior_coefficients(model)
 #'
-#' model <- add_posterior_forecasts(model, n_ahead = 4)
+#' model <- add_forecast_input(model, n_ahead = 4)
+#' model <- add_posterior_forecasts(model)
 #' dim(model$posterior$forecast$forecasts)
 #'
 #' @export
-add_posterior_forecasts.favarmodel <- function(object, n_ahead = 10, ...) {
+add_posterior_forecasts.favarmodel <- function(object, n_ahead = NULL, ...) {
 
   if (is.null(object[["posterior"]])) {
     stop("Argument 'object' does not contain posterior draws. Use ",
@@ -66,13 +83,13 @@ add_posterior_forecasts.favarmodel <- function(object, n_ahead = 10, ...) {
     stop("Argument 'object' does not contain posterior draws of the factors, ",
          "which a factor augmented VAR forecasts from.")
   }
-  .check_whole_number(n_ahead, "n_ahead", 1)
 
   class_of_object <- class(object)
 
-  # The horizon is the whole of what the sampler needs; there is no forecast
-  # design matrix for a model without regressors.
-  object[["model"]][["h"]] <- as.integer(n_ahead)
+  # The horizon and the deterministic terms of the forecast periods, set by
+  # add_forecast_input() -- or here, the old way, with a warning.
+  object <- .legacy_forecast_horizon(object, n_ahead)
+  .check_forecast_input(object)
 
   algorithm <- object[["model"]][["algorithm"]]
   if (is.null(algorithm)) {

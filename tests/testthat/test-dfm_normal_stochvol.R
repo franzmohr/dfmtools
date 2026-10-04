@@ -243,7 +243,7 @@ test_that("forecasts and the log-likelihood dispatch to the sv sampler", {
 
   set.seed(3)
   object <- add_posterior_coefficients(prep$object)
-  object <- add_posterior_forecasts(object, n_ahead = n_ahead)
+  object <- add_posterior_forecasts(add_forecast_input(object, n_ahead = n_ahead))
 
   expect_s3_class(object$posterior$forecast$forecasts, "mcmc")
   expect_equal(dim(object$posterior$forecast$forecasts), c(iterations, n_ahead * m))
@@ -256,14 +256,14 @@ test_that("forecasts and the log-likelihood dispatch to the sv sampler", {
   # Both refuse an object without the factor path, which neither can recompute.
   no_factors <- object
   no_factors$posterior$factors <- NULL
-  expect_error(add_posterior_forecasts(no_factors, n_ahead = 2), "factors")
+  expect_error(add_posterior_forecasts(add_forecast_input(no_factors, n_ahead = 2)), "factors")
   expect_error(add_posterior_loglik(no_factors), "factors")
 
   # And an unknown algorithm is reported rather than silently taken for the
   # gamma one, which is what the dispatch added to these two is for.
   wrong <- object
   wrong$model$algorithm <- "DfmSomethingElse"
-  expect_error(add_posterior_forecasts(wrong, n_ahead = 2), "not supported")
+  expect_error(add_posterior_forecasts(add_forecast_input(wrong, n_ahead = 2)), "not supported")
   expect_error(add_posterior_loglik(wrong), "not supported")
 })
 
